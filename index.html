@@ -29,7 +29,7 @@
             height: 2.25rem;
             stroke-width: 2;
         }
-        /* NEW: Styles for quiz feedback */
+        /* Styles for quiz feedback */
         .quiz-question-wrapper.correct {
             border-left-color: #22c55e; /* green-500 */
             background-color: #f0fdf4; /* green-50 */
@@ -101,7 +101,7 @@
         const state = {
             activeTab: 'home',
             uploadedImageBase64: null,
-            currentTest: null // NEW: To store test data for grading
+            currentTest: null // To store test data for grading
         };
         const mainContent = document.getElementById('main-content');
         const sidebarNav = document.getElementById('sidebar-nav');
@@ -272,17 +272,18 @@
             if (e.target.id === 'image-upload') handleImageChange(e);
         });
         
-        // NEW: Event listener for quiz submission
-        mainContent.addEventListener('submit', (e) => {
+        // MODIFIED: Event listener for quiz submission is now async
+        mainContent.addEventListener('submit', async (e) => {
             if (e.target.id === 'quiz-form') {
                 e.preventDefault();
-                handleQuizSubmit(e.target);
+                await handleQuizSubmit(e.target); // Await the async grading
             }
         });
 
         // --- API & BUSINESS LOGIC ---
         
         async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+            //
             try {
                 const response = await fetch('/.netlify/functions/generate', {
                     method: 'POST',
@@ -357,8 +358,8 @@
             }
         }
 
-        // MODIFIED: handleGenerateLearningHelp
         async function handleGenerateLearningHelp() {
+            // (This function remains unchanged from the previous step)
             const topic = document.getElementById('learn-topic').value;
             const errorEl = document.getElementById('lh-error');
             const outputEl = document.getElementById('lh-output');
@@ -374,9 +375,8 @@
             button.disabled = true;
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
             outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
-            state.currentTest = null; // Clear any old test data
+            state.currentTest = null; 
 
-            // MODIFIED: Updated prompt for structured quiz JSON
             const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
 Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test".
 - "learning_objectives": A bulleted list of key things a student should know.
@@ -392,13 +392,9 @@ The topic is: ${topic}`;
                 const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
                 const result = JSON.parse(jsonText);
                 
-                // NEW: Store test data in state for grading
                 state.currentTest = result.practice_test || [];
-                
-                // NEW: Generate interactive quiz HTML
                 const quizHtml = renderPracticeTest(state.currentTest);
 
-                // MODIFIED: Updated output HTML to include the interactive quiz
                 outputEl.innerHTML = `
                     <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
                         ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
@@ -407,7 +403,8 @@ The topic is: ${topic}`;
                         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                              <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
                              <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                             <div id="quiz-results" class="mb-6"></div> ${quizHtml}
+                             <div id="quiz-results" class="mb-6"></div>
+                             ${quizHtml}
                         </div>
                     </div>
                 `;
@@ -523,8 +520,8 @@ The topic is: ${topic}`;
             return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
         }
         
-        // NEW: Function to render the interactive quiz form
         function renderPracticeTest(testData) {
+            // (This function remains unchanged)
             if (!testData || testData.length === 0) {
                 return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
             }
@@ -554,7 +551,6 @@ The topic is: ${topic}`;
                     `;
                 }
                 html += `</div>`;
-                // NEW: Feedback elements (hidden by default)
                 html += `
                     <div class="quiz-feedback correct">
                         <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
@@ -563,7 +559,7 @@ The topic is: ${topic}`;
                         <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
                     </div>
                 `;
-                html += `</div>`; // Close wrapper
+                html += `</div>`;
             });
 
             html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
@@ -571,25 +567,62 @@ The topic is: ${topic}`;
             return html;
         }
 
-        // NEW: Function to handle quiz submission and grading
-        function handleQuizSubmit(formElement) {
+        // MODIFIED: Function is now async and uses AI for grading
+        async function handleQuizSubmit(formElement) {
             if (!state.currentTest) return;
 
             const formData = new FormData(formElement);
-            let score = 0;
+            const submitButton = formElement.querySelector('button[type="submit"]');
+
+            // Disable button and show loading state
+            submitButton.disabled = true;
+            submitButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Grading...`;
             
-            state.currentTest.forEach((question, index) => {
+            // Disable all inputs
+            formElement.querySelectorAll('input').forEach(input => input.disabled = true);
+            
+            // Build an array of promises for grading each question
+            const gradingPromises = state.currentTest.map((question, index) => {
                 const userAnswer = formData.get(`question_${index}`);
                 const correctAnswer = question.correct_answer;
+
+                if (!userAnswer) {
+                    return Promise.resolve(false); // No answer is incorrect
+                }
+
+                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                    // Simple boolean check for multiple choice
+                    return Promise.resolve(userAnswer === correctAnswer);
+                } 
+                
+                if (question.type === 'ShortAnswer') {
+                    // Check for a simple, exact match first to save an API call
+                    if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
+                        return Promise.resolve(true);
+                    }
+                    // If no exact match, ask the AI to grade it
+                    const prompt = `You are an AI grader. A student was asked the following question: "${question.question}". The model answer is: "${correctAnswer}". The student provided this answer: "${userAnswer}". Is the student's answer substantially correct? Your response must be a single word: "Correct" or "Incorrect".`;
+                    return fetchWithRetry(prompt, false); // Returns a string "Correct" or "Incorrect"
+                }
+            });
+
+            // Wait for all grading (local and AI) to complete
+            const results = await Promise.all(gradingPromises);
+
+            let score = 0;
+            
+            // Now, iterate over the results and update the UI
+            results.forEach((result, index) => {
+                const question = state.currentTest[index];
                 const questionBlock = document.getElementById(`question-block-${index}`);
                 
-                let isCorrect = false;
-                if (userAnswer) {
-                    if (question.type === 'ShortAnswer') {
-                        isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
-                    } else {
-                        isCorrect = userAnswer === correctAnswer;
-                    }
+                let isCorrect;
+                if (question.type === 'ShortAnswer') {
+                    // The result could be a boolean (from simple match) or a string (from AI)
+                    isCorrect = (typeof result === 'boolean') ? result : (result.trim().toLowerCase() === 'correct');
+                } else {
+                    // The result is already a boolean for MCQ/TrueFalse
+                    isCorrect = result;
                 }
 
                 if (isCorrect) {
@@ -602,15 +635,13 @@ The topic is: ${topic}`;
                 }
             });
 
-            // Display score
+            // Display final score
             const resultsEl = document.getElementById('quiz-results');
             resultsEl.innerHTML = `<h3 class="text-2xl font-bold text-center text-indigo-700">You scored ${score} out of ${state.currentTest.length}!</h3><p class="text-center text-gray-600">Review your answers below.</p>`;
-
-            // Disable all inputs and button
-            formElement.querySelectorAll('input').forEach(input => input.disabled = true);
-            formElement.querySelector('button').disabled = true;
-            formElement.querySelector('button').innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
-            lucide.createIcons(); // Redraw icons in feedback
+            
+            // Update button to "Graded" state
+            submitButton.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
+            lucide.createIcons(); // Redraw icons in feedback and button
         }
 
         // --- INITIAL RENDER ---
