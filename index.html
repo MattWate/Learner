@@ -128,13 +128,14 @@
                         <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
                         <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
                     </div>
-                    <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400 md:col-span-2">
-                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4"></i>
+                    <!-- CHANGED: Removed md:col-span-2 -->
+                    <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
+                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i> <!-- Centered icon -->
                         <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
                         <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
                     </div>
-                    <!-- NEW: Link to Test Builder -->
-                    <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400 md:col-span-2">
+                    <!-- CHANGED: Removed md:col-span-2 -->
+                    <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
                         <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
                         <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
                         <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
@@ -145,6 +146,7 @@
         const parentHubTemplate = homePageTemplate; 
 
         const homeworkHelperTemplate = `
+        
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
@@ -766,4 +768,5 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
+
 
