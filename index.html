@@ -31,8 +31,8 @@
         }
         /* CHANGED: Made logo bigger */
         .genie-logo {
-            width: 11rem; /* Was 2.25rem */
-            height: 11rem; /* Was 2.25rem */
+            width: 12rem; /* Was 3rem */
+            height: 12rem; /* Was 3rem */
         }
         /* Styles for quiz feedback */
         .quiz-question-wrapper.correct {
@@ -66,7 +66,7 @@
     <div class="min-h-screen">
         <!-- Mobile Header -->
         <header class="md:hidden bg-white p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-40">
-            <!-- CHANGED: Wrapped header in a button to navigate home -->
+            <!-- Wrapped header in a button to navigate home -->
             <button data-nav-link="home" class="flex items-center">
                 <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo">
                 <h1 class="ml-2 text-xl font-bold text-gray-800">Learning Genie</h1>
@@ -80,7 +80,7 @@
             <!-- Sidebar Navigation -->
             <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
                 
-                <!-- CHANGED: Rebuilt header to be stacked, centered, and clickable -->
+                <!-- Rebuilt header to be stacked, centered, and clickable -->
                 <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
                     <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
                     <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
@@ -109,7 +109,7 @@
         const sidebarNav = document.getElementById('sidebar-nav');
 
         // --- TEMPLATES / VIEWS ---
-        // (All templates remain the same as before)
+        // (homePageTemplate, homeworkHelperTemplate, learningHubTemplate, explainSimplyTemplate remain the same)
         const homePageTemplate = `
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
@@ -132,6 +132,12 @@
                         <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4"></i>
                         <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
                         <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
+                    </div>
+                    <!-- NEW: Link to Test Builder -->
+                    <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400 md:col-span-2">
+                        <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
+                        <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
                     </div>
                 </div>
             </div>`;
@@ -212,16 +218,57 @@
                 </div>
                 <div id="es-output" class="mt-8"></div>
             </div>`;
+            
+        // NEW: Test Builder Template
+        const testBuilderTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
+                    <p class="text-gray-500 mb-8">Create a custom practice test on any topic.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="md:col-span-2">
+                            <label for="tb-topic" class="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                            <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., World War 2 Key Battles"></textarea>
+                        </div>
+                        <div>
+                            <label for="tb-num-questions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
+                            <select id="tb-num-questions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Types</label>
+                            <div class="space-y-2 mt-2">
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-mcq" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Multiple Choice</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-tf" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">True/False</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-short" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Short Answer</span></label>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all duration-300 flex items-center justify-center disabled:bg-teal-300 mb-8"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button>
+                    <div id="tb-error" class="text-red-500 text-sm mt-2 mb-6 hidden"></div>
+                </div>
+                <div id="tb-output" class="mt-8">
+                     <div class="text-center p-12 bg-white rounded-xl shadow-lg border-t-4 border-gray-200">
+                        <i data-lucide="lightbulb" class="mx-auto h-16 w-16 text-gray-300"></i>
+                        <h3 class="mt-4 text-lg font-semibold text-gray-700">Your test will appear here.</h3>
+                        <p class="mt-1 text-gray-500">Fill out the form above to create a practice test.</p>
+                    </div>
+                </div>
+            </div>`;
 
         // --- RENDER & NAVIGATION ---
         function render() {
-            // (Function remains the same)
+            // ADDED testBuilder template
             const templates = {
                 home: homePageTemplate,
                 parentHub: parentHubTemplate,
                 homeworkHelper: homeworkHelperTemplate,
                 learningHub: learningHubTemplate,
                 explainSimply: explainSimplyTemplate,
+                testBuilder: testBuilderTemplate // NEW
             };
             mainContent.innerHTML = templates[state.activeTab] || homePageTemplate;
             updateSidebar();
@@ -229,17 +276,19 @@
         }
 
         function updateSidebar() {
-            // (Function remains the same)
             const homeNav = `<button data-nav-link="home" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="home" class="h-5 w-5"></i><span class="ml-3">Home</span></button>`;
             
             const parentNav = `
                 <button data-nav-link="homeworkHelper" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="life-buoy" class="h-5 w-5"></i><span class="ml-3">Homework Helper</span></button>
                 <button data-nav-link="learningHub" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="book-marked" class="h-5 w-5"></i><span class="ml-3">Learning Hub</span></button>
                 <button data-nav-link="explainSimply" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="baby" class="h-5 w-5"></i><span class="ml-3">Explain It Simply</span></button>
+                <!-- NEW: Test Builder Nav Link -->
+                <button data-nav-link="testBuilder" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="clipboard-check" class="h-5 w-5"></i><span class="ml-3">Test Builder</span></button>
             `;
             
-            sidebarNav.innerHTML = homeNav + parentNav;
+            sidebarNav.innerHTML = homeNav + parentNav; // Added test builder link
 
+            // Highlight active link (logic remains the same)
             document.querySelectorAll('.nav-link').forEach(link => {
                 const linkTab = link.dataset.navLink;
                 const isActive = (linkTab === state.activeTab);
@@ -256,7 +305,6 @@
         
         // --- EVENT HANDLING (using delegation) ---
         document.addEventListener('click', (e) => {
-            // (Function remains the same)
             const sidebar = document.getElementById('sidebar');
 
             if (e.target.closest('#menu-toggle-btn')) {
@@ -282,19 +330,19 @@
                 return; 
             }
             
+            // ADDED handler for new button
             if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
             if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
             if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
+            if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); // NEW
             if (e.target.closest('#remove-image-btn')) handleRemoveImage();
         });
 
         mainContent.addEventListener('change', (e) => {
-            // (Function remains the same)
             if (e.target.id === 'image-upload') handleImageChange(e);
         });
         
         mainContent.addEventListener('submit', async (e) => {
-            // (Function remains the same)
             if (e.target.id === 'quiz-form') {
                 e.preventDefault();
                 await handleQuizSubmit(e.target);
@@ -337,7 +385,7 @@
         }
         
         // --- PARENT/LEARNER TOOL HANDLERS ---
-        // (All 3 tool handlers remain the same)
+        // (handleGenerateHomeworkHelp, handleGenerateLearningHelp, handleGenerateExplanation remain the same)
         async function handleGenerateHomeworkHelp() {
             const errorEl = document.getElementById('hh-error');
             const outputEl = document.getElementById('hh-output');
@@ -478,6 +526,69 @@ The topic is: ${topic}`;
             }
         }
         
+        // NEW: Handler for the Test Builder
+        async function handleGenerateTestBuilder() {
+            const topic = document.getElementById('tb-topic').value;
+            const numQuestions = document.getElementById('tb-num-questions').value;
+            const errorEl = document.getElementById('tb-error');
+            const outputEl = document.getElementById('tb-output');
+            const button = document.getElementById('generate-test-builder-btn');
+
+            const questionTypes = [];
+            if (document.getElementById('tb-qt-mcq').checked) questionTypes.push('MCQ');
+            if (document.getElementById('tb-qt-tf').checked) questionTypes.push('TrueFalse');
+            if (document.getElementById('tb-qt-short').checked) questionTypes.push('ShortAnswer');
+
+            errorEl.classList.add('hidden');
+            if (!topic || questionTypes.length === 0) {
+                errorEl.textContent = 'Please provide a topic and select at least one question type.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
+            state.currentTest = null; // Clear any old test data
+
+            // Prompt specifically for a test with the chosen parameters
+            const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
+Provide a JSON object with a single key: "practice_test".
+- "practice_test": An array of exactly ${numQuestions} question objects. Each object must have three keys:
+    1. "question": The string of the question text.
+    2. "type": A string, must be one of the selected types: ${questionTypes.join(', ')}. Try to include a mix if multiple types are selected.
+    3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
+    4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
+The topic for the test is: ${topic}`;
+
+            try {
+                const jsonText = await fetchWithRetry(prompt, true);
+                const result = JSON.parse(jsonText);
+                
+                state.currentTest = result.practice_test || [];
+                const quizHtml = renderPracticeTest(state.currentTest);
+
+                outputEl.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                         <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
+                         <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                         <div id="quiz-results" class="mb-6"></div> <!-- For showing the score -->
+                         ${quizHtml}
+                    </div>
+                `;
+                lucide.createIcons();
+
+            } catch (e) {
+                errorEl.textContent = `An error occurred: ${e.message}`;
+                errorEl.classList.remove('hidden');
+                outputEl.innerHTML = '<div class="text-center text-red-600"><p>Could not generate test. Please try again.</p></div>';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test`;
+                lucide.createIcons();
+            }
+        }
+
         // --- FILE & IMAGE HANDLERS ---
         
         function handleImageChange(e) {
@@ -655,7 +766,4 @@ The topic is: ${topic}`;
     </script>
 </body>
 </html>
-
-
-
 
