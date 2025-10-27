@@ -40,7 +40,6 @@
                 height: 12rem; /* Desktop size */
             }
         }
-        }
         /* Styles for quiz feedback */
         .quiz-question-wrapper.correct {
             border-left-color: #22c55e; /* green-500 */
@@ -116,7 +115,6 @@
         const sidebarNav = document.getElementById('sidebar-nav');
 
         // --- TEMPLATES / VIEWS ---
-        // (homePageTemplate, homeworkHelperTemplate, learningHubTemplate, explainSimplyTemplate remain the same)
         const homePageTemplate = `
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
@@ -152,29 +150,40 @@
         
         const parentHubTemplate = homePageTemplate; 
 
+        // MODIFIED: homeworkHelperTemplate with text input
         const homeworkHelperTemplate = `
-        
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
-                    <p class="text-gray-500 mb-8">Upload a photo of your worksheet to get started.</p>
-                    <div>
-                        <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
-                        <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                            <div class="space-y-1 text-center">
-                                <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
-                                <div class="flex text-sm text-gray-600">
-                                    <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                    <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p> <!-- MODIFIED text -->
+                    <div class="space-y-6"> <!-- Added wrapper -->
+                        <!-- NEW: Text input for question -->
+                        <div>
+                            <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
+                            <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
+                        </div>
+
+                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
+
+                        <!-- Existing image upload section -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
                                 </div>
-                                <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                            </div>
+                            <div id="image-preview-wrapper" class="hidden mt-4">
+                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
                             </div>
                         </div>
-                        <div id="image-preview-wrapper" class="hidden mt-4">
-                            <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
-                            <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
-                        </div>
                     </div>
-                    <button id="generate-homework-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
+                    <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button> <!-- Added mt-8 -->
                     <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
                 </div>
                 <div id="hh-output" class="mt-8"></div>
@@ -228,7 +237,6 @@
                 <div id="es-output" class="mt-8"></div>
             </div>`;
             
-        // NEW: Test Builder Template
         const testBuilderTemplate = `
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
@@ -270,14 +278,13 @@
 
         // --- RENDER & NAVIGATION ---
         function render() {
-            // ADDED testBuilder template
             const templates = {
                 home: homePageTemplate,
                 parentHub: parentHubTemplate,
                 homeworkHelper: homeworkHelperTemplate,
                 learningHub: learningHubTemplate,
                 explainSimply: explainSimplyTemplate,
-                testBuilder: testBuilderTemplate // NEW
+                testBuilder: testBuilderTemplate 
             };
             mainContent.innerHTML = templates[state.activeTab] || homePageTemplate;
             updateSidebar();
@@ -291,13 +298,11 @@
                 <button data-nav-link="homeworkHelper" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="life-buoy" class="h-5 w-5"></i><span class="ml-3">Homework Helper</span></button>
                 <button data-nav-link="learningHub" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="book-marked" class="h-5 w-5"></i><span class="ml-3">Learning Hub</span></button>
                 <button data-nav-link="explainSimply" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="baby" class="h-5 w-5"></i><span class="ml-3">Explain It Simply</span></button>
-                <!-- NEW: Test Builder Nav Link -->
                 <button data-nav-link="testBuilder" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="clipboard-check" class="h-5 w-5"></i><span class="ml-3">Test Builder</span></button>
             `;
             
-            sidebarNav.innerHTML = homeNav + parentNav; // Added test builder link
+            sidebarNav.innerHTML = homeNav + parentNav; 
 
-            // Highlight active link (logic remains the same)
             document.querySelectorAll('.nav-link').forEach(link => {
                 const linkTab = link.dataset.navLink;
                 const isActive = (linkTab === state.activeTab);
@@ -339,11 +344,10 @@
                 return; 
             }
             
-            // ADDED handler for new button
             if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
             if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
             if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
-            if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); // NEW
+            if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); 
             if (e.target.closest('#remove-image-btn')) handleRemoveImage();
         });
 
@@ -361,7 +365,6 @@
         // --- API & BUSINESS LOGIC ---
         
         async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-            // (Function remains the same)
             try {
                 const response = await fetch('/.netlify/functions/generate', {
                     method: 'POST',
@@ -394,36 +397,75 @@
         }
         
         // --- PARENT/LEARNER TOOL HANDLERS ---
-        // (handleGenerateHomeworkHelp, handleGenerateLearningHelp, handleGenerateExplanation remain the same)
+        // MODIFIED: handleGenerateHomeworkHelp to accept text OR image
         async function handleGenerateHomeworkHelp() {
+            const questionText = document.getElementById('hh-question').value.trim(); // Get text input
             const errorEl = document.getElementById('hh-error');
             const outputEl = document.getElementById('hh-output');
             const button = document.getElementById('generate-homework-help-btn');
 
             errorEl.classList.add('hidden');
-            if (!state.uploadedImageBase64) {
-                errorEl.textContent = 'Please upload a photo of your worksheet.';
+            // MODIFIED: Validation - need either text OR image
+            if (!questionText && !state.uploadedImageBase64) {
+                errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
                 errorEl.classList.remove('hidden');
                 return;
+            }
+             // NEW: Prevent submitting both text and image
+            if (questionText && state.uploadedImageBase64) {
+                 errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
+                 errorEl.classList.remove('hidden');
+                 return;
             }
 
             button.disabled = true;
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
-            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Analyzing your worksheet...</p></div>`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`; // Simplified message
             
-            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
+            let prompt = '';
+            let imageData = state.uploadedImageBase64; // Use state image data by default
+
+            // MODIFIED: Create the appropriate prompt based on input type
+            if (questionText) {
+                prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
+Provide a JSON object with two keys: "hints" and "answer". 
+- "hints": An array of gentle hints to guide the student towards the answer.
+- "answer": A clear and concise final answer to the question.`;
+                imageData = null; // Don't send image data if text was provided
+            } else if (imageData) {
+                // Existing image prompt
+                prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
+            } else {
+                 // Fallback error, though validation should prevent this
+                 errorEl.textContent = 'No input provided.';
+                 errorEl.classList.remove('hidden');
+                 button.disabled = false;
+                 button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
+                 return;
+            }
 
             try {
-                const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
+                // MODIFIED: Pass potentially null imageData
+                const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
                 const result = JSON.parse(jsonText);
 
-                outputEl.innerHTML = `
-                    <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                        ${createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown)}
-                        ${createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints)}
-                        ${createSectionHTML('key-round', 'green', 'Check Your Work', result.answers)}
-                    </div>
-                `;
+                // MODIFIED: Render output based on what's available in the result
+                let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
+                if (result.breakdown) { // Only show breakdown for images
+                    outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
+                }
+                if (result.hints) {
+                    outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
+                }
+                 // Handle both 'answer' (singular, for text) and 'answers' (array, for image)
+                if (result.answer) {
+                     outputHtml += createSectionHTML('key-round', 'green', 'Answer', result.answer);
+                } else if (result.answers) {
+                    outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
+                }
+                outputHtml += '</div>';
+                outputEl.innerHTML = outputHtml;
+
                 lucide.createIcons();
             } catch (e) {
                 errorEl.textContent = `An error occurred: ${e.message}`;
@@ -437,6 +479,7 @@
         }
 
         async function handleGenerateLearningHelp() {
+            // (Function remains the same)
             const topic = document.getElementById('learn-topic').value;
             const errorEl = document.getElementById('lh-error');
             const outputEl = document.getElementById('lh-output');
@@ -498,6 +541,7 @@ The topic is: ${topic}`;
         }
 
         async function handleGenerateExplanation() {
+            // (Function remains the same)
             const topic = document.getElementById('explain-topic').value;
             const errorEl = document.getElementById('es-error');
             const outputEl = document.getElementById('es-output');
@@ -535,8 +579,8 @@ The topic is: ${topic}`;
             }
         }
         
-        // NEW: Handler for the Test Builder
         async function handleGenerateTestBuilder() {
+            // (Function remains the same)
             const topic = document.getElementById('tb-topic').value;
             const numQuestions = document.getElementById('tb-num-questions').value;
             const errorEl = document.getElementById('tb-error');
@@ -558,9 +602,8 @@ The topic is: ${topic}`;
             button.disabled = true;
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
             outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
-            state.currentTest = null; // Clear any old test data
+            state.currentTest = null; 
 
-            // Prompt specifically for a test with the chosen parameters
             const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
 Provide a JSON object with a single key: "practice_test".
 - "practice_test": An array of exactly ${numQuestions} question objects. Each object must have three keys:
@@ -775,6 +818,4 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
-
-
 
