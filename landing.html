@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Learning Genie - Your AI Learning Assistant</title>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8fafc; /* light gray background */
+        }
+        /* Responsive logo size for landing page */
+        .landing-logo-sm { width: 4rem; height: 4rem; } /* Mobile nav */
+       
+        /* Custom gradient text */
+        .gradient-text {
+            background: linear-gradient(to right, #4f46e5, #ec4899); /* Indigo to Pink */
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
+            <div class="flex items-center">
+                <img src="/logo.svg" alt="Learning Genie Logo" class="landing-logo-sm">
+                <span class="ml-3 text-2xl font-bold text-gray-800">Learning Genie</span>
+            </div>
+            <div>
+                <!-- Link to the main app page -->
+                <a href="/index.html" class="text-indigo-600 font-medium hover:text-indigo-800 mr-4">Log In</a>
+                <!-- Link to the main app page (signup handled there) -->
+                <a href="/index.html" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out">
+                    Get Started
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="py-20 md:py-32 bg-gradient-to-b from-indigo-50 to-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <!-- Text Content -->
+            <div class="text-center md:text-left">
+                 <img src="/logo.svg" alt="Learning Genie Logo" class="h-16 w-16 mx-auto md:mx-0 mb-4"> 
+                <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
+                    Unlock Your Learning <span class="gradient-text">Superpowers</span>
+                </h1>
+                <p class="mt-4 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto md:mx-0 mb-8">
+                    Learning Genie is your personal AI assistant for homework, revision, and understanding tricky topics. Get instant help, practice tests, and simple explanations.
+                </p>
+                 <!-- Link to the main app page (signup handled there) -->
+                <a href="/index.html" class="inline-block bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg text-lg hover:bg-indigo-700 transition duration-150 ease-in-out shadow-lg transform hover:scale-105">
+                    Start Learning Free
+                </a>
+            </div>
+            <!-- Image Column -->
+            <div class="flex justify-center">
+                <img src="/hero_image.jpg" alt="Parent and child learning together on a laptop" class="rounded-lg shadow-2xl max-w-md w-full"> 
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features" class="py-16 md:py-24 bg-white">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Everything You Need to Succeed</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                <!-- Feature 1: Homework Helper -->
+                <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-rose-400 text-center">
+                    <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Homework Helper</h3>
+                    <p class="text-gray-600">Stuck? Snap a photo or type your question for hints and answers.</p>
+                </div>
+                <!-- Feature 2: Learning Hub -->
+                <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-indigo-500 text-center">
+                    <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Learning Hub</h3>
+                    <p class="text-gray-600">Get revision notes and interactive practice tests on any topic.</p>
+                </div>
+                <!-- Feature 3: Explain Simply -->
+                <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-amber-400 text-center">
+                    <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Explain It Simply</h3>
+                    <p class="text-gray-600">Confusing concepts made easy with simple explanations.</p>
+                </div>
+                <!-- Feature 4: Test Builder -->
+                 <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-teal-400 text-center">
+                    <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Test Builder</h3>
+                    <p class="text-gray-600">Create custom quizzes to test your knowledge before exams.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+     <section class="py-16 md:py-24 bg-gray-50">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-3xl font-bold text-gray-800 mb-12">Get Started in 3 Simple Steps</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center">
+                    <div class="bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Sign Up Free</h3>
+                    <p class="text-gray-600">Create your account in seconds with just your email.</p>
+                </div>
+                 <div class="text-center">
+                    <div class="bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Create Learner Profiles</h3>
+                    <p class="text-gray-600">Set up profiles for each child using the app.</p>
+                </div>
+                 <div class="text-center">
+                    <div class="bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
+                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Start Learning!</h3>
+                    <p class="text-gray-600">Access all the AI tools to boost understanding and grades.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- REMOVED: Pricing Section (Placeholder) -->
+    <!-- <section id="signup" class="py-16 md:py-24 bg-white"> ... </section> -->
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 py-8">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p>&copy; 2025 Learning Genie. All rights reserved.</p>
+            <!-- Add links to Privacy Policy / Terms later -->
+        </div>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // REMOVED: Smooth scroll script as the signup anchor is gone
+        // REMOVED: Signup form placeholder script
+
+    </script>
+
+</body>
+</html>
+
