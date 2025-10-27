@@ -29,10 +29,17 @@
         @media print {
             /* Print styles are kept for now, but are unused */
         }
-        /* CHANGED: Made logo bigger */
+        /* CHANGED: Made logo responsive */
         .genie-logo {
-            width: 12rem; /* Was 3rem */
-            height: 12rem; /* Was 3rem */
+            width: 5rem; /* Default/Mobile size */
+            height: 5rem; /* Default/Mobile size */
+        }
+        @media (min-width: 768px) { /* Corresponds to Tailwind's 'md' breakpoint */
+            .genie-logo {
+                width: 12rem; /* Desktop size */
+                height: 12rem; /* Desktop size */
+            }
+        }
         }
         /* Styles for quiz feedback */
         .quiz-question-wrapper.correct {
@@ -768,5 +775,6 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
+
 
 
