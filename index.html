@@ -89,7 +89,10 @@
                     <svg class="genie-logo"><use href="#genie-logo"></use></svg>
                     <h1 class="ml-2 text-xl font-bold text-gray-800">Learning Genie</h1>
                 </div>
-                <nav id="sidebar-nav" class="space-y-2"></nav>
+                <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
+                    <i data-lucide="x" class="h-6 w-6"></i>
+                </button>
+                <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
             </aside>
 
             <main id="main-content" class="flex-1 p-4 md:p-8"></main>
@@ -107,7 +110,7 @@
         const sidebarNav = document.getElementById('sidebar-nav');
 
         // --- TEMPLATES / VIEWS ---
-        // (homePageTemplate, parentHubTemplate, homeworkHelperTemplate remain the same)
+        // (All templates remain the same as before)
         const homePageTemplate = `
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
@@ -252,16 +255,40 @@
         }
         
         // --- EVENT HANDLING (using delegation) ---
+        // MODIFIED: Added handlers for menu toggle and close
         document.addEventListener('click', (e) => {
+            const sidebar = document.getElementById('sidebar');
+
+            // NEW: Handle mobile menu open
+            if (e.target.closest('#menu-toggle-btn')) {
+                sidebar.classList.remove('hidden');
+                return;
+            }
+
+            // NEW: Handle mobile menu close
+            if (e.target.closest('#menu-close-btn')) {
+                sidebar.classList.add('hidden');
+                return;
+            }
+
+            // MODIFIED: Handle nav link click (and close mobile menu)
             const navLink = e.target.closest('[data-nav-link]');
             if (navLink) { 
                 state.activeTab = navLink.dataset.navLink;
                 state.uploadedImageBase64 = null;
-                state.currentTest = null; // Clear test on navigation
+                state.currentTest = null;
                 render(); 
+                
+                // NEW: Hide sidebar on mobile nav click
+                // We check if it's in mobile view by seeing if 'md:flex' is present.
+                // We only add 'hidden' if it's NOT already hidden.
+                if (sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
+                    sidebar.classList.add('hidden');
+                }
                 return; 
             }
             
+            // (Rest of the handlers remain the same)
             if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
             if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
             if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
@@ -272,18 +299,16 @@
             if (e.target.id === 'image-upload') handleImageChange(e);
         });
         
-        // MODIFIED: Event listener for quiz submission is now async
         mainContent.addEventListener('submit', async (e) => {
             if (e.target.id === 'quiz-form') {
                 e.preventDefault();
-                await handleQuizSubmit(e.target); // Await the async grading
+                await handleQuizSubmit(e.target);
             }
         });
 
         // --- API & BUSINESS LOGIC ---
         
         async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-            //
             try {
                 const response = await fetch('/.netlify/functions/generate', {
                     method: 'POST',
@@ -316,8 +341,8 @@
         }
         
         // --- PARENT/LEARNER TOOL HANDLERS ---
+        // (handleGenerateHomeworkHelp, handleGenerateLearningHelp, handleGenerateExplanation remain the same)
         async function handleGenerateHomeworkHelp() {
-            // (This function remains unchanged)
             const errorEl = document.getElementById('hh-error');
             const outputEl = document.getElementById('hh-output');
             const button = document.getElementById('generate-homework-help-btn');
@@ -359,7 +384,6 @@
         }
 
         async function handleGenerateLearningHelp() {
-            // (This function remains unchanged from the previous step)
             const topic = document.getElementById('learn-topic').value;
             const errorEl = document.getElementById('lh-error');
             const outputEl = document.getElementById('lh-output');
@@ -421,7 +445,6 @@ The topic is: ${topic}`;
         }
 
         async function handleGenerateExplanation() {
-            // (This function remains unchanged)
             const topic = document.getElementById('explain-topic').value;
             const errorEl = document.getElementById('es-error');
             const outputEl = document.getElementById('es-output');
@@ -462,7 +485,6 @@ The topic is: ${topic}`;
         // --- FILE & IMAGE HANDLERS ---
         
         function handleImageChange(e) {
-            // (This function remains unchanged)
             const file = e.target.files[0];
             if (!file) return;
             const previewWrapper = document.getElementById('image-preview-wrapper');
@@ -477,7 +499,6 @@ The topic is: ${topic}`;
         }
 
         function handleRemoveImage() {
-            // (This function remains unchanged)
             state.uploadedImageBase64 = null;
             document.getElementById('image-preview-wrapper').classList.add('hidden');
             document.getElementById('image-upload').value = null;
@@ -485,7 +506,6 @@ The topic is: ${topic}`;
 
         // --- UTILITY FUNCTIONS ---
         function createSectionHTML(icon, color, title, content) {
-            // (This function remains unchanged)
             const cleanMarkdown = (text) => {
                 return String(text)
                     .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
@@ -521,7 +541,6 @@ The topic is: ${topic}`;
         }
         
         function renderPracticeTest(testData) {
-            // (This function remains unchanged)
             if (!testData || testData.length === 0) {
                 return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
             }
@@ -567,61 +586,50 @@ The topic is: ${topic}`;
             return html;
         }
 
-        // MODIFIED: Function is now async and uses AI for grading
         async function handleQuizSubmit(formElement) {
+            // (This function remains the same as the previous step, with AI grading)
             if (!state.currentTest) return;
 
             const formData = new FormData(formElement);
             const submitButton = formElement.querySelector('button[type="submit"]');
 
-            // Disable button and show loading state
             submitButton.disabled = true;
             submitButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Grading...`;
-            
-            // Disable all inputs
             formElement.querySelectorAll('input').forEach(input => input.disabled = true);
             
-            // Build an array of promises for grading each question
             const gradingPromises = state.currentTest.map((question, index) => {
                 const userAnswer = formData.get(`question_${index}`);
                 const correctAnswer = question.correct_answer;
 
                 if (!userAnswer) {
-                    return Promise.resolve(false); // No answer is incorrect
+                    return Promise.resolve(false);
                 }
 
                 if (question.type === 'MCQ' || question.type === 'TrueFalse') {
-                    // Simple boolean check for multiple choice
                     return Promise.resolve(userAnswer === correctAnswer);
                 } 
                 
                 if (question.type === 'ShortAnswer') {
-                    // Check for a simple, exact match first to save an API call
                     if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
                         return Promise.resolve(true);
                     }
-                    // If no exact match, ask the AI to grade it
                     const prompt = `You are an AI grader. A student was asked the following question: "${question.question}". The model answer is: "${correctAnswer}". The student provided this answer: "${userAnswer}". Is the student's answer substantially correct? Your response must be a single word: "Correct" or "Incorrect".`;
-                    return fetchWithRetry(prompt, false); // Returns a string "Correct" or "Incorrect"
+                    return fetchWithRetry(prompt, false);
                 }
             });
 
-            // Wait for all grading (local and AI) to complete
             const results = await Promise.all(gradingPromises);
 
             let score = 0;
             
-            // Now, iterate over the results and update the UI
             results.forEach((result, index) => {
                 const question = state.currentTest[index];
                 const questionBlock = document.getElementById(`question-block-${index}`);
                 
                 let isCorrect;
                 if (question.type === 'ShortAnswer') {
-                    // The result could be a boolean (from simple match) or a string (from AI)
                     isCorrect = (typeof result === 'boolean') ? result : (result.trim().toLowerCase() === 'correct');
                 } else {
-                    // The result is already a boolean for MCQ/TrueFalse
                     isCorrect = result;
                 }
 
@@ -635,13 +643,11 @@ The topic is: ${topic}`;
                 }
             });
 
-            // Display final score
             const resultsEl = document.getElementById('quiz-results');
             resultsEl.innerHTML = `<h3 class="text-2xl font-bold text-center text-indigo-700">You scored ${score} out of ${state.currentTest.length}!</h3><p class="text-center text-gray-600">Review your answers below.</p>`;
             
-            // Update button to "Graded" state
             submitButton.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
-            lucide.createIcons(); // Redraw icons in feedback and button
+            lucide.createIcons();
         }
 
         // --- INITIAL RENDER ---
