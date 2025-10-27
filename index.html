@@ -16,7 +16,6 @@
     <style>
         body {
             font-family: 'Poppins', sans-serif;
-            /* CHANGED: Background gradient to light indigo */
             background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
         }
         .prose { max-width: 65ch; }
@@ -30,6 +29,30 @@
             height: 2.25rem;
             stroke-width: 2;
         }
+        /* NEW: Styles for quiz feedback */
+        .quiz-question-wrapper.correct {
+            border-left-color: #22c55e; /* green-500 */
+            background-color: #f0fdf4; /* green-50 */
+        }
+        .quiz-question-wrapper.incorrect {
+            border-left-color: #ef4444; /* red-500 */
+            background-color: #fef2f2; /* red-50 */
+        }
+        .quiz-feedback {
+            display: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 0.75rem;
+        }
+        .quiz-question-wrapper.correct .quiz-feedback.correct {
+            display: block;
+            color: #166534; /* green-800 */
+        }
+        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect {
+            display: block;
+            color: #991b1b; /* red-800 */
+        }
+
     </style>
 </head>
 <body>
@@ -77,14 +100,14 @@
         // --- STATE MANAGEMENT ---
         const state = {
             activeTab: 'home',
-            uploadedImageBase64: null
+            uploadedImageBase64: null,
+            currentTest: null // NEW: To store test data for grading
         };
         const mainContent = document.getElementById('main-content');
         const sidebarNav = document.getElementById('sidebar-nav');
 
         // --- TEMPLATES / VIEWS ---
-
-        // Simplified Home Page
+        // (homePageTemplate, parentHubTemplate, homeworkHelperTemplate remain the same)
         const homePageTemplate = `
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
@@ -139,7 +162,7 @@
                 </div>
                 <div id="hh-output" class="mt-8"></div>
             </div>`;
-
+        
         const learningHubTemplate = `
              <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
@@ -219,7 +242,6 @@
                 const isActive = (linkTab === state.activeTab);
 
                 if (isActive) {
-                    // CHANGED: bg-purple-600 to bg-indigo-600
                     link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
                     link.classList.remove('text-gray-600', 'hover:bg-gray-100');
                 } else {
@@ -235,6 +257,7 @@
             if (navLink) { 
                 state.activeTab = navLink.dataset.navLink;
                 state.uploadedImageBase64 = null;
+                state.currentTest = null; // Clear test on navigation
                 render(); 
                 return; 
             }
@@ -249,6 +272,14 @@
             if (e.target.id === 'image-upload') handleImageChange(e);
         });
         
+        // NEW: Event listener for quiz submission
+        mainContent.addEventListener('submit', (e) => {
+            if (e.target.id === 'quiz-form') {
+                e.preventDefault();
+                handleQuizSubmit(e.target);
+            }
+        });
+
         // --- API & BUSINESS LOGIC ---
         
         async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
@@ -285,6 +316,7 @@
         
         // --- PARENT/LEARNER TOOL HANDLERS ---
         async function handleGenerateHomeworkHelp() {
+            // (This function remains unchanged)
             const errorEl = document.getElementById('hh-error');
             const outputEl = document.getElementById('hh-output');
             const button = document.getElementById('generate-homework-help-btn');
@@ -325,6 +357,7 @@
             }
         }
 
+        // MODIFIED: handleGenerateLearningHelp
         async function handleGenerateLearningHelp() {
             const topic = document.getElementById('learn-topic').value;
             const errorEl = document.getElementById('lh-error');
@@ -341,25 +374,40 @@
             button.disabled = true;
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
             outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
+            state.currentTest = null; // Clear any old test data
 
-            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image. Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test". "learning_objectives" should be a bulleted list of the key things a student should know. "revision_notes" should be detailed and comprehensive, broken down into key sections with clear explanations and examples. "practice_test" should be an object with two keys: "questions" and "answers", containing a 5-7 question practice test on the topic. The topic is: ${topic}`;
+            // MODIFIED: Updated prompt for structured quiz JSON
+            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
+Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test".
+- "learning_objectives": A bulleted list of key things a student should know.
+- "revision_notes": Detailed and comprehensive notes, broken into key sections.
+- "practice_test": An array of 5-7 question objects. Each object must have three keys:
+    1. "question": The string of the question text.
+    2. "type": A string, either "MCQ" (Multiple Choice), "TrueFalse", or "ShortAnswer".
+    3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
+    4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
+The topic is: ${topic}`;
 
             try {
                 const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
                 const result = JSON.parse(jsonText);
-                const test = result.practice_test || { questions: [], answers: [] };
+                
+                // NEW: Store test data in state for grading
+                state.currentTest = result.practice_test || [];
+                
+                // NEW: Generate interactive quiz HTML
+                const quizHtml = renderPracticeTest(state.currentTest);
 
+                // MODIFIED: Updated output HTML to include the interactive quiz
                 outputEl.innerHTML = `
                     <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
                         ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
                         ${createSectionHTML('book-open', 'indigo', "Revision Notes", result.revision_notes)}
+                        
                         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                              <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
-                             <ol class="list-decimal list-inside space-y-4 prose prose-sm max-w-none text-gray-700">${test.questions.map(q => `<li>${q.replace(/\n/g, '<br>')}</li>`).join('')}</ol>
-                        </div>
-                         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                             <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="key-round" class="text-green-500"></i><span class="ml-2">Answer Key</span></h3>
-                             <ol class="list-decimal list-inside space-y-2 prose prose-sm max-w-none text-gray-700">${test.answers.map(a => `<li>${a}</li>`).join('')}</ol>
+                             <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                             <div id="quiz-results" class="mb-6"></div> ${quizHtml}
                         </div>
                     </div>
                 `;
@@ -376,6 +424,7 @@
         }
 
         async function handleGenerateExplanation() {
+            // (This function remains unchanged)
             const topic = document.getElementById('explain-topic').value;
             const errorEl = document.getElementById('es-error');
             const outputEl = document.getElementById('es-output');
@@ -416,6 +465,7 @@
         // --- FILE & IMAGE HANDLERS ---
         
         function handleImageChange(e) {
+            // (This function remains unchanged)
             const file = e.target.files[0];
             if (!file) return;
             const previewWrapper = document.getElementById('image-preview-wrapper');
@@ -430,6 +480,7 @@
         }
 
         function handleRemoveImage() {
+            // (This function remains unchanged)
             state.uploadedImageBase64 = null;
             document.getElementById('image-preview-wrapper').classList.add('hidden');
             document.getElementById('image-upload').value = null;
@@ -437,6 +488,7 @@
 
         // --- UTILITY FUNCTIONS ---
         function createSectionHTML(icon, color, title, content) {
+            // (This function remains unchanged)
             const cleanMarkdown = (text) => {
                 return String(text)
                     .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
@@ -468,10 +520,99 @@
             } else if (content) {
                 textContent = cleanMarkdown(String(content));
             }
-            // Dynamically set color. Uses Tailwind classes like text-blue-500, text-green-500, etc.
             return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
         }
         
+        // NEW: Function to render the interactive quiz form
+        function renderPracticeTest(testData) {
+            if (!testData || testData.length === 0) {
+                return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
+            }
+
+            let html = '<form id="quiz-form" class="space-y-6">';
+            
+            testData.forEach((question, index) => {
+                html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
+                html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
+                html += `<div class="space-y-2">`;
+
+                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                    question.options.forEach((option) => {
+                        html += `
+                            <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                                <span class="ml-3 text-sm text-gray-700">${option}</span>
+                            </label>
+                        `;
+                    });
+                } else if (question.type === 'ShortAnswer') {
+                    html += `
+                        <label>
+                            <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
+                            <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
+                        </label>
+                    `;
+                }
+                html += `</div>`;
+                // NEW: Feedback elements (hidden by default)
+                html += `
+                    <div class="quiz-feedback correct">
+                        <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
+                    </div>
+                    <div class="quiz-feedback incorrect">
+                        <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
+                    </div>
+                `;
+                html += `</div>`; // Close wrapper
+            });
+
+            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
+            html += '</form>';
+            return html;
+        }
+
+        // NEW: Function to handle quiz submission and grading
+        function handleQuizSubmit(formElement) {
+            if (!state.currentTest) return;
+
+            const formData = new FormData(formElement);
+            let score = 0;
+            
+            state.currentTest.forEach((question, index) => {
+                const userAnswer = formData.get(`question_${index}`);
+                const correctAnswer = question.correct_answer;
+                const questionBlock = document.getElementById(`question-block-${index}`);
+                
+                let isCorrect = false;
+                if (userAnswer) {
+                    if (question.type === 'ShortAnswer') {
+                        isCorrect = userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+                    } else {
+                        isCorrect = userAnswer === correctAnswer;
+                    }
+                }
+
+                if (isCorrect) {
+                    score++;
+                    questionBlock.classList.add('correct');
+                    questionBlock.classList.remove('incorrect');
+                } else {
+                    questionBlock.classList.add('incorrect');
+                    questionBlock.classList.remove('correct');
+                }
+            });
+
+            // Display score
+            const resultsEl = document.getElementById('quiz-results');
+            resultsEl.innerHTML = `<h3 class="text-2xl font-bold text-center text-indigo-700">You scored ${score} out of ${state.currentTest.length}!</h3><p class="text-center text-gray-600">Review your answers below.</p>`;
+
+            // Disable all inputs and button
+            formElement.querySelectorAll('input').forEach(input => input.disabled = true);
+            formElement.querySelector('button').disabled = true;
+            formElement.querySelector('button').innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
+            lucide.createIcons(); // Redraw icons in feedback
+        }
+
         // --- INITIAL RENDER ---
         render();
     </script>
