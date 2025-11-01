@@ -19,17 +19,23 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <!-- html-to-docx for Word document generation (Kept for future "save" feature) -->
     <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
+    
+    <!-- NEW: Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <style>
         body {
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
+            /* NEW: Ensure app fills screen */
+            min-height: 100vh;
         }
         .prose { max-width: 65ch; }
         .prose-sm { font-size: 0.875rem; line-height: 1.5; }
         @media print {
             /* Print styles are kept for now, but are unused */
         }
-        /* CHANGED: Made logo responsive */
+        /* Logo size for the app */
         .genie-logo {
             width: 5rem; /* Default/Mobile size */
             height: 5rem; /* Default/Mobile size */
@@ -63,63 +69,129 @@
             display: block;
             color: #991b1b; /* red-800 */
         }
-
     </style>
 </head>
 <body>
-    <!-- REMOVED: The hidden SVG <defs> block is no longer needed -->
-
-    <div class="min-h-screen">
-        <!-- Mobile Header -->
-        <header class="md:hidden bg-white p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 z-40">
-            <!-- Wrapped header in a button to navigate home -->
-            <button data-nav-link="home" class="flex items-center">
-                <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo">
-                <h1 class="ml-2 text-xl font-bold text-gray-800">Learning Genie</h1>
-            </button>
-            <button id="menu-toggle-btn" class="p-2">
-                <i data-lucide="menu" class="h-6 w-6"></i>
-            </button>
-        </header>
-
-        <div class="md:flex">
-            <!-- Sidebar Navigation -->
-            <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
-                
-                <!-- Rebuilt header to be stacked, centered, and clickable -->
-                <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
-                    <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
-                    <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
-                </button>
-
-                <!-- Close button for mobile -->
-                <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
-                    <i data-lucide="x" class="h-6 w-6"></i>
-                </button>
-                <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
-            </aside>
-
-            <!-- Main Content -->
-            <main id="main-content" class="flex-1 p-4 md:p-8"></main>
+    <!-- 
+      This is the main container.
+      JavaScript will fill this with one of:
+      1. The Login Screen
+      2. The Payment Placeholder Screen
+      3. The Profile Picker Screen
+      4. The Main App (sidebar + tools)
+    -->
+    <div id="app-container" class="min-h-screen">
+        <!-- Loading Spinner -->
+        <div id="loading-spinner" class="flex items-center justify-center min-h-screen">
+             <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
         </div>
     </div>
 
     <script>
-        // --- STATE MANAGEMENT ---
-        const state = {
-            activeTab: 'home',
-            uploadedImageBase64: null,
-            currentTest: null // To store test data for grading
-        };
-        const mainContent = document.getElementById('main-content');
-        const sidebarNav = document.getElementById('sidebar-nav');
+        // --- SUPABASE & APP STATE ---
+        // FIXED: Added your keys and corrected initialization
+        const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        // --- TEMPLATES / VIEWS ---
+        const state = {
+            session: null,        // Stores the user's auth session
+            activeProfile: null,  // Stores the selected child profile
+            activeTab: 'home',    // Default tool tab
+            uploadedImageBase64: null,
+            currentTest: null
+        };
+
+        // --- NEW: AUTH & ONBOARDING TEMPLATES ---
+
+        const loginTemplate = `
+            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                    <img src="/logo.svg" alt="Learning Genie Logo" class="h-24 w-24 mx-auto mb-4">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
+                    <p class="text-gray-600 mb-6">Enter your email to get a secure magic link to log in.</p>
+                    <form id="login-form">
+                        <label for="email-input" class="block text-sm font-medium text-gray-700 text-left mb-1">Email</label>
+                        <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
+                        <button type="submit" id="login-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
+                            Send Magic Link
+                        </button>
+                    </form>
+                    <div id="login-message" class="text-sm text-green-600 mt-4 hidden"></div>
+                </div>
+            </div>
+        `;
+
+        const paymentPlaceholderTemplate = `
+            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                    <i data-lucide="party-popper" class="h-16 w-16 text-amber-500 mx-auto mb-4"></i>
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to Learning Genie!</h1>
+                    <p class="text-gray-600 mb-6">To keep things simple, all features are enabled for free during our launch. No payment required!</p>
+                    <button id="skip-payment-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
+                        Continue to App
+                    </button>
+                </div>
+            </div>
+        `;
+
+        const createProfileTemplate = `
+            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Your First Learner Profile</h1>
+                    <p class="text-gray-600 mb-6">This will be the first profile on your account (e.g., "Alex" or "Sarah").</p>
+                    <form id="create-profile-form">
+                        <label for="profile-name" class="block text-sm font-medium text-gray-700 text-left mb-1">Profile Name</label>
+                        <input type="text" id="profile-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="e.g., Alex">
+                        <!-- Add Avatar Picker Here Later -->
+                        <button type="submit" id="create-profile-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
+                            Create Profile
+                        </button>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        // This function dynamically generates the profile picker
+        function profilePickerTemplate(profiles) {
+            let profileButtons = profiles.map(profile => `
+                <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
+                    <!-- Placeholder avatar -->
+                    <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
+                        <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
+                    </div>
+                    <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
+                </button>
+            `).join('');
+
+            return `
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                    <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            ${profileButtons}
+                            <!-- Add New Profile Button -->
+                            <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
+                                <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                                    <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
+                                </div>
+                                <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+
+        // --- MAIN APP TEMPLATES (Your existing code, now as templates) ---
+        
         const homePageTemplate = `
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
-                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome to Your Learner Hub</h1>
+                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <!-- Personalized -->
                     <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
@@ -133,13 +205,11 @@
                         <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
                         <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
                     </div>
-                    <!-- CHANGED: Removed md:col-span-2 -->
                     <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
-                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i> <!-- Centered icon -->
+                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
                         <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
                         <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
                     </div>
-                    <!-- CHANGED: Removed md:col-span-2 -->
                     <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
                         <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
                         <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
@@ -150,22 +220,17 @@
         
         const parentHubTemplate = homePageTemplate; 
 
-        // MODIFIED: homeworkHelperTemplate with text input
         const homeworkHelperTemplate = `
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
                     <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
-                    <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p> <!-- MODIFIED text -->
-                    <div class="space-y-6"> <!-- Added wrapper -->
-                        <!-- NEW: Text input for question -->
+                    <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p>
+                    <div class="space-y-6">
                         <div>
                             <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
                             <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
                         </div>
-
                         <div class="text-center text-sm font-medium text-gray-500">OR</div>
-
-                        <!-- Existing image upload section -->
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
                             <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
@@ -183,7 +248,7 @@
                             </div>
                         </div>
                     </div>
-                    <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button> <!-- Added mt-8 -->
+                    <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
                     <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
                 </div>
                 <div id="hh-output" class="mt-8"></div>
@@ -276,11 +341,49 @@
                 </div>
             </div>`;
 
-        // --- RENDER & NAVIGATION ---
-        function render() {
+        // --- NEW: MAIN APP RENDER FUNCTION ---
+        // This function builds the app UI *after* login and profile selection
+        function showMainApp() {
+            const appContainer = document.getElementById('app-container');
+            appContainer.innerHTML = `
+                <div class="min-h-screen md:flex">
+                    <!-- Sidebar Navigation -->
+                    <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
+                        <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
+                            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
+                            <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
+                        </button>
+                        <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
+                            <i data-lucide="x" class="h-6 w-6"></i>
+                        </button>
+                        <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
+                        <!-- NEW: Profile/Logout Button -->
+                        <div class="mt-auto pt-4">
+                            <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="users" class="h-5 w-5"></i>
+                                <span class="ml-3">Switch Profile</span>
+                            </button>
+                            <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="log-out" class="h-5 w-5"></i>
+                                <span class="ml-3">Log Out</span>
+                            </button>
+                        </div>
+                    </aside>
+                    <!-- Main Content -->
+                    <main id="main-content" class="flex-1 p-4 md:p-8"></main>
+                </div>
+            `;
+            // Re-render the tool content
+            renderToolContent();
+        }
+
+        // --- NEW: RENDER FUNCTION for just the tool content ---
+        function renderToolContent() {
+            const mainContent = document.getElementById('main-content');
+            if (!mainContent) return; // Guard clause
+
             const templates = {
                 home: homePageTemplate,
-                parentHub: parentHubTemplate,
                 homeworkHelper: homeworkHelperTemplate,
                 learningHub: learningHubTemplate,
                 explainSimply: explainSimplyTemplate,
@@ -292,15 +395,16 @@
         }
 
         function updateSidebar() {
+            const sidebarNav = document.getElementById('sidebar-nav');
+            if (!sidebarNav) return; // Guard clause
+
             const homeNav = `<button data-nav-link="home" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="home" class="h-5 w-5"></i><span class="ml-3">Home</span></button>`;
-            
             const parentNav = `
                 <button data-nav-link="homeworkHelper" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="life-buoy" class="h-5 w-5"></i><span class="ml-3">Homework Helper</span></button>
                 <button data-nav-link="learningHub" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="book-marked" class="h-5 w-5"></i><span class="ml-3">Learning Hub</span></button>
                 <button data-nav-link="explainSimply" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="baby" class="h-5 w-5"></i><span class="ml-3">Explain It Simply</span></button>
                 <button data-nav-link="testBuilder" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="clipboard-check" class="h-5 w-5"></i><span class="ml-3">Test Builder</span></button>
             `;
-            
             sidebarNav.innerHTML = homeNav + parentNav; 
 
             document.querySelectorAll('.nav-link').forEach(link => {
@@ -317,54 +421,196 @@
             });
         }
         
-        // --- EVENT HANDLING (using delegation) ---
-        document.addEventListener('click', (e) => {
+        // --- NEW: AUTH & ONBOARDING LOGIC ---
+        
+        const appContainer = document.getElementById('app-container');
+
+        // Main auth controller
+        async function handleAuth() {
+            // FIXED: Use supabaseClient
+            const { data: { session }, error } = await supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                state.session = session;
+                if (!session) {
+                    // User is logged out, show login page
+                    // This page (app.html) is for logged-in users. Redirect to login.
+                    window.location.href = '/login.html';
+                } else {
+                    // User is logged in, check their account status
+                    await checkAccountStatus(session.user);
+                }
+            });
+
+            // Handle initial page load
+            const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
+            state.session = initialSession;
+            if (!initialSession) {
+                window.location.href = '/login.html';
+            } else {
+                await checkAccountStatus(initialSession.user);
+            }
+        }
+
+        // Check user's account and profile status in Supabase
+        async function checkAccountStatus(user) {
+            appContainer.innerHTML = `<div id="loading-spinner" class="flex items-center justify-center min-h-screen"><div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div></div>`;
+
+            // 1. Check for an account
+            // FIXED: Use supabaseClient
+            const { data: account, error: accountError } = await supabaseClient
+                .from('accounts')
+                .select('active_tier')
+                .eq('id', user.id)
+                .single();
+
+            if (accountError && accountError.code !== 'PGRST116') { // PGRST116 = no rows found
+                console.error('Error fetching account:', accountError);
+                // Show a generic error?
+                return;
+            }
+
+            if (!account) {
+                // This shouldn't happen because our trigger should create it.
+                // But if it does, show payment placeholder as a fallback.
+                appContainer.innerHTML = paymentPlaceholderTemplate;
+                lucide.createIcons();
+            } else if (account.active_tier === 'free' || account.active_tier.startsWith('paid_')) {
+                // User is subscribed (or free), check for profiles
+                // FIXED: Use supabaseClient
+                const { data: profiles, error: profileError } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('account_id', user.id);
+                
+                if (profiles && profiles.length > 0) {
+                    // User has profiles, show picker
+                    appContainer.innerHTML = profilePickerTemplate(profiles);
+                    lucide.createIcons();
+                } else {
+                    // User has no profiles, force creation
+                    appContainer.innerHTML = createProfileTemplate;
+                    lucide.createIcons();
+                }
+            } else {
+                // User's tier is not 'free' or 'paid' (e.g., null, 'pending'), show payment step
+                appContainer.innerHTML = paymentPlaceholderTemplate;
+                lucide.createIcons();
+            }
+        }
+        
+        // --- EVENT HANDLING (Delegated to appContainer) ---
+        appContainer.addEventListener('click', async (e) => {
             const sidebar = document.getElementById('sidebar');
 
+            // --- App Navigation ---
             if (e.target.closest('#menu-toggle-btn')) {
-                sidebar.classList.remove('hidden');
-                return;
+                if(sidebar) sidebar.classList.remove('hidden');
             }
-
             if (e.target.closest('#menu-close-btn')) {
-                sidebar.classList.add('hidden');
-                return;
+                if(sidebar) sidebar.classList.add('hidden');
             }
-
             const navLink = e.target.closest('[data-nav-link]');
             if (navLink) { 
                 state.activeTab = navLink.dataset.navLink;
                 state.uploadedImageBase64 = null;
                 state.currentTest = null;
-                render(); 
-                
-                if (sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
+                renderToolContent(); // Re-render just the tool content
+                if (sidebar && sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
                     sidebar.classList.add('hidden');
                 }
-                return; 
             }
-            
+
+            // --- App Tool Buttons ---
             if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
             if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
             if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
             if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); 
             if (e.target.closest('#remove-image-btn')) handleRemoveImage();
+
+            // --- NEW: Auth & Onboarding Buttons ---
+            if (e.target.closest('#logout-btn')) {
+                // FIXED: Use supabaseClient
+                await supabaseClient.auth.signOut();
+                state.activeProfile = null; // Clear active profile
+                // onAuthStateChange will catch this and redirect
+            }
+            if (e.target.closest('#profile-picker-btn')) {
+                // Go back to profile picker
+                state.activeProfile = null; // Clear active profile
+                await checkAccountStatus(state.session.user);
+            }
+            if (e.target.closest('#skip-payment-btn')) {
+                // This is the placeholder "Continue" button
+                // FIXED: Use supabaseClient
+                const { error } = await supabaseClient
+                    .from('accounts')
+                    .update({ active_tier: 'free' }) // Set user to free tier
+                    .eq('id', state.session.user.id);
+                
+                if (error) console.error('Error updating tier:', error);
+                await checkAccountStatus(state.session.user); // Re-check status
+            }
+            const profileButton = e.target.closest('.profile-select-btn');
+            if (profileButton) {
+                const profileId = profileButton.dataset.profileId;
+                // FIXED: Use supabaseClient
+                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', profileId).single();
+                if (profile) {
+                    state.activeProfile = profile;
+                    showMainApp(); // Render the main app UI
+                }
+            }
+            if (e.target.closest('#show-add-profile-btn')) {
+                 appContainer.innerHTML = createProfileTemplate;
+                 lucide.createIcons();
+            }
         });
 
-        mainContent.addEventListener('change', (e) => {
+        // Handle image uploads (delegated to appContainer)
+        appContainer.addEventListener('change', (e) => {
             if (e.target.id === 'image-upload') handleImageChange(e);
         });
         
-        mainContent.addEventListener('submit', async (e) => {
+        // Handle form submissions (delegated to appContainer)
+        appContainer.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Prevent all form submissions by default
+
+            // Quiz Submission
             if (e.target.id === 'quiz-form') {
-                e.preventDefault();
                 await handleQuizSubmit(e.target);
+            }
+            
+            // NOTE: Login form is no longer in this file
+            // if (e.target.id === 'login-form') { ... }
+
+            // Create Profile Form
+            if (e.target.id === 'create-profile-form') {
+                const name = document.getElementById('profile-name').value;
+                const button = document.getElementById('create-profile-btn');
+                button.disabled = true;
+
+                // FIXED: Use supabaseClient
+                const { error } = await supabaseClient
+                    .from('profiles')
+                    .insert({ 
+                        account_id: state.session.user.id, 
+                        name: name 
+                        // avatar_key will be added later
+                    });
+                
+                if (error) {
+                    alert(`Error creating profile: ${error.message}`);
+                    button.disabled = false;
+                } else {
+                    // Success! Re-run the auth check to go to profile picker
+                    await checkAccountStatus(state.session.user);
+                }
             }
         });
 
         // --- API & BUSINESS LOGIC ---
         
         async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+            // (Function remains the same)
             try {
                 const response = await fetch('/.netlify/functions/generate', {
                     method: 'POST',
@@ -397,21 +643,19 @@
         }
         
         // --- PARENT/LEARNER TOOL HANDLERS ---
-        // MODIFIED: handleGenerateHomeworkHelp to accept text OR image
+        // (All 4 tool handlers remain the same)
         async function handleGenerateHomeworkHelp() {
-            const questionText = document.getElementById('hh-question').value.trim(); // Get text input
+            const questionText = document.getElementById('hh-question').value.trim();
             const errorEl = document.getElementById('hh-error');
             const outputEl = document.getElementById('hh-output');
             const button = document.getElementById('generate-homework-help-btn');
 
             errorEl.classList.add('hidden');
-            // MODIFIED: Validation - need either text OR image
             if (!questionText && !state.uploadedImageBase64) {
                 errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
                 errorEl.classList.remove('hidden');
                 return;
             }
-             // NEW: Prevent submitting both text and image
             if (questionText && state.uploadedImageBase64) {
                  errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
                  errorEl.classList.remove('hidden');
@@ -420,23 +664,20 @@
 
             button.disabled = true;
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
-            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`; // Simplified message
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`;
             
             let prompt = '';
-            let imageData = state.uploadedImageBase64; // Use state image data by default
+            let imageData = state.uploadedImageBase64;
 
-            // MODIFIED: Create the appropriate prompt based on input type
             if (questionText) {
                 prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
 Provide a JSON object with two keys: "hints" and "answer". 
 - "hints": An array of gentle hints to guide the student towards the answer.
 - "answer": A clear and concise final answer to the question.`;
-                imageData = null; // Don't send image data if text was provided
+                imageData = null; 
             } else if (imageData) {
-                // Existing image prompt
                 prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
             } else {
-                 // Fallback error, though validation should prevent this
                  errorEl.textContent = 'No input provided.';
                  errorEl.classList.remove('hidden');
                  button.disabled = false;
@@ -445,19 +686,16 @@ Provide a JSON object with two keys: "hints" and "answer".
             }
 
             try {
-                // MODIFIED: Pass potentially null imageData
                 const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
                 const result = JSON.parse(jsonText);
 
-                // MODIFIED: Render output based on what's available in the result
                 let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
-                if (result.breakdown) { // Only show breakdown for images
+                if (result.breakdown) {
                     outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
                 }
                 if (result.hints) {
                     outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
                 }
-                 // Handle both 'answer' (singular, for text) and 'answers' (array, for image)
                 if (result.answer) {
                      outputHtml += createSectionHTML('key-round', 'green', 'Answer', result.answer);
                 } else if (result.answers) {
@@ -479,7 +717,6 @@ Provide a JSON object with two keys: "hints" and "answer".
         }
 
         async function handleGenerateLearningHelp() {
-            // (Function remains the same)
             const topic = document.getElementById('learn-topic').value;
             const errorEl = document.getElementById('lh-error');
             const outputEl = document.getElementById('lh-output');
@@ -541,7 +778,6 @@ The topic is: ${topic}`;
         }
 
         async function handleGenerateExplanation() {
-            // (Function remains the same)
             const topic = document.getElementById('explain-topic').value;
             const errorEl = document.getElementById('es-error');
             const outputEl = document.getElementById('es-output');
@@ -580,7 +816,6 @@ The topic is: ${topic}`;
         }
         
         async function handleGenerateTestBuilder() {
-            // (Function remains the same)
             const topic = document.getElementById('tb-topic').value;
             const numQuestions = document.getElementById('tb-num-questions').value;
             const errorEl = document.getElementById('tb-error');
@@ -814,7 +1049,7 @@ The topic for the test is: ${topic}`;
         }
 
         // --- INITIAL RENDER ---
-        render();
+        handleAuth(); // Start the auth flow on page load
     </script>
 </body>
 </html>
