@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login / Register - Learning Genie</title>
+    <link rel="icon" href="/logo.svg" type="image/svg+xml">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
+        }
+        .genie-logo-sm {
+            width: 5rem;
+            height: 5rem;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Simple header -->
+    <header class="absolute top-0 left-0 w-full p-4">
+        <a href="/index.html" class="flex items-center group w-fit">
+            <img src="/logo.svg" alt="Learning Genie Logo" class="h-12 w-12">
+            <span class="ml-3 text-2xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</span>
+        </a>
+    </header>
+
+    <!-- Login Form -->
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="max-w-md w-full bg-white p-8 md:p-10 rounded-xl shadow-2xl text-center">
+            
+            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo-sm mx-auto mb-4">
+            
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome!</h1>
+            <p class="text-gray-600 mb-6">Enter your email to sign up or log in. We'll send you a secure magic link.</p>
+            
+            <form id="login-form" class="text-left">
+                <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
+                <button type="submit" id="login-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">
+                    Send Magic Link
+                </button>
+            </form>
+
+            <div id="login-message" class="text-sm mt-4 hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co'; // <-- REPLACE THIS
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo'; // <-- REPLACE THIS
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const loginForm = document.getElementById('login-form');
+        const loginButton = document.getElementById('login-btn');
+        const messageEl = document.getElementById('login-message');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const emailInput = document.getElementById('email-input');
+            const email = emailInput.value.trim();
+
+            if (!email) {
+                messageEl.textContent = 'Please enter a valid email address.';
+                messageEl.classList.add('text-red-600');
+                messageEl.classList.remove('hidden', 'text-green-600');
+                return;
+            }
+
+            // Disable button and show loading state
+            loginButton.disabled = true;
+            loginButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Sending...`;
+            messageEl.classList.add('hidden');
+
+            // Send the magic link
+            const { error } = await supabase.auth.signInWithOtp({
+                email: email,
+                options: {
+                    // This is where Supabase will send the user *after* they
+                    // click the link in their email.
+                    emailRedirectTo: window.location.origin + '/app.html'
+                }
+            });
+
+            if (error) {
+                messageEl.textContent = `Error: ${error.message}`;
+                messageEl.classList.add('text-red-600');
+                messageEl.classList.remove('hidden', 'text-green-600');
+                loginButton.disabled = false;
+                loginButton.textContent = 'Send Magic Link';
+            } else {
+                messageEl.textContent = 'Success! Check your email for a login link.';
+                messageEl.classList.add('text-green-600');
+                messageEl.classList.remove('hidden', 'text-red-600');
+                emailInput.value = ''; // Clear input on success
+                // Button remains disabled to prevent re-sending
+            }
+        });
+    </script>
+</body>
+</html>
