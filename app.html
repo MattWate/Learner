@@ -427,27 +427,22 @@
 
         // Main auth controller
         async function handleAuth() {
-            // FIXED: Use supabaseClient
-            const { data: { session }, error } = await supabaseClient.auth.onAuthStateChange(async (event, session) => {
+            // We only need the onAuthStateChange listener.
+            // It will fire once on page load with the initial session (or null)
+            // and then again any time the auth state changes (e.g., user logs out).
+            supabaseClient.auth.onAuthStateChange(async (event, session) => {
                 state.session = session;
                 if (!session) {
-                    // User is logged out, show login page
-                    // This page (app.html) is for logged-in users. Redirect to login.
+                    // User is not logged in, redirect to login page.
                     window.location.href = '/login.html';
                 } else {
-                    // User is logged in, check their account status
+                    // User is logged in, check their account and profile status.
+                    // This will replace the loading spinner.
                     await checkAccountStatus(session.user);
                 }
             });
-
-            // Handle initial page load
-            const { data: { session: initialSession } } = await supabaseClient.auth.getSession();
-            state.session = initialSession;
-            if (!initialSession) {
-                window.location.href = '/login.html';
-            } else {
-                await checkAccountStatus(initialSession.user);
-            }
+            
+            // The redundant getSession() call that was causing the race condition is removed.
         }
 
         // Check user's account and profile status in Supabase
@@ -1053,4 +1048,5 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
+
 
