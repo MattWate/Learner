@@ -4,23 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Genie - Learner Hub</title>
-    <!-- Linked favicon to the new file -->
     <link rel="icon" href="/logo.svg" type="image/svg+xml">
     
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- FileSaver.js for downloading files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <!-- html-to-docx for Word document generation (Kept for future "save" feature) -->
     <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
     
-    <!-- NEW: Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <style>
@@ -72,16 +65,7 @@
     </style>
 </head>
 <body>
-    <!-- 
-      This is the main container.
-      JavaScript will fill this with one of:
-      1. The Login Screen
-      2. The Payment Placeholder Screen
-      3. The Profile Picker Screen
-      4. The Main App (sidebar + tools)
-    -->
     <div id="app-container" class="min-h-screen">
-        <!-- Loading Spinner -->
         <div id="loading-spinner" class="flex items-center justify-center min-h-screen">
              <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
         </div>
@@ -144,7 +128,6 @@
                     <form id="create-profile-form">
                         <label for="profile-name" class="block text-sm font-medium text-gray-700 text-left mb-1">Profile Name</label>
                         <input type="text" id="profile-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="e.g., Alex">
-                        <!-- Add Avatar Picker Here Later -->
                         <button type="submit" id="create-profile-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
                             Create Profile
                         </button>
@@ -157,7 +140,6 @@
         function profilePickerTemplate(profiles) {
             let profileButtons = profiles.map(profile => `
                 <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
-                    <!-- Placeholder avatar -->
                     <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
                         <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
                     </div>
@@ -171,7 +153,6 @@
                         <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
                         <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                             ${profileButtons}
-                            <!-- Add New Profile Button -->
                             <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
                                 <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
                                     <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
@@ -191,8 +172,7 @@
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
-                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <!-- Personalized -->
-                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
                     <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
@@ -264,7 +244,7 @@
                             <label for="learn-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want to learn about?</label>
                             <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., The planets in our solar system"></textarea>
                         </div>
-                        <div class="text-center text-sm text-gray-500">OR</div>
+                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Upload a Photo (optional)</label>
                             <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
@@ -347,7 +327,6 @@
             const appContainer = document.getElementById('app-container');
             appContainer.innerHTML = `
                 <div class="min-h-screen md:flex">
-                    <!-- Sidebar Navigation -->
                     <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
                         <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
                             <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
@@ -357,7 +336,6 @@
                             <i data-lucide="x" class="h-6 w-6"></i>
                         </button>
                         <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
-                        <!-- NEW: Profile/Logout Button -->
                         <div class="mt-auto pt-4">
                             <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
                                 <i data-lucide="users" class="h-5 w-5"></i>
@@ -369,7 +347,6 @@
                             </button>
                         </div>
                     </aside>
-                    <!-- Main Content -->
                     <main id="main-content" class="flex-1 p-4 md:p-8"></main>
                 </div>
             `;
@@ -443,7 +420,7 @@
             });
         }
             
-            // The redundant getSession() call that was causing the race condition is removed.
+        // The redundant getSession() call that was causing the race condition is removed.
 
 
         // Check user's account and profile status in Supabase
@@ -872,8 +849,7 @@ The topic for the test is: ${topic}`;
                     <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                          <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
                          <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                         <div id="quiz-results" class="mb-6"></div> <!-- For showing the score -->
-                         ${quizHtml}
+                         <div id="quiz-results" class="mb-6"></div> ${quizHtml}
                     </div>
                 `;
                 lucide.createIcons();
@@ -1066,8 +1042,3 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
-
-
-
-
-
