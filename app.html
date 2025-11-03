@@ -448,35 +448,41 @@
 
         // Check user's account and profile status in Supabase
         async function checkAccountStatus(user) {
-            appContainer.innerHTML = `<div id="loading-spinner" class="flex items-center justify-center min-h-screen"><div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div></div>`;
+            // DO NOT set innerHTML to a spinner here. The static one is fine.
+            // This was the cause of the hang on error.
 
-            // 1. Check for an account
-            // FIXED: Use supabaseClient
-            const { data: account, error: accountError } = await supabaseClient
-                .from('accounts')
-                .select('active_tier')
-                .eq('id', user.id)
-                .single();
+            try {
+                // 1. Check for an account
+                const { data: account, error: accountError } = await supabaseClient
+                    .from('accounts')
+                    .select('active_tier')
+                    .eq('id', user.id)
+                    .single();
 
-            if (accountError && accountError.code !== 'PGRST116') { // PGRST116 = no rows found
-                console.error('Error fetching account:', accountError);
-                // Show a generic error?
-                return;
-            }
+                if (accountError && accountError.code !== 'PGRST116') { // PGRST116 = no rows found
+                    // This was the silent failure. Now it throws an error.
+                    throw new Error(`Failed to fetch account: ${accountError.message}`);
+                }
 
-            if (!account) {
-                // This shouldn't happen because our trigger should create it.
-                // But if it does, show payment placeholder as a fallback.
-                appContainer.innerHTML = paymentPlaceholderTemplate;
-                lucide.createIcons();
-            } else if (account.active_tier === 'free' || account.active_tier.startsWith('paid_')) {
-                // User is subscribed (or free), check for profiles
-                // FIXED: Use supabaseClient
+                if (!account || (account.active_tier !== 'free' && !account.active_tier?.startsWith('paid_'))) {
+                    // User has no account OR their tier is not active (null, pending, etc.)
+                    // Show payment/welcome step.
+                    appContainer.innerHTML = paymentPlaceholderTemplate;
+                    lucide.createIcons();
+                    return; // We are done
+                }
+
+                // 2. User has an active account, check for profiles
                 const { data: profiles, error: profileError } = await supabaseClient
                     .from('profiles')
                     .select('*')
                     .eq('account_id', user.id);
-                
+
+                if (profileError) {
+                    // Throw error if profile fetch fails
+                    throw new Error(`Failed to fetch profiles: ${profileError.message}`);
+                }
+
                 if (profiles && profiles.length > 0) {
                     // User has profiles, show picker
                     appContainer.innerHTML = profilePickerTemplate(profiles);
@@ -486,9 +492,20 @@
                     appContainer.innerHTML = createProfileTemplate;
                     lucide.createIcons();
                 }
-            } else {
-                // User's tier is not 'free' or 'paid' (e.g., null, 'pending'), show payment step
-                appContainer.innerHTML = paymentPlaceholderTemplate;
+
+            } catch (error) {
+                // If anything above failed, show a clear error message instead of hanging
+                console.error('Error in checkAccountStatus:', error);
+                appContainer.innerHTML = `
+                    <div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                            <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
+                            <h1 class="text-2xl font-bold text-gray-800 mb-2">An Error Occurred</h1>
+                            <p class="text-gray-600 mb-6">Could not load your account data. This can be caused by database security rules. Please try again later.</p>
+                            <p class="text-sm text-gray-500">${error.message}</p>
+                        </div>
+                    </div>
+                `;
                 lucide.createIcons();
             }
         }
@@ -1049,6 +1066,7 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
+
 
 
 
