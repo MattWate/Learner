@@ -45,17 +45,30 @@
             <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo-sm mx-auto mb-4">
             
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome!</h1>
-            <p class="text-gray-600 mb-6">Enter your email to sign up or log in. We'll send you a secure magic link.</p>
+            <p class="text-gray-600 mb-6">Log in or register to get started.</p>
             
-            <form id="login-form" class="text-left">
-                <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
-                <button type="submit" id="login-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">
-                    Send Magic Link
-                </button>
+            <!-- MODIFIED: Form now has password and two buttons -->
+            <form id="auth-form" class="text-left space-y-4">
+                <div>
+                    <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                    <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
+                </div>
+                <div>
+                    <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                    <input type="password" id="password-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
+                </div>
+                
+                <div class="pt-2 space-y-3">
+                    <button type="submit" id="login-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">
+                        Log In
+                    </button>
+                    <button type="button" id="register-btn" class="w-full bg-white text-indigo-600 border border-indigo-600 font-semibold py-3 px-4 rounded-lg hover:bg-indigo-50 disabled:bg-gray-100 flex items-center justify-center">
+                        Register
+                    </button>
+                </div>
             </form>
 
-            <div id="login-message" class="text-sm mt-4 hidden"></div>
+            <div id="auth-message" class="text-sm mt-4 hidden"></div>
         </div>
     </div>
 
@@ -65,57 +78,128 @@
         const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
         
-        // FIXED: Correct v2 initialization
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const loginForm = document.getElementById('login-form');
+        const authForm = document.getElementById('auth-form');
         const loginButton = document.getElementById('login-btn');
-        const messageEl = document.getElementById('login-message');
+        const registerButton = document.getElementById('register-btn');
+        const emailInput = document.getElementById('email-input');
+        const passwordInput = document.getElementById('password-input');
+        const messageEl = document.getElementById('auth-message');
 
-        loginForm.addEventListener('submit', async (e) => {
+        // --- Handle Login ---
+        loginButton.addEventListener('click', async (e) => {
             e.preventDefault();
-            
-            const emailInput = document.getElementById('email-input');
-            const email = emailInput.value.trim();
+            await handleAuth(e, 'login');
+        });
 
-            if (!email) {
-                messageEl.textContent = 'Please enter a valid email address.';
-                messageEl.classList.add('text-red-600');
-                messageEl.classList.remove('hidden', 'text-green-600');
+        // --- Handle Register ---
+        registerButton.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await handleAuth(e, 'register');
+        });
+
+        async function handleAuth(e, mode) {
+            const email = emailInput.value.trim();
+            const password = passwordInput.value.trim();
+            const button = (mode === 'login') ? loginButton : registerButton;
+
+            // Simple validation
+            if (!email || !password) {
+                showMessage('Please enter both email and password.', 'error');
+                return;
+            }
+            if (password.length < 6) {
+                showMessage('Password must be at least 6 characters.', 'error');
                 return;
             }
 
-            // Disable button and show loading state
-            loginButton.disabled = true;
-            loginButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Sending...`;
-            messageEl.classList.add('hidden');
+            // Disable buttons and show loading state
+            setLoading(true);
 
-            // Send the magic link
-            // FIXED: Use supabaseClient
-            const { error } = await supabaseClient.auth.signInWithOtp({
-                email: email,
-                options: {
-                    // This is where Supabase will send the user *after* they
-                    // click the link in their email.
-                    emailRedirectTo: window.location.origin + '/app.html'
+            let error;
+            if (mode === 'login') {
+                // --- SIGN IN ---
+                const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
+                    email: email,
+                    password: password,
+                });
+                error = signInError;
+                
+                if (!error) {
+                    // Successful login, redirect to the app
+                    window.location.href = '/app.html';
+                    return;
                 }
-            });
 
+            } else {
+                // --- SIGN UP (REGISTER) ---
+                const { data, error: signUpError } = await supabaseClient.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        // This is where Supabase will send the user *after* they
+                        // click the confirmation link in their email.
+                        emailRedirectTo: window.location.origin + '/app.html'
+                    }
+                });
+                error = signUpError;
+                
+                if (!error && data.user) {
+                     // Check if user needs confirmation
+                    if (data.user.identities && data.user.identities.length === 0) {
+                        // This can happen if "Confirm email" is OFF. Log them in.
+                         window.location.href = '/app.html';
+                         return;
+                    } else {
+                        // Success! Show confirmation message
+                        showMessage('Success! Please check your email for a confirmation link.', 'success');
+                        emailInput.value = '';
+                        passwordInput.value = '';
+                    }
+                }
+            }
+
+            // --- Handle Errors ---
             if (error) {
-                messageEl.textContent = `Error: ${error.message}`;
+                console.error(error.message);
+                if (error.message.includes("Invalid login credentials")) {
+                     showMessage('Invalid email or password.', 'error');
+                } else if (error.message.includes("User already registered")) {
+                    showMessage('This email is already registered. Try logging in.', 'error');
+                } else if (error.message.includes("Email rate limit exceeded")) {
+                     showMessage('You are trying too often. Please wait a moment.', 'error');
+                } else {
+                    showMessage(error.message, 'error');
+                }
+            }
+
+            setLoading(false);
+        }
+
+        function setLoading(isLoading) {
+            loginButton.disabled = isLoading;
+            registerButton.disabled = isLoading;
+            if (isLoading) {
+                loginButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Loading...`;
+                registerButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mr-3"></div> Loading...`;
+            } else {
+                loginButton.innerHTML = 'Log In';
+                registerButton.innerHTML = 'Register';
+            }
+        }
+
+        function showMessage(message, type) {
+            messageEl.textContent = message;
+            if (type === 'error') {
                 messageEl.classList.add('text-red-600');
                 messageEl.classList.remove('hidden', 'text-green-600');
-                loginButton.disabled = false;
-                loginButton.textContent = 'Send Magic Link';
             } else {
-                messageEl.textContent = 'Success! Check your email for a login link.';
                 messageEl.classList.add('text-green-600');
                 messageEl.classList.remove('hidden', 'text-red-600');
-                emailInput.value = ''; // Clear input on success
-                // Button remains disabled to prevent re-sending
             }
-        });
+        }
     </script>
 </body>
 </html>
