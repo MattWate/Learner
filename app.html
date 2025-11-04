@@ -20,33 +20,30 @@
         body {
             font-family: 'Poppins', sans-serif;
             background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
-            /* NEW: Ensure app fills screen */
             min-height: 100vh;
         }
         .prose { max-width: 65ch; }
         .prose-sm { font-size: 0.875rem; line-height: 1.5; }
         @media print {
-            /* Print styles are kept for now, but are unused */
+            /* Print styles */
         }
-        /* Logo size for the app */
         .genie-logo {
-            width: 5rem; /* Default/Mobile size */
-            height: 5rem; /* Default/Mobile size */
+            width: 5rem;
+            height: 5rem;
         }
-        @media (min-width: 768px) { /* Corresponds to Tailwind's 'md' breakpoint */
+        @media (min-width: 768px) {
             .genie-logo {
-                width: 12rem; /* Desktop size */
-                height: 12rem; /* Desktop size */
+                width: 12rem;
+                height: 12rem;
             }
         }
-        /* Styles for quiz feedback */
         .quiz-question-wrapper.correct {
-            border-left-color: #22c55e; /* green-500 */
-            background-color: #f0fdf4; /* green-50 */
+            border-left-color: #22c55e;
+            background-color: #f0fdf4;
         }
         .quiz-question-wrapper.incorrect {
-            border-left-color: #ef4444; /* red-500 */
-            background-color: #fef2f2; /* red-50 */
+            border-left-color: #ef4444;
+            background-color: #fef2f2;
         }
         .quiz-feedback {
             display: none;
@@ -56,11 +53,11 @@
         }
         .quiz-question-wrapper.correct .quiz-feedback.correct {
             display: block;
-            color: #166534; /* green-800 */
+            color: #166534;
         }
         .quiz-question-wrapper.incorrect .quiz-feedback.incorrect {
             display: block;
-            color: #991b1b; /* red-800 */
+            color: #991b1b;
         }
     </style>
 </head>
@@ -72,992 +69,950 @@
     </div>
 
     <script>
-        // --- SUPABASE & APP STATE ---
-        // FIXED: Added your keys and corrected initialization
-        const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
-        const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        // Wrap all code in a DOMContentLoaded listener to prevent all race conditions.
+        document.addEventListener("DOMContentLoaded", () => {
+    
+            // --- SUPABASE & APP STATE ---
+            const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
+            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
+            const { createClient } = supabase;
+            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const state = {
-            session: null,        // Stores the user's auth session
-            activeProfile: null,  // Stores the selected child profile
-            activeTab: 'home',    // Default tool tab
-            uploadedImageBase64: null,
-            currentTest: null
-        };
-
-        // --- NEW: AUTH & ONBOARDING TEMPLATES ---
-
-        const loginTemplate = `
-            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                    <img src="/logo.svg" alt="Learning Genie Logo" class="h-24 w-24 mx-auto mb-4">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome Back!</h1>
-                    <p class="text-gray-600 mb-6">Enter your email to get a secure magic link to log in.</p>
-                    <form id="login-form">
-                        <label for="email-input" class="block text-sm font-medium text-gray-700 text-left mb-1">Email</label>
-                        <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
-                        <button type="submit" id="login-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
-                            Send Magic Link
-                        </button>
-                    </form>
-                    <div id="login-message" class="text-sm text-green-600 mt-4 hidden"></div>
-                </div>
-            </div>
-        `;
-
-        const paymentPlaceholderTemplate = `
-            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                    <i data-lucide="party-popper" class="h-16 w-16 text-amber-500 mx-auto mb-4"></i>
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to Learning Genie!</h1>
-                    <p class="text-gray-600 mb-6">To keep things simple, all features are enabled for free during our launch. No payment required!</p>
-                    <button id="skip-payment-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
-                        Continue to App
-                    </button>
-                </div>
-            </div>
-        `;
-
-        const createProfileTemplate = `
-            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Your First Learner Profile</h1>
-                    <p class="text-gray-600 mb-6">This will be the first profile on your account (e.g., "Alex" or "Sarah").</p>
-                    <form id="create-profile-form">
-                        <label for="profile-name" class="block text-sm font-medium text-gray-700 text-left mb-1">Profile Name</label>
-                        <input type="text" id="profile-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="e.g., Alex">
-                        <button type="submit" id="create-profile-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
-                            Create Profile
-                        </button>
-                    </form>
-                </div>
-            </div>
-        `;
-        
-        // This function dynamically generates the profile picker
-        function profilePickerTemplate(profiles) {
-            let profileButtons = profiles.map(profile => `
-                <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
-                    <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
-                        <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
-                    </div>
-                    <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
-                </button>
-            `).join('');
-
-            return `
-                <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-                    <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                        <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
-                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                            ${profileButtons}
-                            <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
-                                <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
-                                    <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
-                                </div>
-                                <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
-
-
-        // --- MAIN APP TEMPLATES (Your existing code, now as templates) ---
-        
-        const homePageTemplate = `
-            <div class="max-w-4xl mx-auto text-center">
-                 <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
-                    <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
-                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
-                </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
-                    <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
-                        <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Homework Helper</h2>
-                        <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
-                    </div>
-                    <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-indigo-500">
-                        <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
-                        <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
-                    </div>
-                    <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
-                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
-                        <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
-                    </div>
-                    <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
-                        <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
-                        <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
-                    </div>
-                </div>
-            </div>`;
-        
-        const parentHubTemplate = homePageTemplate; 
-
-        const homeworkHelperTemplate = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
-                    <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p>
-                    <div class="space-y-6">
-                        <div>
-                            <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
-                            <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
-                        </div>
-                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
-                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                <div class="space-y-1 text-center">
-                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
-                                    <div class="flex text-sm text-gray-600">
-                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
-                                    </div>
-                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                                </div>
-                            </div>
-                            <div id="image-preview-wrapper" class="hidden mt-4">
-                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
-                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
-                            </div>
-                        </div>
-                    </div>
-                    <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
-                    <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
-                </div>
-                <div id="hh-output" class="mt-8"></div>
-            </div>`;
-        
-        const learningHubTemplate = `
-             <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2>
-                    <p class="text-gray-500 mb-8">Describe a topic or upload a photo to get revision notes and a practice test.</p>
-                     <div class="space-y-6">
-                        <div>
-                            <label for="learn-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want to learn about?</label>
-                            <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., The planets in our solar system"></textarea>
-                        </div>
-                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload a Photo (optional)</label>
-                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                <div class="space-y-1 text-center">
-                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
-                                    <div class="flex text-sm text-gray-600">
-                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
-                                    </div>
-                                </div>
-                            </div>
-                            <div id="image-preview-wrapper" class="hidden mt-4">
-                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
-                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
-                            </div>
-                        </div>
-                    </div>
-                    <button id="generate-learning-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn</button>
-                    <div id="lh-error" class="text-red-500 text-sm mt-2 hidden"></div>
-                </div>
-                <div id="lh-output" class="mt-8"></div>
-            </div>`;
-        
-        const explainSimplyTemplate = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2>
-                    <p class="text-gray-500 mb-8">Enter a complex topic or question to get a simple explanation.</p>
-                    <div>
-                        <label for="explain-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want explained?</label>
-                        <textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What is photosynthesis? or Explain black holes"></textarea>
-                    </div>
-                    <button id="generate-explanation-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain</button>
-                    <div id="es-error" class="text-red-500 text-sm mt-2 hidden"></div>
-                </div>
-                <div id="es-output" class="mt-8"></div>
-            </div>`;
-            
-        const testBuilderTemplate = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
-                    <p class="text-gray-500 mb-8">Create a custom practice test on any topic.</p>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div class="md:col-span-2">
-                            <label for="tb-topic" class="block text-sm font-medium text-gray-700 mb-1">Topic</label>
-                            <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., World War 2 Key Battles"></textarea>
-                        </div>
-                        <div>
-                            <label for="tb-num-questions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
-                            <select id="tb-num-questions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
-                                <option value="10" selected>10</option>
-                                <option value="20">20</option>
-                                <option value="30">30</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Types</label>
-                            <div class="space-y-2 mt-2">
-                                <label class="flex items-center"><input type="checkbox" id="tb-qt-mcq" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Multiple Choice</span></label>
-                                <label class="flex items-center"><input type="checkbox" id="tb-qt-tf" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">True/False</span></label>
-                                <label class="flex items-center"><input type="checkbox" id="tb-qt-short" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Short Answer</span></label>
-                            </div>
-                        </div>
-                    </div>
-                    <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all duration-300 flex items-center justify-center disabled:bg-teal-300 mb-8"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button>
-                    <div id="tb-error" class="text-red-500 text-sm mt-2 mb-6 hidden"></div>
-                </div>
-                <div id="tb-output" class="mt-8">
-                     <div class="text-center p-12 bg-white rounded-xl shadow-lg border-t-4 border-gray-200">
-                        <i data-lucide="lightbulb" class="mx-auto h-16 w-16 text-gray-300"></i>
-                        <h3 class="mt-4 text-lg font-semibold text-gray-700">Your test will appear here.</h3>
-                        <p class="mt-1 text-gray-500">Fill out the form above to create a practice test.</p>
-                    </div>
-                </div>
-            </div>`;
-
-        // --- NEW: MAIN APP RENDER FUNCTION ---
-        // This function builds the app UI *after* login and profile selection
-        function showMainApp() {
-            const appContainer = document.getElementById('app-container');
-            appContainer.innerHTML = `
-                <div class="min-h-screen md:flex">
-                    <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
-                        <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
-                            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
-                            <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
-                        </button>
-                        <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
-                            <i data-lucide="x" class="h-6 w-6"></i>
-                        </button>
-                        <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
-                        <div class="mt-auto pt-4">
-                            <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                <i data-lucide="users" class="h-5 w-5"></i>
-                                <span class="ml-3">Switch Profile</span>
-                            </button>
-                            <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                <i data-lucide="log-out" class="h-5 w-5"></i>
-                                <span class="ml-3">Log Out</span>
-                            </button>
-                        </div>
-                    </aside>
-                    <main id="main-content" class="flex-1 p-4 md:p-8"></main>
-                </div>
-            `;
-            // Re-render the tool content
-            renderToolContent();
-        }
-
-        // --- NEW: RENDER FUNCTION for just the tool content ---
-        function renderToolContent() {
-            const mainContent = document.getElementById('main-content');
-            if (!mainContent) return; // Guard clause
-
-            const templates = {
-                home: homePageTemplate,
-                homeworkHelper: homeworkHelperTemplate,
-                learningHub: learningHubTemplate,
-                explainSimply: explainSimplyTemplate,
-                testBuilder: testBuilderTemplate 
+            const state = {
+                session: null,
+                activeProfile: null,
+                activeTab: 'home',
+                uploadedImageBase64: null,
+                currentTest: null
             };
-            mainContent.innerHTML = templates[state.activeTab] || homePageTemplate;
-            updateSidebar();
-            lucide.createIcons();
-        }
 
-        function updateSidebar() {
-            const sidebarNav = document.getElementById('sidebar-nav');
-            if (!sidebarNav) return; // Guard clause
+            // --- AUTH & ONBOARDING TEMPLATES ---
 
-            const homeNav = `<button data-nav-link="home" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="home" class="h-5 w-5"></i><span class="ml-3">Home</span></button>`;
-            const parentNav = `
-                <button data-nav-link="homeworkHelper" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="life-buoy" class="h-5 w-5"></i><span class="ml-3">Homework Helper</span></button>
-                <button data-nav-link="learningHub" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="book-marked" class="h-5 w-5"></i><span class="ml-3">Learning Hub</span></button>
-                <button data-nav-link="explainSimply" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="baby" class="h-5 w-5"></i><span class="ml-3">Explain It Simply</span></button>
-                <button data-nav-link="testBuilder" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="clipboard-check" class="h-5 w-5"></i><span class="ml-3">Test Builder</span></button>
+            const paymentPlaceholderTemplate = `
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <i data-lucide="party-popper" class="h-16 w-16 text-amber-500 mx-auto mb-4"></i>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome to Learning Genie!</h1>
+                        <p class="text-gray-600 mb-6">To keep things simple, all features are enabled for free during our launch. No payment required!</p>
+                        <button id="skip-payment-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
+                            Continue to App
+                        </button>
+                    </div>
+                </div>
             `;
-            sidebarNav.innerHTML = homeNav + parentNav; 
 
-            document.querySelectorAll('.nav-link').forEach(link => {
-                const linkTab = link.dataset.navLink;
-                const isActive = (linkTab === state.activeTab);
-
-                if (isActive) {
-                    link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
-                    link.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                } else {
-                    link.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
-                    link.classList.add('text-gray-600', 'hover:bg-gray-100');
-                }
-            });
-        }
-        
-        // --- NEW: AUTH & ONBOARDING LOGIC ---
-        
-        const appContainer = document.getElementById('app-container');
-
-        // Main auth controller
-        async function handleAuth() {
-            // 1. SET THE LISTENER for future changes (like logout)
-            // This is good practice.
-            supabaseClient.auth.onAuthStateChange((event, session) => {
-                // If the user logs out, this will catch it and redirect.
-                if (event === 'SIGNED_OUT') {
-                    state.session = null;
-                    state.activeProfile = null;
-                    window.location.href = '/login.html';
-                }
-            });
-
-            // 2. PROACTIVELY GET THE SESSION *NOW*
-            // Don't wait for the listener to fire.
-            // This fixes the bug where the initial event is missed.
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
-
-            if (error) {
-                console.error('Error getting session:', error);
-                // Show an error instead of hanging
-                appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
-                return;
-            }
-
-            if (!session) {
-                // No user is logged in. Redirect.
-                window.location.href = '/login.html';
-            } else {
-                // SUCCESS: We have a session.
-                // Now we can safely check the account status.
-                state.session = session;
-                await checkAccountStatus(session.user);
-            }
-        }
+            const createProfileTemplate = `
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Your First Learner Profile</h1>
+                        <p class="text-gray-600 mb-6">This will be the first profile on your account (e.g., "Alex" or "Sarah").</p>
+                        <form id="create-profile-form">
+                            <label for="profile-name" class="block text-sm font-medium text-gray-700 text-left mb-1">Profile Name</label>
+                            <input type="text" id="profile-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="e.g., Alex">
+                            <button type="submit" id="create-profile-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
+                                Create Profile
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            `;
             
-        // The redundant getSession() call that was causing the race condition is removed.
+            function profilePickerTemplate(profiles) {
+                let profileButtons = profiles.map(profile => `
+                    <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
+                        <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
+                            <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
+                        </div>
+                        <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
+                    </button>
+                `).join('');
 
-
-        // Check user's account and profile status in Supabase
-        async function checkAccountStatus(user) {
-            // DO NOT set innerHTML to a spinner here. The static one is fine.
-            // This was the cause of the hang on error.
-
-            try {
-                // 1. Check for an account
-                const { data: account, error: accountError } = await supabaseClient
-                    .from('accounts')
-                    .select('active_tier')
-                    .eq('id', user.id)
-                    .single();
-
-                if (accountError && accountError.code !== 'PGRST116') { // PGRST116 = no rows found
-                    // This was the silent failure. Now it throws an error.
-                    throw new Error(`Failed to fetch account: ${accountError.message}`);
-                }
-
-                if (!account || (account.active_tier !== 'free' && !account.active_tier?.startsWith('paid_'))) {
-                    // User has no account OR their tier is not active (null, pending, etc.)
-                    // Show payment/welcome step.
-                    appContainer.innerHTML = paymentPlaceholderTemplate;
-                    lucide.createIcons();
-                    return; // We are done
-                }
-
-                // 2. User has an active account, check for profiles
-                const { data: profiles, error: profileError } = await supabaseClient
-                    .from('profiles')
-                    .select('*')
-                    .eq('account_id', user.id);
-
-                if (profileError) {
-                    // Throw error if profile fetch fails
-                    throw new Error(`Failed to fetch profiles: ${profileError.message}`);
-                }
-
-                if (profiles && profiles.length > 0) {
-                    // User has profiles, show picker
-                    appContainer.innerHTML = profilePickerTemplate(profiles);
-                    lucide.createIcons();
-                } else {
-                    // User has no profiles, force creation
-                    appContainer.innerHTML = createProfileTemplate;
-                    lucide.createIcons();
-                }
-
-            } catch (error) {
-                // If anything above failed, show a clear error message instead of hanging
-                console.error('Error in checkAccountStatus:', error);
-                appContainer.innerHTML = `
-                    <div class="min-h-screen flex items-center justify-center p-4">
-                        <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                            <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
-                            <h1 class="text-2xl font-bold text-gray-800 mb-2">An Error Occurred</h1>
-                            <p class="text-gray-600 mb-6">Could not load your account data. This can be caused by database security rules. Please try again later.</p>
-                            <p class="text-sm text-gray-500">${error.message}</p>
+                return `
+                    <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                        <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                ${profileButtons}
+                                <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
+                                    <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                                        <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
+                                    </div>
+                                    <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
                 `;
-                lucide.createIcons();
-            }
-        }
-        
-        // --- EVENT HANDLING (Delegated to appContainer) ---
-        appContainer.addEventListener('click', async (e) => {
-            const sidebar = document.getElementById('sidebar');
-
-            // --- App Navigation ---
-            if (e.target.closest('#menu-toggle-btn')) {
-                if(sidebar) sidebar.classList.remove('hidden');
-            }
-            if (e.target.closest('#menu-close-btn')) {
-                if(sidebar) sidebar.classList.add('hidden');
-            }
-            const navLink = e.target.closest('[data-nav-link]');
-            if (navLink) { 
-                state.activeTab = navLink.dataset.navLink;
-                state.uploadedImageBase64 = null;
-                state.currentTest = null;
-                renderToolContent(); // Re-render just the tool content
-                if (sidebar && sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
-                    sidebar.classList.add('hidden');
-                }
             }
 
-            // --- App Tool Buttons ---
-            if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
-            if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
-            if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
-            if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); 
-            if (e.target.closest('#remove-image-btn')) handleRemoveImage();
 
-            // --- NEW: Auth & Onboarding Buttons ---
-            if (e.target.closest('#logout-btn')) {
-                // FIXED: Use supabaseClient
-                await supabaseClient.auth.signOut();
-                state.activeProfile = null; // Clear active profile
-                // onAuthStateChange will catch this and redirect
-            }
-            if (e.target.closest('#profile-picker-btn')) {
-                // Go back to profile picker
-                state.activeProfile = null; // Clear active profile
-                await checkAccountStatus(state.session.user);
-            }
-            if (e.target.closest('#skip-payment-btn')) {
-                // This is the placeholder "Continue" button
-                // FIXED: Use supabaseClient
-                const { error } = await supabaseClient
-                    .from('accounts')
-                    .update({ active_tier: 'free' }) // Set user to free tier
-                    .eq('id', state.session.user.id);
-                
-                if (error) console.error('Error updating tier:', error);
-                await checkAccountStatus(state.session.user); // Re-check status
-            }
-            const profileButton = e.target.closest('.profile-select-btn');
-            if (profileButton) {
-                const profileId = profileButton.dataset.profileId;
-                // FIXED: Use supabaseClient
-                const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', profileId).single();
-                if (profile) {
-                    state.activeProfile = profile;
-                    showMainApp(); // Render the main app UI
-                }
-            }
-            if (e.target.closest('#show-add-profile-btn')) {
-                 appContainer.innerHTML = createProfileTemplate;
-                 lucide.createIcons();
-            }
-        });
-
-        // Handle image uploads (delegated to appContainer)
-        appContainer.addEventListener('change', (e) => {
-            if (e.target.id === 'image-upload') handleImageChange(e);
-        });
-        
-        // Handle form submissions (delegated to appContainer)
-        appContainer.addEventListener('submit', async (e) => {
-            e.preventDefault(); // Prevent all form submissions by default
-
-            // Quiz Submission
-            if (e.target.id === 'quiz-form') {
-                await handleQuizSubmit(e.target);
+            // --- MAIN APP TEMPLATES ---
+            
+            // 
+            // *** THIS IS THE FIX ***
+            // Change homePageTemplate from a `const` string to a `function`.
+            // This stops the script from crashing on load.
+            //
+            function homePageTemplate() {
+                return `
+                <div class="max-w-4xl mx-auto text-center">
+                     <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
+                        <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
+                        <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
+                        <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
+                            <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Homework Helper</h2>
+                            <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
+                        </div>
+                        <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-indigo-500">
+                            <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
+                            <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
+                        </div>
+                        <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
+                            <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
+                            <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
+                        </div>
+                        <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
+                            <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
+                            <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
+                        </div>
+                    </div>
+                </div>`;
             }
             
-            // NOTE: Login form is no longer in this file
-            // if (e.target.id === 'login-form') { ... }
-
-            // Create Profile Form
-            if (e.target.id === 'create-profile-form') {
-                const name = document.getElementById('profile-name').value;
-                const button = document.getElementById('create-profile-btn');
-                button.disabled = true;
-
-                // FIXED: Use supabaseClient
-                const { error } = await supabaseClient
-                    .from('profiles')
-                    .insert({ 
-                        account_id: state.session.user.id, 
-                        name: name 
-                        // avatar_key will be added later
-                    });
+            const homeworkHelperTemplate = `
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
+                        <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p>
+                        <div class="space-y-6">
+                            <div>
+                                <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
+                                <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
+                            </div>
+                            <div class="text-center text-sm font-medium text-gray-500">OR</div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div class="space-y-1 text-center">
+                                        <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                        <div class="flex text-sm text-gray-600">
+                                            <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                        </div>
+                                        <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                                    </div>
+                                </div>
+                                <div id="image-preview-wrapper" class="hidden mt-4">
+                                    <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                    <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
+                        <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                    </div>
+                    <div id="hh-output" class="mt-8"></div>
+                </div>`;
+            
+            const learningHubTemplate = `
+                 <div class="max-w-4xl mx-auto">
+                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2>
+                        <p class="text-gray-500 mb-8">Describe a topic or upload a photo to get revision notes and a practice test.</p>
+                         <div class="space-y-6">
+                            <div>
+                                <label for="learn-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want to learn about?</label>
+                                <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., The planets in our solar system"></textarea>
+                            </div>
+                            <div class="text-center text-sm font-medium text-gray-500">OR</div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Upload a Photo (optional)</label>
+                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                    <div class="space-y-1 text-center">
+                                        <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                        <div class="flex text-sm text-gray-600">
+                                            <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div id="image-preview-wrapper" class="hidden mt-4">
+                                    <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                    <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="generate-learning-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn</button>
+                        <div id="lh-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                    </div>
+                    <div id="lh-output" class="mt-8"></div>
+                </div>`;
+            
+            const explainSimplyTemplate = `
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2>
+                        <p class="text-gray-500 mb-8">Enter a complex topic or question to get a simple explanation.</p>
+                        <div>
+                            <label for="explain-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want explained?</label>
+                            <textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What is photosynthesis? or Explain black holes"></textarea>
+                        </div>
+                        <button id="generate-explanation-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain</button>
+                        <div id="es-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                    </div>
+                    <div id="es-output" class="mt-8"></div>
+                </div>`;
                 
+            const testBuilderTemplate = `
+                <div class="max-w-4xl mx-auto">
+                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
+                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
+                        <p class="text-gray-500 mb-8">Create a custom practice test on any topic.</p>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                            <div class="md:col-span-2">
+                                <label for="tb-topic" class="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                                <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., World War 2 Key Battles"></textarea>
+                            </div>
+                            <div>
+                                <label for="tb-num-questions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
+                                <select id="tb-num-questions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                    <option value="10" selected>10</option>
+                                    <option value="20">20</option>
+                                    <option value="30">30</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Question Types</label>
+                                <div class="space-y-2 mt-2">
+                                    <label class="flex items-center"><input type="checkbox" id="tb-qt-mcq" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Multiple Choice</span></label>
+                                    <label class="flex items-center"><input type="checkbox" id="tb-qt-tf" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">True/False</span></label>
+                                    <label class="flex items-center"><input type="checkbox" id="tb-qt-short" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Short Answer</span></label>
+                                </div>
+                            </div>
+                        </div>
+                        <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all duration-300 flex items-center justify-center disabled:bg-teal-300 mb-8"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button>
+                        <div id="tb-error" class="text-red-500 text-sm mt-2 mb-6 hidden"></div>
+                    </div>
+                    <div id="tb-output" class="mt-8">
+                         <div class="text-center p-12 bg-white rounded-xl shadow-lg border-t-4 border-gray-200">
+                            <i data-lucide="lightbulb" class="mx-auto h-16 w-16 text-gray-300"></i>
+                            <h3 class="mt-4 text-lg font-semibold text-gray-700">Your test will appear here.</h3>
+                            <p class="mt-1 text-gray-500">Fill out the form above to create a practice test.</p>
+                        </div>
+                    </div>
+                </div>`;
+
+            // --- MAIN APP RENDER FUNCTION ---
+            function showMainApp() {
+                const appContainer = document.getElementById('app-container');
+                appContainer.innerHTML = `
+                    <div class="min-h-screen md:flex">
+                        <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
+                            <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
+                                <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
+                                <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
+                            </button>
+                            <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
+                                <i data-lucide="x" class="h-6 w-6"></i>
+                            </button>
+                            <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
+                            <div class="mt-auto pt-4">
+                                <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                    <i data-lucide="users" class="h-5 w-5"></i>
+                                    <span class="ml-3">Switch Profile</span>
+                                </button>
+                                <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                    <i data-lucide="log-out" class="h-5 w-5"></i>
+                                    <span class="ml-3">Log Out</span>
+                                </button>
+                            </div>
+                        </aside>
+                        <main id="main-content" class="flex-1 p-4 md:p-8"></main>
+                    </div>
+                `;
+                renderToolContent();
+            }
+
+            // --- RENDER FUNCTION for tool content ---
+            function renderToolContent() {
+                const mainContent = document.getElementById('main-content');
+                if (!mainContent) return; 
+
+                // *** THIS IS THE OTHER HALF OF THE FIX ***
+                // We now call homePageTemplate() as a function
+                // to get the string, instead of accessing it as a variable.
+                const templates = {
+                    home: homePageTemplate(), 
+                    homeworkHelper: homeworkHelperTemplate,
+                    learningHub: learningHubTemplate,
+                    explainSimply: explainSimplyTemplate,
+                    testBuilder: testBuilderTemplate 
+                };
+                mainContent.innerHTML = templates[state.activeTab] || homePageTemplate();
+                updateSidebar();
+                lucide.createIcons();
+            }
+
+            function updateSidebar() {
+                const sidebarNav = document.getElementById('sidebar-nav');
+                if (!sidebarNav) return; 
+
+                const homeNav = `<button data-nav-link="home" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="home" class="h-5 w-5"></i><span class="ml-3">Home</span></button>`;
+                const parentNav = `
+                    <button data-nav-link="homeworkHelper" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="life-buoy" class="h-5 w-5"></i><span class="ml-3">Homework Helper</span></button>
+                    <button data-nav-link="learningHub" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="book-marked" class="h-5 w-5"></i><span class="ml-3">Learning Hub</span></button>
+                    <button data-nav-link="explainSimply" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="baby" class="h-5 w-5"></i><span class="ml-3">Explain It Simply</span></button>
+                    <button data-nav-link="testBuilder" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="clipboard-check" class="h-5 w-5"></i><span class="ml-3">Test Builder</span></button>
+                `;
+                sidebarNav.innerHTML = homeNav + parentNav; 
+
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    const linkTab = link.dataset.navLink;
+                    const isActive = (linkTab === state.activeTab);
+
+                    if (isActive) {
+                        link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                        link.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                    } else {
+                        link.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                        link.classList.add('text-gray-600', 'hover:bg-gray-100');
+                    }
+                });
+            }
+            
+            // --- AUTH & ONBOARDING LOGIC ---
+            
+            const appContainer = document.getElementById('app-container');
+
+            // Main auth controller
+            async function handleAuth() {
+                // 1. Set the listener for future changes (like logout)
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_OUT') {
+                        state.session = null;
+                        state.activeProfile = null;
+                        window.location.href = '/login.html';
+                    }
+                });
+
+                // 2. Proactively get the session *now*
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
+
                 if (error) {
-                    alert(`Error creating profile: ${error.message}`);
-                    button.disabled = false;
+                    console.error('Error getting session:', error);
+                    appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
+                    return;
+                }
+
+                if (!session) {
+                    // No user is logged in. Redirect.
+                    window.location.href = '/login.html';
                 } else {
-                    // Success! Re-run the auth check to go to profile picker
+                    // SUCCESS: We have a session.
+                    state.session = session;
+                    await checkAccountStatus(session.user);
+                }
+            }
+
+            // Check user's account and profile status
+            async function checkAccountStatus(user) {
+                try {
+                    // 1. Check for an account
+                    const { data: account, error: accountError } = await supabaseClient
+                        .from('accounts')
+                        .select('active_tier')
+                        .eq('id', user.id)
+                        .single();
+
+                    if (accountError && accountError.code !== 'PGRST116') { // PGRST116 = no rows found
+                        throw new Error(`Failed to fetch account: ${accountError.message}`);
+                    }
+
+                    if (!account || (account.active_tier !== 'free' && !account.active_tier?.startsWith('paid_'))) {
+                        // User has no account OR their tier is not active
+                        appContainer.innerHTML = paymentPlaceholderTemplate;
+                        lucide.createIcons();
+                        return;
+                    }
+
+                    // 2. User has an active account, check for profiles
+                    const { data: profiles, error: profileError } = await supabaseClient
+                        .from('profiles')
+                        .select('*')
+                        .eq('account_id', user.id);
+
+                    if (profileError) {
+                        throw new Error(`Failed to fetch profiles: ${profileError.message}`);
+                    }
+
+                    if (profiles && profiles.length > 0) {
+                        // User has profiles, show picker
+                        appContainer.innerHTML = profilePickerTemplate(profiles);
+                        lucide.createIcons();
+                    } else {
+                        // User has no profiles, force creation
+                        appContainer.innerHTML = createProfileTemplate;
+                        lucide.createIcons();
+                    }
+
+                } catch (error) {
+                    // If anything failed, show a clear error
+                    console.error('Error in checkAccountStatus:', error);
+                    appContainer.innerHTML = `
+                        <div class="min-h-screen flex items-center justify-center p-4">
+                            <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                                <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
+                                <h1 class="text-2xl font-bold text-gray-800 mb-2">An Error Occurred</h1>
+                                <p class="text-gray-600 mb-6">Could not load your account data. This can be caused by database security rules. Please try again later.</p>
+                                <p class="text-sm text-gray-500">${error.message}</p>
+                            </div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                }
+            }
+            
+            // --- EVENT HANDLING (Delegated to appContainer) ---
+            appContainer.addEventListener('click', async (e) => {
+                const sidebar = document.getElementById('sidebar');
+
+                // App Navigation
+                if (e.target.closest('#menu-toggle-btn')) {
+                    if(sidebar) sidebar.classList.remove('hidden');
+                }
+                if (e.target.closest('#menu-close-btn')) {
+                    if(sidebar) sidebar.classList.add('hidden');
+                }
+                const navLink = e.target.closest('[data-nav-link]');
+                if (navLink) { 
+                    state.activeTab = navLink.dataset.navLink;
+                    state.uploadedImageBase64 = null;
+                    state.currentTest = null;
+                    renderToolContent();
+                    if (sidebar && sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
+                        sidebar.classList.add('hidden');
+                    }
+                }
+
+                // App Tool Buttons
+                if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
+                if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
+                if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
+                if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); 
+                if (e.target.closest('#remove-image-btn')) handleRemoveImage();
+
+                // Auth & Onboarding Buttons
+                if (e.target.closest('#logout-btn')) {
+                    await supabaseClient.auth.signOut();
+                    state.activeProfile = null;
+                }
+                if (e.target.closest('#profile-picker-btn')) {
+                    state.activeProfile = null;
                     await checkAccountStatus(state.session.user);
                 }
-            }
-        });
-
-        // --- API & BUSINESS LOGIC ---
-        
-        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-            // (Function remains the same)
-            try {
-                const response = await fetch('/.netlify/functions/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
-                });
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+                if (e.target.closest('#skip-payment-btn')) {
+                    const { error } = await supabaseClient
+                        .from('accounts')
+                        .update({ active_tier: 'free' })
+                        .eq('id', state.session.user.id);
+                    
+                    if (error) console.error('Error updating tier:', error);
+                    await checkAccountStatus(state.session.user);
                 }
-                
-                const result = await response.json();
-
-                if (requestType === 'image') {
-                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
-                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                const profileButton = e.target.closest('.profile-select-btn');
+                if (profileButton) {
+                    const profileId = profileButton.dataset.profileId;
+                    const { data: profile } = await supabaseClient.from('profiles').select('*').eq('id', profileId).single();
+                    if (profile) {
+                        state.activeProfile = profile;
+                        showMainApp();
+                    }
                 }
-                
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!text) throw new Error("The AI returned an empty response.");
-                return text;
-            } catch (error) {
-                if (retries > 0) {
-                    console.warn("Request failed, retrying...", error);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                if (e.target.closest('#show-add-profile-btn')) {
+                     appContainer.innerHTML = createProfileTemplate;
+                     lucide.createIcons();
                 }
-                throw error;
-            }
-        }
-        
-        // --- PARENT/LEARNER TOOL HANDLERS ---
-        // (All 4 tool handlers remain the same)
-        async function handleGenerateHomeworkHelp() {
-            const questionText = document.getElementById('hh-question').value.trim();
-            const errorEl = document.getElementById('hh-error');
-            const outputEl = document.getElementById('hh-output');
-            const button = document.getElementById('generate-homework-help-btn');
+            });
 
-            errorEl.classList.add('hidden');
-            if (!questionText && !state.uploadedImageBase64) {
-                errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-            if (questionText && state.uploadedImageBase64) {
-                 errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
-                 errorEl.classList.remove('hidden');
-                 return;
-            }
-
-            button.disabled = true;
-            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
-            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`;
+            // Handle image uploads
+            appContainer.addEventListener('change', (e) => {
+                if (e.target.id === 'image-upload') handleImageChange(e);
+            });
             
-            let prompt = '';
-            let imageData = state.uploadedImageBase64;
+            // Handle form submissions
+            appContainer.addEventListener('submit', async (e) => {
+                e.preventDefault(); 
 
-            if (questionText) {
-                prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
-Provide a JSON object with two keys: "hints" and "answer". 
-- "hints": An array of gentle hints to guide the student towards the answer.
-- "answer": A clear and concise final answer to the question.`;
-                imageData = null; 
-            } else if (imageData) {
-                prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
-            } else {
-                 errorEl.textContent = 'No input provided.';
-                 errorEl.classList.remove('hidden');
-                 button.disabled = false;
-                 button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
-                 return;
-            }
-
-            try {
-                const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
-                const result = JSON.parse(jsonText);
-
-                let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
-                if (result.breakdown) {
-                    outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
+                // Quiz Submission
+                if (e.target.id === 'quiz-form') {
+                    await handleQuizSubmit(e.target);
                 }
-                if (result.hints) {
-                    outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
+
+                // Create Profile Form
+                if (e.target.id === 'create-profile-form') {
+                    const name = document.getElementById('profile-name').value;
+                    const button = document.getElementById('create-profile-btn');
+                    button.disabled = true;
+
+                    const { error } = await supabaseClient
+                        .from('profiles')
+                        .insert({ 
+                            account_id: state.session.user.id, 
+                            name: name 
+                        });
+                    
+                    if (error) {
+                        alert(`Error creating profile: ${error.message}`);
+                        button.disabled = false;
+                    } else {
+                        await checkAccountStatus(state.session.user);
+                    }
                 }
-                if (result.answer) {
-                     outputHtml += createSectionHTML('key-round', 'green', 'Answer', result.answer);
-                } else if (result.answers) {
-                    outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
+            });
+
+            // --- API & BUSINESS LOGIC ---
+            
+            async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+                try {
+                    const response = await fetch('/.netlify/functions/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt, isJson, requestType, imageData })
+                    });
+                    if (!response.ok) {
+                        const errorBody = await response.text();
+                        throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+                    }
+                    
+                    const result = await response.json();
+
+                    if (requestType === 'image') {
+                        if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
+                        return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                    }
+                    
+                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (!text) throw new Error("The AI returned an empty response.");
+                    return text;
+                } catch (error) {
+                    if (retries > 0) {
+                        console.warn("Request failed, retrying...", error);
+                        await new Promise(resolve => setTimeout(resolve, 500));
+                        return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                    }
+                    throw error;
                 }
-                outputHtml += '</div>';
-                outputEl.innerHTML = outputHtml;
-
-                lucide.createIcons();
-            } catch (e) {
-                errorEl.textContent = `An error occurred: ${e.message}`;
-                errorEl.classList.remove('hidden');
-                outputEl.innerHTML = '';
-            } finally {
-                button.disabled = false;
-                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
-                lucide.createIcons();
             }
-        }
+            
+            // --- TOOL HANDLERS ---
+            async function handleGenerateHomeworkHelp() {
+                const questionText = document.getElementById('hh-question').value.trim();
+                const errorEl = document.getElementById('hh-error');
+                const outputEl = document.getElementById('hh-output');
+                const button = document.getElementById('generate-homework-help-btn');
 
-        async function handleGenerateLearningHelp() {
-            const topic = document.getElementById('learn-topic').value;
-            const errorEl = document.getElementById('lh-error');
-            const outputEl = document.getElementById('lh-output');
-            const button = document.getElementById('generate-learning-help-btn');
+                errorEl.classList.add('hidden');
+                if (!questionText && !state.uploadedImageBase64) {
+                    errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+                if (questionText && state.uploadedImageBase64) {
+                     errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
+                     errorEl.classList.remove('hidden');
+                     return;
+                }
 
-            errorEl.classList.add('hidden');
-            if (!topic && !state.uploadedImageBase64) {
-                errorEl.textContent = 'Please enter a topic or upload a photo.';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            button.disabled = true;
-            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
-            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
-            state.currentTest = null; 
-
-            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
-Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test".
-- "learning_objectives": A bulleted list of key things a student should know.
-- "revision_notes": Detailed and comprehensive notes, broken into key sections.
-- "practice_test": An array of 5-7 question objects. Each object must have three keys:
-    1. "question": The string of the question text.
-    2. "type": A string, either "MCQ" (Multiple Choice), "TrueFalse", or "ShortAnswer".
-    3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
-    4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
-The topic is: ${topic}`;
-
-            try {
-                const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
-                const result = JSON.parse(jsonText);
+                button.disabled = true;
+                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
+                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`;
                 
-                state.currentTest = result.practice_test || [];
-                const quizHtml = renderPracticeTest(state.currentTest);
+                let prompt = '';
+                let imageData = state.uploadedImageBase64;
 
-                outputEl.innerHTML = `
-                    <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                        ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
-                        ${createSectionHTML('book-open', 'indigo', "Revision Notes", result.revision_notes)}
-                        
+                if (questionText) {
+                    prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
+    Provide a JSON object with two keys: "hints" and "answer". 
+    - "hints": An array of gentle hints to guide the student towards the answer.
+    - "answer": A clear and concise final answer to the question.`;
+                    imageData = null; 
+                } else if (imageData) {
+                    prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
+                } else {
+                     errorEl.textContent = 'No input provided.';
+                     errorEl.classList.remove('hidden');
+                     button.disabled = false;
+                     button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
+                     return;
+                }
+
+                try {
+                    const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
+                    const result = JSON.parse(jsonText);
+
+                    let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
+                    if (result.breakdown) {
+                        outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
+                    }
+                    if (result.hints) {
+                        outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
+                    }
+                    if (result.answer) {
+                         outputHtml += createSectionHTML('key-round', 'green', 'Answer', result.answer);
+                    } else if (result.answers) {
+                        outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
+                    }
+                    outputHtml += '</div>';
+                    outputEl.innerHTML = outputHtml;
+
+                    lucide.createIcons();
+                } catch (e) {
+                    errorEl.textContent = `An error occurred: ${e.message}`;
+                    errorEl.classList.remove('hidden');
+                    outputEl.innerHTML = '';
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
+                    lucide.createIcons();
+                }
+            }
+
+            async function handleGenerateLearningHelp() {
+                const topic = document.getElementById('learn-topic').value;
+                const errorEl = document.getElementById('lh-error');
+                const outputEl = document.getElementById('lh-output');
+                const button = document.getElementById('generate-learning-help-btn');
+
+                errorEl.classList.add('hidden');
+                if (!topic && !state.uploadedImageBase64) {
+                    errorEl.textContent = 'Please enter a topic or upload a photo.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                button.disabled = true;
+                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
+                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
+                state.currentTest = null; 
+
+                const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
+    Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test".
+    - "learning_objectives": A bulleted list of key things a student should know.
+    - "revision_notes": Detailed and comprehensive notes, broken into key sections.
+    - "practice_test": An array of 5-7 question objects. Each object must have three keys:
+        1. "question": The string of the question text.
+        2. "type": A string, either "MCQ" (Multiple Choice), "TrueFalse", or "ShortAnswer".
+        3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
+        4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
+    The topic is: ${topic}`;
+
+                try {
+                    const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
+                    const result = JSON.parse(jsonText);
+                    
+                    state.currentTest = result.practice_test || [];
+                    const quizHtml = renderPracticeTest(state.currentTest);
+
+                    outputEl.innerHTML = `
+                        <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
+                            ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
+                            ${createSectionHTML('book-open', 'indigo', "Revision Notes", result.revision_notes)}
+                            
+                            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                                 <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
+                                 <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                                 <div id="quiz-results" class="mb-6"></div>
+                                 ${quizHtml}
+                            </div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } catch (e) {
+                    errorEl.textContent = `An error occurred: ${e.message}`;
+                    errorEl.classList.remove('hidden');
+                    outputEl.innerHTML = '';
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn`;
+                    lucide.createIcons();
+                }
+            }
+
+            async function handleGenerateExplanation() {
+                const topic = document.getElementById('explain-topic').value;
+                const errorEl = document.getElementById('es-error');
+                const outputEl = document.getElementById('es-output');
+                const button = document.getElementById('generate-explanation-btn');
+
+                errorEl.classList.add('hidden');
+                if (!topic) {
+                    errorEl.textContent = 'Please enter a topic or question.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                button.disabled = true;
+                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Explaining...`;
+                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking of a simple explanation...</p></div>`;
+
+                const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Topic: "${topic}"`;
+
+                try {
+                    const text = await fetchWithRetry(prompt, false);
+                    outputEl.innerHTML = `
+                        <div class="bg-gray-50/50 p-6 rounded-lg">
+                            ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
+                        </div>
+                    `;
+                    lucide.createIcons();
+                } catch (e) {
+                    errorEl.textContent = `An error occurred: ${e.message}`;
+                    errorEl.classList.remove('hidden');
+                    outputEl.innerHTML = '';
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain`;
+                    lucide.createIcons();
+                }
+            }
+            
+            async function handleGenerateTestBuilder() {
+                const topic = document.getElementById('tb-topic').value;
+                const numQuestions = document.getElementById('tb-num-questions').value;
+                const errorEl = document.getElementById('tb-error');
+                const outputEl = document.getElementById('tb-output');
+                const button = document.getElementById('generate-test-builder-btn');
+
+                const questionTypes = [];
+                if (document.getElementById('tb-qt-mcq').checked) questionTypes.push('MCQ');
+                if (document.getElementById('tb-qt-tf').checked) questionTypes.push('TrueFalse');
+                if (document.getElementById('tb-qt-short').checked) questionTypes.push('ShortAnswer');
+
+                errorEl.classList.add('hidden');
+                if (!topic || questionTypes.length === 0) {
+                    errorEl.textContent = 'Please provide a topic and select at least one question type.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+
+                button.disabled = true;
+                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
+                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
+                state.currentTest = null; 
+
+                const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
+    Provide a JSON object with a single key: "practice_test".
+    - "practice_test": An array of exactly ${numQuestions} question objects. Each object must have three keys:
+        1. "question": The string of the question text.
+        2. "type": A string, must be one of the selected types: ${questionTypes.join(', ')}. Try to include a mix if multiple types are selected.
+        3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
+        4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
+    The topic for the test is: ${topic}`;
+
+                try {
+                    const jsonText = await fetchWithRetry(prompt, true);
+                    const result = JSON.parse(jsonText);
+                    
+                    state.currentTest = result.practice_test || [];
+                    const quizHtml = renderPracticeTest(state.currentTest);
+
+                    outputEl.innerHTML = `
                         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                             <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
+                             <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
                              <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
                              <div id="quiz-results" class="mb-6"></div>
                              ${quizHtml}
                         </div>
-                    </div>
-                `;
-                lucide.createIcons();
-            } catch (e) {
-                errorEl.textContent = `An error occurred: ${e.message}`;
-                errorEl.classList.remove('hidden');
-                outputEl.innerHTML = '';
-            } finally {
-                button.disabled = false;
-                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn`;
-                lucide.createIcons();
-            }
-        }
+                    `;
+                    lucide.createIcons();
 
-        async function handleGenerateExplanation() {
-            const topic = document.getElementById('explain-topic').value;
-            const errorEl = document.getElementById('es-error');
-            const outputEl = document.getElementById('es-output');
-            const button = document.getElementById('generate-explanation-btn');
-
-            errorEl.classList.add('hidden');
-            if (!topic) {
-                errorEl.textContent = 'Please enter a topic or question.';
-                errorEl.classList.remove('hidden');
-                return;
+                } catch (e) {
+                    errorEl.textContent = `An error occurred: ${e.message}`;
+                    errorEl.classList.remove('hidden');
+                    outputEl.innerHTML = '<div class="text-center text-red-600"><p>Could not generate test. Please try again.</p></div>';
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test`;
+                    lucide.createIcons();
+                }
             }
 
-            button.disabled = true;
-            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Explaining...`;
-            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking of a simple explanation...</p></div>`;
-
-            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Topic: "${topic}"`;
-
-            try {
-                const text = await fetchWithRetry(prompt, false);
-                outputEl.innerHTML = `
-                    <div class="bg-gray-50/50 p-6 rounded-lg">
-                        ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
-                    </div>
-                `;
-                lucide.createIcons();
-            } catch (e) {
-                errorEl.textContent = `An error occurred: ${e.message}`;
-                errorEl.classList.remove('hidden');
-                outputEl.innerHTML = '';
-            } finally {
-                button.disabled = false;
-                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain`;
-                lucide.createIcons();
-            }
-        }
-        
-        async function handleGenerateTestBuilder() {
-            const topic = document.getElementById('tb-topic').value;
-            const numQuestions = document.getElementById('tb-num-questions').value;
-            const errorEl = document.getElementById('tb-error');
-            const outputEl = document.getElementById('tb-output');
-            const button = document.getElementById('generate-test-builder-btn');
-
-            const questionTypes = [];
-            if (document.getElementById('tb-qt-mcq').checked) questionTypes.push('MCQ');
-            if (document.getElementById('tb-qt-tf').checked) questionTypes.push('TrueFalse');
-            if (document.getElementById('tb-qt-short').checked) questionTypes.push('ShortAnswer');
-
-            errorEl.classList.add('hidden');
-            if (!topic || questionTypes.length === 0) {
-                errorEl.textContent = 'Please provide a topic and select at least one question type.';
-                errorEl.classList.remove('hidden');
-                return;
-            }
-
-            button.disabled = true;
-            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
-            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
-            state.currentTest = null; 
-
-            const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
-Provide a JSON object with a single key: "practice_test".
-- "practice_test": An array of exactly ${numQuestions} question objects. Each object must have three keys:
-    1. "question": The string of the question text.
-    2. "type": A string, must be one of the selected types: ${questionTypes.join(', ')}. Try to include a mix if multiple types are selected.
-    3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
-    4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
-The topic for the test is: ${topic}`;
-
-            try {
-                const jsonText = await fetchWithRetry(prompt, true);
-                const result = JSON.parse(jsonText);
-                
-                state.currentTest = result.practice_test || [];
-                const quizHtml = renderPracticeTest(state.currentTest);
-
-                outputEl.innerHTML = `
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                         <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
-                         <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                         <div id="quiz-results" class="mb-6"></div> ${quizHtml}
-                    </div>
-                `;
-                lucide.createIcons();
-
-            } catch (e) {
-                errorEl.textContent = `An error occurred: ${e.message}`;
-                errorEl.classList.remove('hidden');
-                outputEl.innerHTML = '<div class="text-center text-red-600"><p>Could not generate test. Please try again.</p></div>';
-            } finally {
-                button.disabled = false;
-                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test`;
-                lucide.createIcons();
-            }
-        }
-
-        // --- FILE & IMAGE HANDLERS ---
-        
-        function handleImageChange(e) {
-            // (Function remains the same)
-            const file = e.target.files[0];
-            if (!file) return;
-            const previewWrapper = document.getElementById('image-preview-wrapper');
-            const previewImg = document.getElementById('image-preview');
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                state.uploadedImageBase64 = event.target.result.split(',')[1];
-                previewImg.src = event.target.result;
-                previewWrapper.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function handleRemoveImage() {
-            // (Function remains the same)
-            state.uploadedImageBase64 = null;
-            document.getElementById('image-preview-wrapper').classList.add('hidden');
-            document.getElementById('image-upload').value = null;
-        }
-
-        // --- UTILITY FUNCTIONS ---
-        function createSectionHTML(icon, color, title, content) {
-            // (Function remains the same)
-            const cleanMarkdown = (text) => {
-                return String(text)
-                    .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
-                    .replace(/\*\*/g, '')
-                    .replace(/\*/g, '')
-                    .replace(/## /g, '<h3 class="text-md font-semibold mt-4">')
-                    .replace(/\n/g, '<br>');
-            };
-
-            let textContent = 'No content provided.';
-            if (typeof content === 'string') {
-                textContent = cleanMarkdown(content);
-            } else if (Array.isArray(content)) {
-                textContent = `<ol class="list-decimal list-inside">${content.map(item => `<li>${cleanMarkdown(item)}</li>`).join('')}</ol>`;
-            } else if (typeof content === 'object' && content !== null) {
-                const formatObject = (obj) => {
-                    return `<ul class="list-disc list-inside ml-4">${Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${formatContent(value)}</li>`).join('')}</ul>`;
-                };
-                const formatArray = (arr) => {
-                    return `<ol class="list-decimal list-inside">${arr.map(item => `<li>${formatContent(item)}</li>`).join('')}</ol>`;
-                };
-                const formatContent = (item) => {
-                    if (typeof item === 'string') return cleanMarkdown(item);
-                    if (Array.isArray(item)) return formatArray(item);
-                    if (typeof item === 'object' && item !== null) return formatObject(item);
-                    return cleanMarkdown(String(item));
-                };
-                textContent = formatContent(content);
-            } else if (content) {
-                textContent = cleanMarkdown(String(content));
-            }
-            return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
-        }
-        
-        function renderPracticeTest(testData) {
-            // (Function remains the same)
-            if (!testData || testData.length === 0) {
-                return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
-            }
-
-            let html = '<form id="quiz-form" class="space-y-6">';
+            // --- FILE & IMAGE HANDLERS ---
             
-            testData.forEach((question, index) => {
-                html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
-                html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
-                html += `<div class="space-y-2">`;
+            function handleImageChange(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+                const previewWrapper = document.getElementById('image-preview-wrapper');
+                const previewImg = document.getElementById('image-preview');
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    state.uploadedImageBase64 = event.target.result.split(',')[1];
+                    previewImg.src = event.target.result;
+                    previewWrapper.classList.remove('hidden');
+                };
+                reader.readAsDataURL(file);
+            }
 
-                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
-                    question.options.forEach((option) => {
+            function handleRemoveImage() {
+                state.uploadedImageBase64 = null;
+                document.getElementById('image-preview-wrapper').classList.add('hidden');
+                document.getElementById('image-upload').value = null;
+            }
+
+            // --- UTILITY FUNCTIONS ---
+            function createSectionHTML(icon, color, title, content) {
+                const cleanMarkdown = (text) => {
+                    return String(text)
+                        .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
+                        .replace(/\*\*/g, '')
+                        .replace(/\*/g, '')
+                        .replace(/## /g, '<h3 class="text-md font-semibold mt-4">')
+                        .replace(/\n/g, '<br>');
+                };
+
+                let textContent = 'No content provided.';
+                if (typeof content === 'string') {
+                    textContent = cleanMarkdown(content);
+                } else if (Array.isArray(content)) {
+                    textContent = `<ol class="list-decimal list-inside">${content.map(item => `<li>${cleanMarkdown(item)}</li>`).join('')}</ol>`;
+                } else if (typeof content === 'object' && content !== null) {
+                    const formatObject = (obj) => {
+                        return `<ul class="list-disc list-inside ml-4">${Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${formatContent(value)}</li>`).join('')}</ul>`;
+                    };
+                    const formatArray = (arr) => {
+                        return `<ol class="list-decimal list-inside">${arr.map(item => `<li>${formatContent(item)}</li>`).join('')}</ol>`;
+                    };
+                    const formatContent = (item) => {
+                        if (typeof item === 'string') return cleanMarkdown(item);
+                        if (Array.isArray(item)) return formatArray(item);
+                        if (typeof item === 'object' && item !== null) return formatObject(item);
+                        return cleanMarkdown(String(item));
+                    };
+                    textContent = formatContent(content);
+                } else if (content) {
+                    textContent = cleanMarkdown(String(content));
+                }
+                return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
+            }
+            
+            function renderPracticeTest(testData) {
+                if (!testData || testData.length === 0) {
+                    return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
+                }
+
+                let html = '<form id="quiz-form" class="space-y-6">';
+                
+                testData.forEach((question, index) => {
+                    html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
+                    html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
+                    html += `<div class="space-y-2">`;
+
+                    if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                        question.options.forEach((option) => {
+                            html += `
+                                <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                    <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                                    <span class="ml-3 text-sm text-gray-700">${option}</span>
+                                </label>
+                            `;
+                        });
+                    } else if (question.type === 'ShortAnswer') {
                         html += `
-                            <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                                <span class="ml-3 text-sm text-gray-700">${option}</span>
+                            <label>
+                                <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
+                                <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
                             </label>
                         `;
-                    });
-                } else if (question.type === 'ShortAnswer') {
-                    html += `
-                        <label>
-                            <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
-                            <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
-                        </label>
-                    `;
-                }
-                html += `</div>`;
-                html += `
-                    <div class="quiz-feedback correct">
-                        <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
-                    </div>
-                    <div class="quiz-feedback incorrect">
-                        <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
-                    </div>
-                `;
-                html += `</div>`;
-            });
-
-            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
-            html += '</form>';
-            return html;
-        }
-
-        async function handleQuizSubmit(formElement) {
-            // (Function remains the same)
-            if (!state.currentTest) return;
-
-            const formData = new FormData(formElement);
-            const submitButton = formElement.querySelector('button[type="submit"]');
-
-            submitButton.disabled = true;
-            submitButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Grading...`;
-            formElement.querySelectorAll('input').forEach(input => input.disabled = true);
-            
-            const gradingPromises = state.currentTest.map((question, index) => {
-                const userAnswer = formData.get(`question_${index}`);
-                const correctAnswer = question.correct_answer;
-
-                if (!userAnswer) {
-                    return Promise.resolve(false);
-                }
-
-                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
-                    return Promise.resolve(userAnswer === correctAnswer);
-                } 
-                
-                if (question.type === 'ShortAnswer') {
-                    if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
-                        return Promise.resolve(true);
                     }
-                    const prompt = `You are an AI grader. A student was asked the following question: "${question.question}". The model answer is: "${correctAnswer}". The student provided this answer: "${userAnswer}". Is the student's answer substantially correct? Your response must be a single word: "Correct" or "Incorrect".`;
-                    return fetchWithRetry(prompt, false);
-                }
-            });
+                    html += `</div>`;
+                    html += `
+                        <div class="quiz-feedback correct">
+                            <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
+                        </div>
+                        <div class="quiz-feedback incorrect">
+                            <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
+                        </div>
+                    `;
+                    html += `</div>`;
+                });
 
-            const results = await Promise.all(gradingPromises);
+                html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
+                html += '</form>';
+                return html;
+            }
 
-            let score = 0;
-            
-            results.forEach((result, index) => {
-                const question = state.currentTest[index];
-                const questionBlock = document.getElementById(`question-block-${index}`);
+            async function handleQuizSubmit(formElement) {
+                if (!state.currentTest) return;
+
+                const formData = new FormData(formElement);
+                const submitButton = formElement.querySelector('button[type="submit"]');
+
+                submitButton.disabled = true;
+                submitButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Grading...`;
+                formElement.querySelectorAll('input').forEach(input => input.disabled = true);
                 
-                let isCorrect;
-                if (question.type === 'ShortAnswer') {
-                    isCorrect = (typeof result === 'boolean') ? result : (result.trim().toLowerCase() === 'correct');
-                } else {
-                    isCorrect = result;
-                }
+                const gradingPromises = state.currentTest.map((question, index) => {
+                    const userAnswer = formData.get(`question_${index}`);
+                    const correctAnswer = question.correct_answer;
 
-                if (isCorrect) {
-                    score++;
-                    questionBlock.classList.add('correct');
-                    questionBlock.classList.remove('incorrect');
-                } else {
-                    questionBlock.classList.add('incorrect');
-                    questionBlock.classList.remove('correct');
-                }
-            });
+                    if (!userAnswer) {
+                        return Promise.resolve(false);
+                    }
 
-            const resultsEl = document.getElementById('quiz-results');
-            resultsEl.innerHTML = `<h3 class="text-2xl font-bold text-center text-indigo-700">You scored ${score} out of ${state.currentTest.length}!</h3><p class="text-center text-gray-600">Review your answers below.</p>`;
-            
-            submitButton.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
-            lucide.createIcons();
-        }
+                    if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                        return Promise.resolve(userAnswer === correctAnswer);
+                    } 
+                    
+                    if (question.type === 'ShortAnswer') {
+                        if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
+                            return Promise.resolve(true);
+                        }
+                        const prompt = `You are an AI grader. A student was asked the following question: "${question.question}". The model answer is: "${correctAnswer}". The student provided this answer: "${userAnswer}". Is the student's answer substantially correct? Your response must be a single word: "Correct" or "Incorrect".`;
+                        return fetchWithRetry(prompt, false);
+                    }
+                });
 
-        // --- INITIAL RENDER ---
-        handleAuth(); // Start the auth flow on page load
+                const results = await Promise.all(gradingPromises);
+
+                let score = 0;
+                
+                results.forEach((result, index) => {
+                    const question = state.currentTest[index];
+                    const questionBlock = document.getElementById(`question-block-${index}`);
+                    
+                    let isCorrect;
+                    if (question.type === 'ShortAnswer') {
+                        isCorrect = (typeof result === 'boolean') ? result : (result.trim().toLowerCase() === 'correct');
+                    } else {
+                        isCorrect = result;
+                    }
+
+                    if (isCorrect) {
+                        score++;
+                        questionBlock.classList.add('correct');
+                        questionBlock.classList.remove('incorrect');
+                    } else {
+                        questionBlock.classList.add('incorrect');
+                        questionBlock.classList.remove('correct');
+                    }
+                });
+
+                const resultsEl = document.getElementById('quiz-results');
+                resultsEl.innerHTML = `<h3 class="text-2xl font-bold text-center text-indigo-700">You scored ${score} out of ${state.currentTest.length}!</h3><p class="text-center text-gray-600">Review your answers below.</p>`;
+                
+                submitButton.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
+                lucide.createIcons();
+            }
+
+            // --- INITIAL RENDER ---
+            // This is now the *only* top-level function call.
+            handleAuth(); // Start the auth flow on page load
+
+        }); // --- END OF THE DOMContentLoaded WRAPPER ---
     </script>
 </body>
 </html>
-
