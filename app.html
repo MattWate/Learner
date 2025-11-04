@@ -404,20 +404,38 @@
 
         // Main auth controller
         async function handleAuth() {
-            // We only need the onAuthStateChange listener.
-            // It will fire once on page load with the initial session (or null)
-            // and then again any time the auth state changes (e.g., user logs out).
-            supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                state.session = session;
-                if (!session) {
-                    // User is not logged in, redirect to login page.
+            // 1. SET THE LISTENER for future changes (like logout)
+            // This is good practice.
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                // If the user logs out, this will catch it and redirect.
+                if (event === 'SIGNED_OUT') {
+                    state.session = null;
+                    state.activeProfile = null;
                     window.location.href = '/login.html';
-                } else {
-                    // User is logged in, check their account and profile status.
-                    // This will replace the loading spinner.
-                    await checkAccountStatus(session.user);
                 }
             });
+
+            // 2. PROACTIVELY GET THE SESSION *NOW*
+            // Don't wait for the listener to fire.
+            // This fixes the bug where the initial event is missed.
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+            if (error) {
+                console.error('Error getting session:', error);
+                // Show an error instead of hanging
+                appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
+                return;
+            }
+
+            if (!session) {
+                // No user is logged in. Redirect.
+                window.location.href = '/login.html';
+            } else {
+                // SUCCESS: We have a session.
+                // Now we can safely check the account status.
+                state.session = session;
+                await checkAccountStatus(session.user);
+            }
         }
             
         // The redundant getSession() call that was causing the race condition is removed.
@@ -1042,3 +1060,4 @@ The topic for the test is: ${topic}`;
     </script>
 </body>
 </html>
+
