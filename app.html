@@ -304,8 +304,10 @@
                     </div>
                 </div>`;
 
-            // NEW: Template for the "My Activity" page
-            const myActivityTemplate = `
+           // NEW: Template for the "My Activity" page
+            // (Converted to a function to avoid null error on load)
+            function myActivityTemplate() { 
+                return `
                 <div class="max-w-4xl mx-auto">
                     <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500">
                         <h2 class="text-3xl font-bold text-gray-800 mb-2">My Activity</h2>
@@ -315,6 +317,7 @@
                         <div class="text-center text-gray-600"><p>Loading activity...</p></div>
                     </div>
                 </div>`;
+            }
 
 
             // --- MAIN APP RENDER FUNCTION ---
@@ -1240,3 +1243,4 @@
     </script>
 </body>
 </html>
+
