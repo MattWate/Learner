@@ -305,9 +305,7 @@
                 </div>`;
 
           // NEW: Template for the "My Activity" page
-            // (Converted to a function to avoid null error on load)
             function myActivityTemplate() { 
-                // Ensure this return statement uses BACKTICKS (`), not single quotes (')
                 return `
                 <div class="max-w-4xl mx-auto">
                     <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500">
@@ -319,7 +317,6 @@
                     </div>
                 </div>`;
             }
-
 
             // --- MAIN APP RENDER FUNCTION ---
             function showMainApp() {
@@ -1244,5 +1241,6 @@
     </script>
 </body>
 </html>
+
 
 
