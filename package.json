@@ -1,0 +1,8 @@
+{
+  "name": "learner-app",
+  "version": "1.0.0",
+  "description": "Dependencies for Netlify Functions",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.0.0"
+  }
+}
