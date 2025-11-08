@@ -1014,5 +1014,37 @@
 
         }); // --- END OF THE DOMContentLoaded WRAPPER ---
     </script>
+    <div id="cookie-consent-banner" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 shadow-lg z-50 flex-col md:flex-row justify-between items-center">
+    <p class="text-sm mb-2 md:mb-0 md:mr-4">
+        We use essential cookies to make our site work. By using our site, you consent to our use of cookies.
+        <a href="/legal.html#cookies" class="font-semibold underline hover:text-indigo-300">Learn More</a>.
+    </p>
+    <button id="accept-cookies-btn" class="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700 flex-shrink-0">
+        Accept
+    </button>
+</div>
+
+<script>
+    (function() {
+        const banner = document.getElementById('cookie-consent-banner');
+        const acceptBtn = document.getElementById('accept-cookies-btn');
+
+        // Check if user has already consented
+        if (localStorage.getItem('cookie_consent') === 'true') {
+            return; // Don't show banner
+        }
+
+        // If not, show the banner
+        banner.classList.remove('hidden');
+        banner.classList.add('flex');
+
+        // Set consent on click
+        acceptBtn.addEventListener('click', () => {
+            localStorage.setItem('cookie_consent', 'true');
+            banner.style.display = 'none';
+        });
+    })();
+</script>
 </body>
 </html>
+
