@@ -84,9 +84,8 @@
                 activeTab: 'home',
                 uploadedImageBase64: null,
                 currentTest: null,
-                // NEW: State for viewing past work
                 workToView: null,
-                myActivityData: [] // Caches loaded activity data
+                myActivityData: [] 
             };
 
             // --- AUTH & ONBOARDING TEMPLATES ---
@@ -104,7 +103,6 @@
                 </div>
             `;
 
-            // THIS IS THE CLEANED, CORRECTED VERSION
             const createProfileTemplate = `
                 <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
                     <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
@@ -305,7 +303,6 @@
                     </div>
                 </div>`;
 
-            // NEW: Template for the "My Activity" page (as a function)
             function myActivityTemplate() { 
                 return `
                 <div class="max-w-4xl mx-auto">
@@ -359,47 +356,46 @@
                 const mainContent = document.getElementById('main-content');
                 if (!mainContent) return; 
 
-                // THIS IS THE CORRECTED PART
                 const templates = {
                     home: homePageTemplate(), 
                     homeworkHelper: homeworkHelperTemplate,
                     learningHub: learningHubTemplate,
                     explainSimply: explainSimplyTemplate,
                     testBuilder: testBuilderTemplate,
-                    myActivity: myActivityTemplate() // Call the function here
+                    myActivity: myActivityTemplate() // Call the function
                 };
                 
                 mainContent.innerHTML = templates[state.activeTab] || homePageTemplate();
                 updateSidebar();
                 lucide.createIcons();
 
-                // NEW: Load activity if that's the active tab
                 if (state.activeTab === 'myActivity') {
                     await loadMyActivity();
                 }
 
-                // NEW: Handle "view-only" mode for past work
                 if (state.workToView) {
                     const workItem = state.workToView;
-                    const savedResult = workItem.output_data;
+                    // CORRECTED: Use 'output_content'
+                    const savedResult = workItem.output_content; 
 
                     // 1. Determine the output element
+                    // CORRECTED: Use 'work_type'
                     const outputElId = 
-                        workItem.tool_type === 'homeworkHelper' ? 'hh-output' :
-                        workItem.tool_type === 'learningHub' ? 'lh-output' :
-                        workItem.tool_type === 'explainSimply' ? 'es-output' :
+                        workItem.work_type === 'homeworkHelper' ? 'hh-output' :
+                        workItem.work_type === 'learningHub' ? 'lh-output' :
+                        workItem.work_type === 'explainSimply' ? 'es-output' :
                         'tb-output'; // for testBuilder
                     const outputEl = document.getElementById(outputElId);
 
                     if (outputEl) {
-                        // 2. Hide the input form (which is the previous sibling element)
                         if (outputEl.previousElementSibling) {
                             outputEl.previousElementSibling.classList.add('hidden');
                         }
 
                         // 3. Render the saved output based on tool type
                         try {
-                            if (workItem.tool_type === 'homeworkHelper') {
+                            // CORRECTED: Use 'work_type'
+                            if (workItem.work_type === 'homeworkHelper') {
                                 let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
                                 if (savedResult.breakdown) outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", savedResult.breakdown);
                                 if (savedResult.hints) outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', savedResult.hints);
@@ -408,14 +404,17 @@
                                 outputHtml += '</div>';
                                 outputEl.innerHTML = outputHtml;
                             } 
-                            else if (workItem.tool_type === 'learningHub' || workItem.tool_type === 'testBuilder') {
+                            // CORRECTED: Use 'work_type'
+                            else if (workItem.work_type === 'learningHub' || workItem.work_type === 'testBuilder') {
                                 state.currentTest = savedResult.practice_test || [];
                                 const quizHtml = renderPracticeTest(state.currentTest);
-                                const title = workItem.tool_type === 'learningHub' ? "Saved Learning Hub Session" : "Saved Custom Test";
-                                const icon = workItem.tool_type === 'learningHub' ? "book-open" : "clipboard-check";
+                                // CORRECTED: Use 'work_type'
+                                const title = workItem.work_type === 'learningHub' ? "Saved Learning Hub Session" : "Saved Custom Test";
+                                const icon = workItem.work_type === 'learningHub' ? "book-open" : "clipboard-check";
                                 
                                 let outputHtml = '';
-                                if (workItem.tool_type === 'learningHub' && savedResult.learning_objectives) {
+                                // CORRECTED: Use 'work_type'
+                                if (workItem.work_type === 'learningHub' && savedResult.learning_objectives) {
                                     outputHtml += createSectionHTML('check-circle', 'green', "Key Learning Objectives", savedResult.learning_objectives);
                                     outputHtml += createSectionHTML('book-open', 'indigo', "Revision Notes", savedResult.revision_notes);
                                 }
@@ -427,14 +426,15 @@
                                         ${quizHtml}
                                     </div>
                                 `;
-                                if (workItem.tool_type === 'learningHub') {
+                                // CORRECTED: Use 'work_type'
+                                if (workItem.work_type === 'learningHub') {
                                     outputEl.innerHTML = `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">${outputHtml}</div>`;
                                 } else {
                                     outputEl.innerHTML = outputHtml;
                                 }
                             }
-                            else if (workItem.tool_type === 'explainSimply') {
-                                // Our save logic wraps this in { "explanation": text }
+                            // CORRECTED: Use 'work_type'
+                            else if (workItem.work_type === 'explainSimply') {
                                 outputEl.innerHTML = `
                                     <div class="bg-gray-50/50 p-6 rounded-lg">
                                         ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', savedResult.explanation)}
@@ -447,7 +447,6 @@
                         }
                     }
 
-                    // 4. Reset the state and re-run icons
                     lucide.createIcons();
                     state.workToView = null;
                 }
@@ -523,7 +522,6 @@
                     }
 
                     if (!account || (account.active_tier !== 'free' && !account.active_tier?.startsWith('paid_'))) {
-                        // User has no account OR their tier is not active
                         appContainer.innerHTML = paymentPlaceholderTemplate;
                         lucide.createIcons();
                         return;
@@ -539,17 +537,14 @@
                     }
 
                     if (profiles && profiles.length > 0) {
-                        // User has profiles, show picker
                         appContainer.innerHTML = profilePickerTemplate(profiles);
                         lucide.createIcons();
                     } else {
-                        // User has no profiles, force creation
                         appContainer.innerHTML = createProfileTemplate;
                         lucide.createIcons();
                     }
 
                 } catch (error) {
-                    // If anything failed, show a clear error
                     console.error('Error in checkAccountStatus:', error);
                     appContainer.innerHTML = `
                         <div class="min-h-screen flex items-center justify-center p-4">
@@ -581,7 +576,6 @@
                     state.activeTab = navLink.dataset.navLink;
                     state.uploadedImageBase64 = null;
                     state.currentTest = null;
-                    // NEW: Clear activity cache when navigating away
                     state.myActivityData = []; 
                     renderToolContent();
                     if (sidebar && sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
@@ -597,9 +591,9 @@
                     const workItem = state.myActivityData[workIndex];
                     
                     if (workItem) {
-                        state.workToView = workItem; // Set the work to be viewed
-                        state.activeTab = workItem.tool_type; // Set the tab
-                        renderToolContent(); // Re-render in view-only mode
+                        state.workToView = workItem; 
+                        state.activeTab = workItem.work_type; // CORRECTED
+                        renderToolContent(); 
                     } else {
                         console.error('Could not find work item for index:', workIndex);
                     }
@@ -654,12 +648,10 @@
             appContainer.addEventListener('submit', async (e) => {
                 e.preventDefault(); 
 
-                // Quiz Submission
                 if (e.target.id === 'quiz-form') {
                     await handleQuizSubmit(e.target);
                 }
 
-                // Create Profile Form
                 if (e.target.id === 'create-profile-form') {
                     const name = document.getElementById('profile-name').value;
                     const button = document.getElementById('create-profile-btn');
@@ -681,10 +673,10 @@
                 }
             });
 
+
             // --- API & BUSINESS LOGIC ---
             
             async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-                // ... (this function is unchanged) ...
                 try {
                     const response = await fetch('/.netlify/functions/generate', {
                         method: 'POST',
@@ -735,7 +727,6 @@
                         return;
                     }
 
-                    // Cache the data in the state
                     state.myActivityData = data; 
                     
                     const toolIcons = {
@@ -746,9 +737,10 @@
                     };
 
                     outputEl.innerHTML = data.map((item, index) => {
-                        const icon = toolIcons[item.tool_type] || 'help-circle';
-                        const title = item.input_prompt || `Saved ${item.tool_type} (Image)`;
-                        // Format date nicely
+                        // CORRECTED: Use 'work_type'
+                        const icon = toolIcons[item.work_type] || 'help-circle';
+                        // CORRECTED: Use 'work_type' and access 'prompt' from jsonb
+                        const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
                         const date = new Date(item.created_at).toLocaleDateString(undefined, {
                             day: 'numeric',
                             month: 'long',
@@ -827,12 +819,12 @@
                     const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
                     const result = JSON.parse(jsonText);
 
-                    // NEW: Save to 'saved_work' table (fire-and-forget)
+                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
-                        tool_type: 'homeworkHelper',
-                        input_prompt: inputPromptForDb,
-                        output_data: result // Save the full JSON
+                        work_type: 'homeworkHelper',
+                        input_prompt: { "prompt": inputPromptForDb },
+                        output_content: result
                     }).then(({ error }) => {
                         if (error) console.error("Error saving work:", error.message);
                     });
@@ -892,18 +884,18 @@
         3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
         4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
     The topic is: ${topic}`;
-                const inputPromptForDb = topic || "Learning Hub (Image)"; // NEW: Save placeholder
+                const inputPromptForDb = topic || "Learning Hub (Image)"; 
 
                 try {
                     const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
                     const result = JSON.parse(jsonText);
                     
-                    // NEW: Save to 'saved_work' table
+                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
-                        tool_type: 'learningHub',
-                        input_prompt: inputPromptForDb,
-                        output_data: result // Save the full JSON
+                        work_type: 'learningHub',
+                        input_prompt: { "prompt": inputPromptForDb },
+                        output_content: result
                     }).then(({ error }) => {
                         if (error) console.error("Error saving work:", error.message);
                     });
@@ -958,12 +950,12 @@
                 try {
                     const text = await fetchWithRetry(prompt, false);
                     
-                    // NEW: Save to 'saved_work' table
+                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
-                        tool_type: 'explainSimply',
-                        input_prompt: topic,
-                        output_data: { "explanation": text } // Save as JSON object
+                        work_type: 'explainSimply',
+                        input_prompt: { "prompt": topic },
+                        output_content: { "explanation": text } 
                     }).then(({ error }) => {
                         if (error) console.error("Error saving work:", error.message);
                     });
@@ -1022,12 +1014,12 @@
                     const jsonText = await fetchWithRetry(prompt, true);
                     const result = JSON.parse(jsonText);
                     
-                    // NEW: Save to 'saved_work' table
+                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
-                        tool_type: 'testBuilder',
-                        input_prompt: topic,
-                        output_data: result // Save the full JSON
+                        work_type: 'testBuilder',
+                        input_prompt: { "prompt": topic },
+                        output_content: result
                     }).then(({ error }) => {
                         if (error) console.error("Error saving work:", error.message);
                     });
