@@ -375,11 +375,8 @@
 
                 if (state.workToView) {
                     const workItem = state.workToView;
-                    // CORRECTED: Use 'output_content'
                     const savedResult = workItem.output_content; 
 
-                    // 1. Determine the output element
-                    // CORRECTED: Use 'work_type'
                     const outputElId = 
                         workItem.work_type === 'homeworkHelper' ? 'hh-output' :
                         workItem.work_type === 'learningHub' ? 'lh-output' :
@@ -392,9 +389,7 @@
                             outputEl.previousElementSibling.classList.add('hidden');
                         }
 
-                        // 3. Render the saved output based on tool type
                         try {
-                            // CORRECTED: Use 'work_type'
                             if (workItem.work_type === 'homeworkHelper') {
                                 let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
                                 if (savedResult.breakdown) outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", savedResult.breakdown);
@@ -404,16 +399,13 @@
                                 outputHtml += '</div>';
                                 outputEl.innerHTML = outputHtml;
                             } 
-                            // CORRECTED: Use 'work_type'
                             else if (workItem.work_type === 'learningHub' || workItem.work_type === 'testBuilder') {
                                 state.currentTest = savedResult.practice_test || [];
                                 const quizHtml = renderPracticeTest(state.currentTest);
-                                // CORRECTED: Use 'work_type'
                                 const title = workItem.work_type === 'learningHub' ? "Saved Learning Hub Session" : "Saved Custom Test";
                                 const icon = workItem.work_type === 'learningHub' ? "book-open" : "clipboard-check";
                                 
                                 let outputHtml = '';
-                                // CORRECTED: Use 'work_type'
                                 if (workItem.work_type === 'learningHub' && savedResult.learning_objectives) {
                                     outputHtml += createSectionHTML('check-circle', 'green', "Key Learning Objectives", savedResult.learning_objectives);
                                     outputHtml += createSectionHTML('book-open', 'indigo', "Revision Notes", savedResult.revision_notes);
@@ -426,14 +418,12 @@
                                         ${quizHtml}
                                     </div>
                                 `;
-                                // CORRECTED: Use 'work_type'
                                 if (workItem.work_type === 'learningHub') {
                                     outputEl.innerHTML = `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">${outputHtml}</div>`;
                                 } else {
                                     outputEl.innerHTML = outputHtml;
                                 }
                             }
-                            // CORRECTED: Use 'work_type'
                             else if (workItem.work_type === 'explainSimply') {
                                 outputEl.innerHTML = `
                                     <div class="bg-gray-50/50 p-6 rounded-lg">
@@ -708,7 +698,7 @@
                 }
             }
 
-            // NEW: Function to load "My Activity"
+            // Function to load "My Activity"
             async function loadMyActivity() {
                 const outputEl = document.getElementById('my-activity-output');
                 if (!outputEl) return;
@@ -737,9 +727,7 @@
                     };
 
                     outputEl.innerHTML = data.map((item, index) => {
-                        // CORRECTED: Use 'work_type'
                         const icon = toolIcons[item.work_type] || 'help-circle';
-                        // CORRECTED: Use 'work_type' and access 'prompt' from jsonb
                         const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
                         const date = new Date(item.created_at).toLocaleDateString(undefined, {
                             day: 'numeric',
@@ -819,7 +807,6 @@
                     const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
                     const result = JSON.parse(jsonText);
 
-                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
                         work_type: 'homeworkHelper',
@@ -890,7 +877,6 @@
                     const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
                     const result = JSON.parse(jsonText);
                     
-                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
                         work_type: 'learningHub',
@@ -950,7 +936,6 @@
                 try {
                     const text = await fetchWithRetry(prompt, false);
                     
-                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
                         work_type: 'explainSimply',
@@ -1014,7 +999,6 @@
                     const jsonText = await fetchWithRetry(prompt, true);
                     const result = JSON.parse(jsonText);
                     
-                    // CORRECTED: Save to 'saved_work' table with correct schema
                     supabaseClient.from('saved_work').insert({
                         profile_id: state.activeProfile.id,
                         work_type: 'testBuilder',
@@ -1071,6 +1055,18 @@
             }
 
             // --- UTILITY FUNCTIONS ---
+
+            /**
+             * NEW: Fisher-Yates shuffle algorithm to randomize array in place.
+             * @param {Array} array The array to shuffle.
+             */
+            function shuffleArray(array) {
+                for (let i = array.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [array[i], array[j]] = [array[j], array[i]]; // Swap elements
+                }
+            }
+
             function createSectionHTML(icon, color, title, content) {
                 const cleanMarkdown = (text) => {
                     return String(text)
@@ -1119,6 +1115,10 @@
                     html += `<div class="space-y-2">`;
 
                     if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                        
+                        // NEW: Shuffle the options array before rendering
+                        shuffleArray(question.options);
+
                         question.options.forEach((option) => {
                             html += `
                                 <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
