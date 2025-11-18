@@ -117,6 +117,68 @@
             };
 
             // --- TEMPLATES ---
+            
+            // --- Missing Template 1: homePageTemplate ---
+            function homePageTemplate() {
+                return `
+                <div class="max-w-4xl mx-auto text-center">
+                     <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
+                        <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
+                        <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
+                        <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
+                            <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Homework Helper</h2>
+                            <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
+                        </div>
+                        <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-indigo-500">
+                            <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
+                            <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
+                        </div>
+                        <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
+                            <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
+                            <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
+                        </div>
+                        <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
+                            <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
+                            <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
+                            <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            // --- Missing Template 2: profilePickerTemplate ---
+            function profilePickerTemplate(profiles) {
+                let profileButtons = profiles.map(profile => `
+                    <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
+                        <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
+                            <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
+                        </div>
+                        <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
+                    </button>
+                `).join('');
+
+                return `
+                    <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                        <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                            <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                                ${profileButtons}
+                                <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
+                                    <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                                        <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
+                                    </div>
+                                    <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
 
             function upgradeTemplate(message = 'Unlock unlimited power and features.') {
                 return `
@@ -135,7 +197,7 @@
                                 <p class="text-gray-600 mb-4 text-sm">Full access for one child.</p>
                                 <div class="text-4xl font-extrabold mb-6 text-indigo-600">R69<span class="text-lg font-normal">/month</span></div>
                                 <ul class="text-left space-y-2 text-sm flex-1 mb-6">
-                                    <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> **1** Learner Profile</li>
+                                    <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> 1 Learner Profile</li>
                                     <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-4 w-4 text-green-500 mr-2"></i> Unlimited tool usage</li>
                                     <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-4 w-4 text-green-500 mr-2"></i> Full activity history</li>
                                 </ul>
@@ -151,7 +213,7 @@
                                 <p class="text-indigo-200 mb-4 text-sm">Ideal for two children.</p>
                                 <div class="text-4xl font-extrabold mb-6">R99<span class="text-lg font-normal">/month</span></div>
                                 <ul class="text-left space-y-2 text-sm flex-1 mb-6">
-                                    <li class="flex items-center"><i data-lucide="check" class="h-4 w-4 text-amber-300 mr-2"></i> Up to **2** Learner Profiles</li>
+                                    <li class="flex items-center"><i data-lucide="check" class="h-4 w-4 text-amber-300 mr-2"></i> Up to 2 Learner Profiles</li>
                                     <li class="flex items-center"><i data-lucide="infinity" class="h-4 w-4 text-amber-300 mr-2"></i> Unlimited tool usage</li>
                                     <li class="flex items-center"><i data-lucide="save" class="h-4 w-4 text-amber-300 mr-2"></i> Full activity history</li>
                                 </ul>
@@ -166,7 +228,7 @@
                                 <p class="text-gray-600 mb-4 text-sm">Support for up to four children.</p>
                                 <div class="text-4xl font-extrabold mb-6 text-indigo-600">R149<span class="text-lg font-normal">/month</span></div>
                                 <ul class="text-left space-y-2 text-sm flex-1 mb-6">
-                                    <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> Up to **4** Learner Profiles</li>
+                                    <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> Up to 4 Learner Profiles</li>
                                     <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-4 w-4 text-green-500 mr-2"></i> Unlimited tool usage</li>
                                     <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-4 w-4 text-green-500 mr-2"></i> Full activity history</li>
                                 </ul>
@@ -182,11 +244,11 @@
             const paywallModalHTML = (reason) => {
                 let title, message;
                 if (reason === 'usage') {
-                    title = "Daily Limit Reached";
-                    message = `You've used your **${FREE_USAGE_LIMIT} free questions** this week. Upgrade now for unlimited access!`;
+                    title = "Weekly Limit Reached";
+                    message = `You've used your ${FREE_USAGE_LIMIT} free questions this week. Upgrade now for unlimited access!`;
                 } else if (reason === 'profiles') {
                      title = "Profile Limit Reached";
-                     message = `You have reached your limit of **${state.accountData.profile_limit} learner profile(s)**. Upgrade your plan to add more profiles.`;
+                     message = `You have reached your limit of ${state.accountData.profile_limit} learner profile(s). Upgrade your plan to add more profiles.`;
                 }
                 
                 return `
@@ -248,60 +310,33 @@
             }
 
 
-            // --- MAIN APP RENDER FUNCTION ---
-            function showMainApp() {
-                const appContainer = document.getElementById('app-container');
-                appContainer.innerHTML = `
-                    <div class="min-h-screen md:flex">
-                        <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
-                            <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
-                                <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
-                                <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
-                            </button>
-                            <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
-                                <i data-lucide="x" class="h-6 w-6"></i>
-                            </button>
-                            <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
-                            
-                            <!-- NEW: Usage Counter / Upgrade Prompt -->
-                            <div id="usage-prompt-wrapper" class="mt-auto pt-4 space-y-2 border-t border-gray-100"></div>
+            // --- MISSING AUTH FUNCTIONS ---
+            
+            async function handleAuth() {
+                supabaseClient.auth.onAuthStateChange((event, session) => {
+                    if (event === 'SIGNED_OUT') {
+                        state.session = null;
+                        state.activeProfile = null;
+                        window.location.href = '/login.html';
+                    }
+                });
 
-                            <div class="pt-2">
-                                <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                    <i data-lucide="users" class="h-5 w-5"></i>
-                                    <span class="ml-3">Switch Profile</span>
-                                </button>
-                                <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                    <i data-lucide="log-out" class="h-5 w-5"></i>
-                                    <span class="ml-3">Log Out</span>
-                                </button>
-                                <a href="/legal.html" target="_blank" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                    <i data-lucide="shield" class="h-5 w-5"></i>
-                                    <span class="ml-3">Terms & Privacy</span>
-                                </a>
-                            </div>
-                        </aside>
-                        
-                        <!-- Main Content Wrapper (For Mobile Header) -->
-                        <div class="flex-1 flex flex-col min-w-0">
-                            <!-- Mobile Header (Visible only on mobile) -->
-                            <header class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-40">
-                                <div class="flex items-center cursor-pointer" data-nav-link="home">
-                                    <img src="/logo.svg" alt="Learning Genie Logo" class="h-8 w-8 mr-2">
-                                    <span class="font-bold text-lg text-gray-800">Learning Genie</span>
-                                </div>
-                                <button id="menu-toggle-btn" class="p-2 -mr-2 text-gray-600 rounded-lg hover:bg-gray-100 focus:outline-none focus:bg-gray-100">
-                                    <i data-lucide="menu" class="h-6 w-6"></i>
-                                </button>
-                            </header>
+                const { data: { session }, error } = await supabaseClient.auth.getSession();
 
-                            <!-- Tool Content -->
-                            <main id="main-content" class="flex-1 p-4 md:p-8"></main>
-                        </div>
-                    </div>
-                `;
-                renderToolContent();
+                if (error) {
+                    console.error('Error getting session:', error);
+                    appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
+                    return;
+                }
+
+                if (!session) {
+                    window.location.href = '/login.html';
+                } else {
+                    state.session = session;
+                    await checkAccountStatus(session.user);
+                }
             }
+
 
             // --- RENDER FUNCTION for tool content ---
             async function renderToolContent() {
@@ -430,7 +465,7 @@
                 
                 if (isFreeTier) {
                     const remaining = FREE_USAGE_LIMIT - state.usageData.count;
-                    const remainingDays = Math.ceil((new Date(state.usageData.resetDate) - new Date()) / (1000 * 60 * 60 * 24));
+                    const remainingDays = Math.ceil((new Date(state.usageData.resetDate).getTime() + (7 * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24));
                     
                     usageWrapper.innerHTML = `
                         <div class="p-3 bg-indigo-50 rounded-lg text-center">
@@ -501,7 +536,8 @@
                     if (usageError) {
                         // Create initial usage record if missing
                         const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
-                        await supabaseClient.from('monthly_usage').insert(initialUsage);
+                        // We use upsert here to handle potential race conditions if the record was created but not fetched.
+                        await supabaseClient.from('monthly_usage').upsert(initialUsage, { onConflict: 'account_id' }); 
                         state.usageData = { count: 0, resetDate: new Date().toISOString() };
                     } else {
                         state.usageData = { count: usage.usage_count, resetDate: usage.last_reset_date };
@@ -527,6 +563,15 @@
                 } catch (error) {
                     console.error('Error in checkAccountStatus:', error);
                     // Fallback error screen
+                    appContainer.innerHTML = `<div class="min-h-screen flex items-center justify-center p-4">
+                        <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                            <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
+                            <h1 class="text-2xl font-bold text-gray-800 mb-2">Login Error</h1>
+                            <p class="text-gray-600 mb-6">Could not load your account data. Check the console for database errors.</p>
+                            <button onclick="window.location.href='/login.html'" class="mt-4 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Go to Login</button>
+                        </div>
+                    </div>`;
+                    lucide.createIcons();
                 }
             }
             
@@ -1063,7 +1108,7 @@
                 }
             }
             
-            // --- FILE & IMAGE HANDLERS / UTILITIES ---
+            // --- FILE & IMAGE HANDLERS / UTILITIES (Remaining existing functions) ---
             
             function handleImageChange(e) {
                 const file = e.target.files[0];
