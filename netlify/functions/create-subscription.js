@@ -1,11 +1,12 @@
 /*
  * NETLIFY FUNCTION: create-subscription.js
  *
- * This function is called by app.html when a user clicks "Subscribe".
- * It securely calls the Paystack API to create a "checkout session."
+ * This function is called by app.html when a user clicks "Upgrade".
+ * It securely calls the Paystack API to create a "checkout session" for a subscription.
  */
 
 const { createClient } = require('@supabase/supabase-js');
+const fetch = require('node-fetch'); // Paystack API calls
 
 // Helper function to fetch the user's email securely
 async function getUserEmail(supabaseAdmin, userId) {
@@ -28,21 +29,28 @@ exports.handler = async (event, context) => {
     // 2. Get all our secret keys from Netlify environment variables
     const {
         SUPABASE_URL,
-        SUPABASE_SERVICE_KEY, // Your Admin key
-        PAYSTACK_SECRET_KEY   // Your Paystack *Secret* Key (starts with 'sk_')
+        SUPABASE_SERVICE_KEY,       // Your Admin key
+        PAYSTACK_SECRET_KEY,        // Your Paystack *Secret* Key (starts with 'sk_')
+        PAYSTACK_PLAN_SINGLE_CODE,  // PLN_XXXXXX for R69
+        PAYSTACK_PLAN_FAMILY_CODE,  // PLN_YYYYYY for R99
+        PAYSTACK_PLAN_ULTRA_CODE    // PLN_ZZZZZZ for R149
     } = process.env;
 
-    // 3. Get the plan ID from the request body
-    let planCode; // This MUST match the "Plan Code" you create in your Paystack dashboard
+    // 3. Get the plan ID and set the corresponding Paystack Plan Code and profile limit
+    let planCode;
+    let profileLimit;
     try {
-        const { plan } = JSON.parse(event.body); // e.g., 'paid_single' or 'paid_family'
+        const { plan } = JSON.parse(event.body); // e.g., 'paid_single', 'paid_family', or 'paid_ultra'
         
         if (plan === 'paid_single') {
-            // e.g., 'PLAN_SINGLE_69' or whatever you call it in Paystack
-            planCode = process.env.PAYSTACK_PLAN_SINGLE_CODE; 
+            planCode = PAYSTACK_PLAN_SINGLE_CODE; 
+            profileLimit = 1;
         } else if (plan === 'paid_family') {
-            // e.g., 'PLAN_FAMILY_99'
-            planCode = process.env.PAYSTACK_PLAN_FAMILY_CODE;
+            planCode = PAYSTACK_PLAN_FAMILY_CODE;
+            profileLimit = 2;
+        } else if (plan === 'paid_ultra') {
+            planCode = PAYSTACK_PLAN_ULTRA_CODE;
+            profileLimit = 4;
         } else {
             throw new Error('Invalid plan specified.');
         }
@@ -64,14 +72,18 @@ exports.handler = async (event, context) => {
         const userEmail = await getUserEmail(supabaseAdmin, userId);
 
         // 5. Build the Paystack API Payload
-        // We are creating a "checkout session"
+        // We pass the profileLimit and user ID in the metadata for the webhook
         const paystackPayload = {
             email: userEmail,
             plan: planCode,
-            // We pass our user ID in the metadata so we know who
-            // to upgrade when the webhook comes in.
             metadata: {
-                supabase_user_id: userId
+                supabase_user_id: userId,
+                profile_limit: profileLimit, // CRITICAL: Used by the webhook
+                custom_fields: [{
+                    display_name: "Subscription Plan",
+                    variable_name: "subscription_plan",
+                    value: planCode
+                }]
             }
         };
 
