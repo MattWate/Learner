@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Dependencies for Netlify Functions",
   "dependencies": {
-    "@supabase/supabase-js": "^2.0.0"
+    "@supabase/supabase-js": "^2.0.0",
+    "node-fetch": "^2.6.7",
+    "raw-body": "^2.5.1"
   }
 }
