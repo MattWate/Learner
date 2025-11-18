@@ -84,878 +84,864 @@
 
 
     <script>
-        // Wrap all code in a DOMContentLoaded listener to prevent all race conditions.
-        document.addEventListener("DOMContentLoaded", () => {
-    
-            // --- GLOBAL CONSTANTS & CONFIGURATION ---
-            const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
-            const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
-            // NOTE: Replace this placeholder with your actual Paystack Public Key (pk_live_...)
-            const PAYSTACK_PUBLIC_KEY = 'pk_live_dbe21af87a81e8b20ff1e5ddd1706a3153dd1fd2'; // Placeholder value from user's image
+        // --- GLOBAL CONSTANTS & CONFIGURATION ---
+        const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_dbe21af87a81e8b20ff1e5ddd1706a3153dd1fd2';
 
-            const FREE_USAGE_LIMIT = 5;
-            const FREE_PROFILE_LIMIT = 1;
-            const PAID_PROFILE_LIMITS = {
-                'paid_single': 1,
-                'paid_family': 2,
-                'paid_ultra': 4
-            };
-            
-            const { createClient } = supabase;
-            const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const FREE_USAGE_LIMIT = 5;
+        const FREE_PROFILE_LIMIT = 1;
+        const PAID_PROFILE_LIMITS = {
+            'paid_single': 1,
+            'paid_family': 2,
+            'paid_ultra': 4
+        };
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-            const state = {
-                session: null,
-                accountData: null, // Holds tier, profile_limit, usage data
-                usageData: { count: 0, resetDate: null },
-                activeProfile: null,
-                activeTab: 'home',
-                uploadedImageBase64: null,
-                currentTest: null,
-                workToView: null,
-                myActivityData: [] 
-            };
+        const state = {
+            session: null,
+            accountData: null,
+            usageData: { count: 0, resetDate: null },
+            activeProfile: null,
+            activeTab: 'home',
+            uploadedImageBase64: null,
+            currentTest: null,
+            workToView: null,
+            myActivityData: [] 
+        };
 
-            // --- TEMPLATES ---
-            
-            // --- Missing Template 1: homePageTemplate ---
-            function homePageTemplate() {
-                return `
-                <div class="max-w-4xl mx-auto text-center">
-                     <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
-                        <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
-                        <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+        // --- CORE UI TEMPLATES (Moved outside DOMContentLoaded) ---
+
+        function homePageTemplate() {
+            return `
+            <div class="max-w-4xl mx-auto text-center">
+                 <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
+                    <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
+                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
+                    <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
+                        <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Homework Helper</h2>
+                        <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
                     </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
-                        <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
-                            <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
-                            <h2 class="text-2xl font-bold text-gray-800">Homework Helper</h2>
-                            <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
-                        </div>
-                        <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-indigo-500">
-                            <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
-                            <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
-                            <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
-                        </div>
-                        <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
-                            <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
-                            <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
-                            <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
-                        </div>
-                        <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
-                            <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
-                            <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
-                            <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
-                        </div>
+                    <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-indigo-500">
+                        <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
+                        <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
                     </div>
-                </div>`;
-            }
-
-            // --- Missing Template 2: profilePickerTemplate ---
-            function profilePickerTemplate(profiles) {
-                let profileButtons = profiles.map(profile => `
-                    <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
-                        <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
-                            <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
-                        </div>
-                        <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
-                    </button>
-                `).join('');
-
-                return `
-                    <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-                        <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                            <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
-                            <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
-                                ${profileButtons}
-                                <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
-                                    <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
-                                        <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
-                                    </div>
-                                    <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
-                                </button>
-                            </div>
-                        </div>
+                    <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
+                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
+                        <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
                     </div>
-                `;
-            }
-
-            function upgradeTemplate(message = 'Unlock unlimited power and features.') {
-                return `
-                    <div class="max-w-4xl mx-auto p-4 md:p-8">
-                        <div class="bg-white p-6 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
-                            <i data-lucide="zap" class="mx-auto h-16 w-16 text-indigo-500 mb-4"></i>
-                            <h1 class="text-3xl font-bold text-gray-800 mb-2">Upgrade Your Learning Genie</h1>
-                            <p class="text-lg text-gray-600 mb-8">${message}</p>
-                        </div>
-
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
-                            
-                            <!-- Card 1: Single Learner R69 -->
-                            <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
-                                <h3 class="text-2xl font-bold text-gray-800 mb-2">Single Learner</h3>
-                                <p class="text-gray-600 mb-4 text-sm">Full access for one child.</p>
-                                <div class="text-4xl font-extrabold mb-6 text-indigo-600">R69<span class="text-lg font-normal">/month</span></div>
-                                <ul class="text-left space-y-2 text-sm flex-1 mb-6">
-                                    <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> 1 Learner Profile</li>
-                                    <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-4 w-4 text-green-500 mr-2"></i> Unlimited tool usage</li>
-                                    <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-4 w-4 text-green-500 mr-2"></i> Full activity history</li>
-                                </ul>
-                                <button data-plan="paid_single" class="upgrade-btn w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
-                                    Subscribe for R69
-                                </button>
-                            </div>
-
-                            <!-- Card 2: Family Two R99 (Best Value) -->
-                            <div class="bg-indigo-600 p-6 rounded-xl shadow-2xl border-4 border-indigo-500 text-white flex flex-col transform scale-105">
-                                <div class="bg-amber-400 text-indigo-900 font-bold px-3 py-1 text-sm rounded-full w-fit mx-auto mb-3">Best Value</div>
-                                <h3 class="text-2xl font-bold mb-2">Family Two</h3>
-                                <p class="text-indigo-200 mb-4 text-sm">Ideal for two children.</p>
-                                <div class="text-4xl font-extrabold mb-6">R99<span class="text-lg font-normal">/month</span></div>
-                                <ul class="text-left space-y-2 text-sm flex-1 mb-6">
-                                    <li class="flex items-center"><i data-lucide="check" class="h-4 w-4 text-amber-300 mr-2"></i> Up to 2 Learner Profiles</li>
-                                    <li class="flex items-center"><i data-lucide="infinity" class="h-4 w-4 text-amber-300 mr-2"></i> Unlimited tool usage</li>
-                                    <li class="flex items-center"><i data-lucide="save" class="h-4 w-4 text-amber-300 mr-2"></i> Full activity history</li>
-                                </ul>
-                                <button data-plan="paid_family" class="upgrade-btn w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-indigo-50 transition duration-150 shadow-lg">
-                                    Subscribe for R99
-                                </button>
-                            </div>
-                            
-                            <!-- Card 3: Family Ultra R149 -->
-                            <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
-                                <h3 class="text-2xl font-bold text-gray-800 mb-2">Family Ultra</h3>
-                                <p class="text-gray-600 mb-4 text-sm">Support for up to four children.</p>
-                                <div class="text-4xl font-extrabold mb-6 text-indigo-600">R149<span class="text-lg font-normal">/month</span></div>
-                                <ul class="text-left space-y-2 text-sm flex-1 mb-6">
-                                    <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> Up to 4 Learner Profiles</li>
-                                    <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-4 w-4 text-green-500 mr-2"></i> Unlimited tool usage</li>
-                                    <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-4 w-4 text-green-500 mr-2"></i> Full activity history</li>
-                                </ul>
-                                <button data-plan="paid_ultra" class="upgrade-btn w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
-                                    Subscribe for R149
-                                </button>
-                            </div>
-                        </div>
+                    <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
+                        <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
+                        <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
                     </div>
-                `;
-            }
-            
-            const paywallModalHTML = (reason) => {
-                let title, message;
-                if (reason === 'usage') {
-                    title = "Weekly Limit Reached";
-                    message = `You've used your ${FREE_USAGE_LIMIT} free questions this week. Upgrade now for unlimited access!`;
-                } else if (reason === 'profiles') {
-                     title = "Profile Limit Reached";
-                     message = `You have reached your limit of ${state.accountData.profile_limit} learner profile(s). Upgrade your plan to add more profiles.`;
-                }
-                
-                return `
-                    <i data-lucide="lock" class="h-12 w-12 text-rose-500 mx-auto mb-4"></i>
-                    <h2 class="text-2xl font-bold text-gray-800 mb-2">${title}</h2>
-                    <p class="text-gray-600 mb-6">${message}</p>
-                    <button id="close-paywall-modal-btn" class="mt-4 mr-2 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">
-                        Close
-                    </button>
-                    <button data-nav-link="upgrade" class="mt-4 ml-2 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
-                        Upgrade Now
-                    </button>
-                `;
-            };
-            
-            const createProfileTemplate = (message = 'Create your first learner profile.') => `
+                </div>
+            </div>`;
+        }
+
+        function profilePickerTemplate(profiles) {
+            let profileButtons = profiles.map(profile => `
+                <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
+                    <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
+                        <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
+                    </div>
+                    <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
+                </button>
+            `).join('');
+
+            return `
                 <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
-                    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                        <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Learner Profile</h1>
-                        <p class="text-gray-600 mb-6">${message}</p>
-                        <form id="create-profile-form">
-                            <label for="profile-name" class="block text-sm font-medium text-gray-700 text-left mb-1">Profile Name</label>
-                            <input type="text" id="profile-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="e.g., Alex">
-                            <button type="submit" id="create-profile-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
-                                Create Profile
+                    <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            ${profileButtons}
+                            <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
+                                <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                                    <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
+                                </div>
+                                <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
                             </button>
-                            <div id="profile-error" class="text-red-500 text-sm mt-2 hidden"></div>
-                        </form>
+                        </div>
                     </div>
                 </div>
             `;
-            
-            const myActivityTemplate = () => { 
-                const isFreeTier = state.accountData?.active_tier === 'free';
-                
-                if (isFreeTier) {
-                    return `
-                        <div class="max-w-4xl mx-auto p-8 bg-white rounded-xl shadow-xl border-t-4 border-rose-500 text-center">
-                            <i data-lucide="archive-x" class="mx-auto h-16 w-16 text-rose-500 mb-4"></i>
-                            <h2 class="text-2xl font-bold text-gray-800 mb-2">Unlock Full Activity History</h2>
-                            <p class="text-gray-600 mb-6">Saved work is a premium feature. Upgrade your plan to view, save, and export all past sessions for your learner profiles.</p>
-                            <button data-nav-link="upgrade" class="mt-4 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
-                                Upgrade Now to Unlock
+        }
+
+        // --- CORE APP RENDER FUNCTION (Moved outside DOMContentLoaded) ---
+        function showMainApp() {
+            const appContainer = document.getElementById('app-container');
+            appContainer.innerHTML = `
+                <div class="min-h-screen md:flex">
+                    <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
+                        <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
+                            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
+                            <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
+                        </button>
+                        <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
+                            <i data-lucide="x" class="h-6 w-6"></i>
+                        </button>
+                        <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
+                        
+                        <!-- NEW: Usage Counter / Upgrade Prompt -->
+                        <div id="usage-prompt-wrapper" class="mt-auto pt-4 space-y-2 border-t border-gray-100"></div>
+
+                        <div class="pt-2">
+                            <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="users" class="h-5 w-5"></i>
+                                <span class="ml-3">Switch Profile</span>
                             </button>
+                            <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="log-out" class="h-5 w-5"></i>
+                                <span class="ml-3">Log Out</span>
+                            </button>
+                            <a href="/legal.html" target="_blank" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="shield" class="h-5 w-5"></i>
+                                <span class="ml-3">Terms & Privacy</span>
+                            </a>
                         </div>
+                    </aside>
+                    
+                    <!-- Main Content Wrapper (For Mobile Header) -->
+                    <div class="flex-1 flex flex-col min-w-0">
+                        <!-- Mobile Header (Visible only on mobile) -->
+                        <header class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-40">
+                            <div class="flex items-center cursor-pointer" data-nav-link="home">
+                                <img src="/logo.svg" alt="Learning Genie Logo" class="h-8 w-8 mr-2">
+                                <span class="font-bold text-lg text-gray-800">Learning Genie</span>
+                            </div>
+                            <button id="menu-toggle-btn" class="p-2 -mr-2 text-gray-600 rounded-lg hover:bg-gray-100 focus:outline-none focus:bg-gray-100">
+                                <i data-lucide="menu" class="h-6 w-6"></i>
+                            </button>
+                        </header>
+
+                        <!-- Tool Content -->
+                        <main id="main-content" class="flex-1 p-4 md:p-8"></main>
+                    </div>
+                </div>
+            `;
+            renderToolContent();
+        }
+
+        // --- UTILITY FUNCTIONS (Moved outside DOMContentLoaded) ---
+        // These are required by showMainApp and renderToolContent.
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        function renderPracticeTest(testData) {
+            if (!testData || testData.length === 0) {
+                return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
+            }
+
+            let html = '<form id="quiz-form" class="space-y-6">';
+            
+            testData.forEach((question, index) => {
+                html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
+                html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
+                html += `<div class="space-y-2">`;
+
+                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                    
+                    shuffleArray(question.options);
+
+                    question.options.forEach((option) => {
+                        html += `
+                            <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                                <span class="ml-3 text-sm text-gray-700">${option}</span>
+                            </label>
+                        `;
+                    });
+                } else if (question.type === 'ShortAnswer') {
+                    html += `
+                        <label>
+                            <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
+                            <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
+                        </label>
                     `;
                 }
-
-                return `
-                <div class="max-w-4xl mx-auto">
-                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">My Activity</h2>
-                        <p class="text-gray-500 mb-8">Here's a list of your past work for ${state.activeProfile.name}.</p>
+                html += `</div>`;
+                html += `
+                    <div class="quiz-feedback correct">
+                        <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
                     </div>
-                    <div id="my-activity-output" class="mt-8 space-y-6">
-                        <div class="text-center text-gray-600"><p>Loading activity...</p></div>
+                    <div class="quiz-feedback incorrect">
+                        <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
+                    </div>
+                `;
+                html += `</div>`;
+            });
+
+            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
+            html += '</form>';
+            return html;
+        }
+
+        function createSectionHTML(icon, color, title, content) {
+            const cleanMarkdown = (text) => {
+                return String(text)
+                    .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
+                    .replace(/\*\*/g, '')
+                    .replace(/\*/g, '')
+                    .replace(/## /g, '<h3 class="text-md font-semibold mt-4">')
+                    .replace(/\n/g, '<br>');
+            };
+
+            let textContent = 'No content provided.';
+            if (typeof content === 'string') {
+                textContent = cleanMarkdown(content);
+            } else if (Array.isArray(content)) {
+                textContent = `<ol class="list-decimal list-inside">${content.map(item => `<li>${cleanMarkdown(item)}</li>`).join('')}</ol>`;
+            } else if (typeof content === 'object' && content !== null) {
+                const formatObject = (obj) => {
+                    return `<ul class="list-disc list-inside ml-4">${Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${formatContent(value)}</li>`).join('')}</ul>`;
+                };
+                const formatArray = (arr) => {
+                    return `<ol class="list-decimal list-inside">${arr.map(item => `<li>${formatContent(item)}</li>`).join('')}</ol>`;
+                };
+                const formatContent = (item) => {
+                    if (typeof item === 'string') return cleanMarkdown(item);
+                    if (Array.isArray(item)) return formatArray(item);
+                    if (typeof item === 'object' && item !== null) return formatObject(item);
+                    return cleanMarkdown(String(item));
+                };
+                textContent = formatContent(content);
+            } else if (content) {
+                textContent = cleanMarkdown(String(content));
+            }
+            return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
+        }
+        
+        // --- TOOL TEMPLATES (Needed for renderToolContent) ---
+        const homeworkHelperTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
+                    <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
+                            <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
+                        </div>
+                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                                </div>
+                            </div>
+                            <div id="image-preview-wrapper" class="hidden mt-4">
+                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
+                    <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                </div>
+                <div id="hh-output" class="mt-8"></div>
+            </div>`;
+        
+        const learningHubTemplate = `
+             <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2>
+                    <p class="text-gray-500 mb-8">Describe a topic or upload a photo to get revision notes and a practice test.</p>
+                     <div class="space-y-6">
+                        <div>
+                            <label for="learn-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want to learn about?</label>
+                            <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., The planets in our solar system"></textarea>
+                        </div>
+                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload a Photo (optional)</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="image-preview-wrapper" class="hidden mt-4">
+                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-learning-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn</button>
+                    <div id="lh-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                </div>
+                <div id="lh-output" class="mt-8"></div>
+            </div>`;
+        
+        const explainSimplyTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2>
+                    <p class="text-gray-500 mb-8">Enter a complex topic or question to get a simple explanation.</p>
+                    <div>
+                        <label for="explain-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want explained?</label>
+                        <textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What is photosynthesis? or Explain black holes"></textarea>
+                    </div>
+                    <button id="generate-explanation-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain</button>
+                    <div id="es-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                </div>
+                <div id="es-output" class="mt-8"></div>
+            </div>`;
+            
+        const testBuilderTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
+                    <p class="text-gray-500 mb-8">Create a custom practice test on any topic.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="md:col-span-2">
+                            <label for="tb-topic" class="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                            <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., World War 2 Key Battles"></textarea>
+                        </div>
+                        <div>
+                            <label for="tb-num-questions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
+                            <select id="tb-num-questions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Types</label>
+                            <div class="space-y-2 mt-2">
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-mcq" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Multiple Choice</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-tf" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">True/False</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-short" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Short Answer</span></label>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all duration-300 flex items-center justify-center disabled:bg-teal-300 mb-8"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button>
+                    <div id="tb-error" class="text-red-500 text-sm mt-2 mb-6 hidden"></div>
+                </div>
+                <div id="tb-output" class="mt-8">
+                     <div class="text-center p-12 bg-white rounded-xl shadow-lg border-t-4 border-gray-200">
+                        <i data-lucide="lightbulb" class="mx-auto h-16 w-16 text-gray-300"></i>
+                        <h3 class="mt-4 text-lg font-semibold text-gray-700">Your test will appear here.</h3>
+                        <p class="mt-1 text-gray-500">Fill out the form above to create a practice test.</p>
+                    </div>
+                </div>
+            </div>`;
+        
+
+        // --- CORE LOGIC FUNCTIONS (Must be defined before DOMContentLoaded) ---
+
+        async function handleAuth() {
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT') {
+                    state.session = null;
+                    state.activeProfile = null;
+                    window.location.href = '/login.html';
+                }
+            });
+
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+            if (error) {
+                console.error('Error getting session:', error);
+                appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
+                return;
+            }
+
+            if (!session) {
+                window.location.href = '/login.html';
+            } else {
+                state.session = session;
+                await checkAccountStatus(session.user);
+            }
+        }
+        
+        async function checkAccountStatus(user) {
+            try {
+                // 1. Fetch Account Data (tier, limits)
+                const { data: account, error: accountError } = await supabaseClient
+                    .from('accounts')
+                    .select('active_tier, profile_limit')
+                    .eq('id', user.id)
+                    .single();
+
+                if (accountError && accountError.code !== 'PGRST116') {
+                     throw new Error(`Failed to fetch account: ${accountError.message}`);
+                }
+                 if (!account) {
+                    console.warn("Account record not found, inserting new free user record.");
+                    const { error: insertError } = await supabaseClient
+                         .from('accounts')
+                         .insert({ id: user.id, active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT });
+
+                    if (insertError) throw new Error(`Failed to insert new account: ${insertError.message}`);
+                    state.accountData = { active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT };
+                } else {
+                    state.accountData = account;
+                }
+
+                
+                // 2. Fetch Usage Data
+                const { data: usage, error: usageError } = await supabaseClient
+                    .from('monthly_usage')
+                    .select('usage_count, last_reset_date')
+                    .eq('account_id', user.id)
+                    .single();
+                    
+                if (usageError && usageError.code !== 'PGRST116') {
+                     throw new Error(`Failed to fetch usage: ${usageError.message}`);
+                }
+                
+                if (!usage) {
+                    const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
+                    await supabaseClient.from('monthly_usage').upsert(initialUsage, { onConflict: 'account_id' }); 
+                    state.usageData = { count: 0, resetDate: new Date().toISOString() };
+                } else {
+                    state.usageData = { count: usage.usage_count, resetDate: usage.last_reset_date };
+                }
+                
+                // 3. Fetch Profiles
+                const { data: profiles, error: profileError } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('account_id', user.id);
+
+                if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`);
+
+                // 4. Determine next screen
+                if (profiles && profiles.length > 0) {
+                    appContainer.innerHTML = profilePickerTemplate(profiles);
+                    lucide.createIcons();
+                } else {
+                    appContainer.innerHTML = createProfileTemplate('Welcome! Create your first learner profile to start using the tools.');
+                    lucide.createIcons();
+                }
+
+            } catch (error) {
+                console.error('Error in checkAccountStatus:', error);
+                // Fallback error screen
+                appContainer.innerHTML = `<div class="min-h-screen flex items-center justify-center p-4">
+                    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
+                        <h1 class="text-2xl font-bold text-gray-800 mb-2">Login Error</h1>
+                        <p class="text-gray-600 mb-6">Could not load your account data. Check the console for database errors. Details: ${error.message}</p>
+                        <button onclick="window.location.href='/login.html'" class="mt-4 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Go to Login</button>
                     </div>
                 </div>`;
-            }
-
-
-            // --- MISSING AUTH FUNCTIONS ---
-            
-            async function handleAuth() {
-                supabaseClient.auth.onAuthStateChange((event, session) => {
-                    if (event === 'SIGNED_OUT') {
-                        state.session = null;
-                        state.activeProfile = null;
-                        window.location.href = '/login.html';
-                    }
-                });
-
-                const { data: { session }, error } = await supabaseClient.auth.getSession();
-
-                if (error) {
-                    console.error('Error getting session:', error);
-                    appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
-                    return;
-                }
-
-                if (!session) {
-                    window.location.href = '/login.html';
-                } else {
-                    state.session = session;
-                    await checkAccountStatus(session.user);
-                }
-            }
-
-
-            // --- RENDER FUNCTION for tool content ---
-            async function renderToolContent() {
-                const mainContent = document.getElementById('main-content');
-                if (!mainContent) return; 
-
-                const templates = {
-                    home: homePageTemplate(), 
-                    homeworkHelper: homeworkHelperTemplate,
-                    learningHub: learningHubTemplate,
-                    explainSimply: explainSimplyTemplate,
-                    testBuilder: testBuilderTemplate,
-                    myActivity: myActivityTemplate(),
-                    upgrade: upgradeTemplate('Choose the best plan for your family.')
-                };
-                
-                mainContent.innerHTML = templates[state.activeTab] || homePageTemplate();
-                updateSidebar();
                 lucide.createIcons();
-
-                if (state.activeTab === 'myActivity' && state.accountData?.active_tier !== 'free') {
-                    await loadMyActivity();
-                }
-
-                if (state.workToView) {
-                    // Logic to render saved work (omitted for brevity, assume existing logic is here)
-                    // ... [Existing state.workToView logic] ...
-                    
-                    // The existing rendering logic is assumed to be here
-                    const workItem = state.workToView;
-                    const savedResult = workItem.output_content; 
-
-                    const outputElId = 
-                        workItem.work_type === 'homeworkHelper' ? 'hh-output' :
-                        workItem.work_type === 'learningHub' ? 'lh-output' :
-                        workItem.work_type === 'explainSimply' ? 'es-output' :
-                        'tb-output'; // for testBuilder
-                    const outputEl = document.getElementById(outputElId);
-
-                    if (outputEl) {
-                        if (outputEl.previousElementSibling) {
-                            outputEl.previousElementSibling.classList.add('hidden');
-                        }
-
-                        try {
-                            if (workItem.work_type === 'homeworkHelper') {
-                                let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
-                                if (savedResult.breakdown) outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", savedResult.breakdown);
-                                if (savedResult.hints) outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', savedResult.hints);
-                                if (savedResult.answer) outputHtml += createSectionHTML('key-round', 'green', 'Answer', savedResult.answer);
-                                else if (savedResult.answers) outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', savedResult.answers);
-                                outputHtml += '</div>';
-                                outputEl.innerHTML = outputHtml;
-                            } 
-                            else if (workItem.work_type === 'learningHub' || workItem.work_type === 'testBuilder') {
-                                state.currentTest = savedResult.practice_test || [];
-                                const quizHtml = renderPracticeTest(state.currentTest);
-                                const title = workItem.work_type === 'learningHub' ? "Saved Learning Hub Session" : "Saved Custom Test";
-                                const icon = workItem.work_type === 'learningHub' ? "book-open" : "clipboard-check";
-                                
-                                let outputHtml = '';
-                                if (workItem.work_type === 'learningHub' && savedResult.learning_objectives) {
-                                    outputHtml += createSectionHTML('check-circle', 'green', "Key Learning Objectives", savedResult.learning_objectives);
-                                    outputHtml += createSectionHTML('book-open', 'indigo', "Revision Notes", savedResult.revision_notes);
-                                }
-                                outputHtml += `
-                                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                                        <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-blue-500"></i><span class="ml-2">${title}</span></h3>
-                                        <p class="text-sm text-gray-600 mb-6">This is a saved test from your activity history. You can take it again!</p>
-                                        <div id="quiz-results" class="mb-6"></div>
-                                        ${quizHtml}
-                                    </div>
-                                `;
-                                if (workItem.work_type === 'learningHub') {
-                                    outputEl.innerHTML = `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">${outputHtml}</div>`;
-                                } else {
-                                    outputEl.innerHTML = outputHtml;
-                                }
-                            }
-                            else if (workItem.work_type === 'explainSimply') {
-                                outputEl.innerHTML = `
-                                    <div class="bg-gray-50/50 p-6 rounded-lg">
-                                        ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', savedResult.explanation)}
-                                    </div>
-                                `;
-                            }
-                        } catch (renderError) {
-                            console.error("Error rendering saved work:", renderError);
-                            outputEl.innerHTML = `<p class="text-red-600">Could not render this saved item.</p>`;
-                        }
-                    }
-
-                    lucide.createIcons();
-                    state.workToView = null;
-                }
             }
+        }
 
-            function updateSidebar() {
-                const sidebarNav = document.getElementById('sidebar-nav');
-                const usageWrapper = document.getElementById('usage-prompt-wrapper');
-                if (!sidebarNav || !usageWrapper) return; 
+        function updateSidebar() {
+            const sidebarNav = document.getElementById('sidebar-nav');
+            const usageWrapper = document.getElementById('usage-prompt-wrapper');
+            if (!sidebarNav || !usageWrapper) return; 
 
-                const navItems = {
-                    home: { icon: 'home', label: 'Home' },
-                    homeworkHelper: { icon: 'life-buoy', label: 'Homework Helper' },
-                    learningHub: { icon: 'book-marked', label: 'Learning Hub' },
-                    explainSimply: { icon: 'baby', label: 'Explain It Simply' },
-                    testBuilder: { icon: 'clipboard-check', label: 'Test Builder' },
-                    myActivity: { icon: 'history', label: 'My Activity' },
-                    upgrade: { icon: 'zap', label: 'Upgrade Now' }
-                };
+            const navItems = {
+                home: { icon: 'home', label: 'Home' },
+                homeworkHelper: { icon: 'life-buoy', label: 'Homework Helper' },
+                learningHub: { icon: 'book-marked', label: 'Learning Hub' },
+                explainSimply: { icon: 'baby', label: 'Explain It Simply' },
+                testBuilder: { icon: 'clipboard-check', label: 'Test Builder' },
+                myActivity: { icon: 'history', label: 'My Activity' },
+                upgrade: { icon: 'zap', label: 'Upgrade Now' }
+            };
+            
+            let navHtml = '';
+            // Render core tools
+            ['home', 'homeworkHelper', 'learningHub', 'explainSimply', 'testBuilder'].forEach(tab => {
+                const item = navItems[tab];
+                navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
+            });
+            // Render My Activity link separately with a top border
+            navHtml += `<button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg border-t mt-2 pt-2 border-gray-100"><i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i><span class="ml-3">${navItems.myActivity.label}</span></button>`;
+
+            sidebarNav.innerHTML = navHtml; 
+
+            // --- Usage Counter UI Update ---
+            const isFreeTier = state.accountData?.active_tier === 'free';
+            
+            if (isFreeTier) {
+                const remaining = FREE_USAGE_LIMIT - state.usageData.count;
+                const remainingDays = Math.ceil((new Date(state.usageData.resetDate).getTime() + (7 * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24));
                 
-                let navHtml = '';
-                // Render core tools
-                ['home', 'homeworkHelper', 'learningHub', 'explainSimply', 'testBuilder'].forEach(tab => {
-                    const item = navItems[tab];
-                    navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
-                });
-                // Render My Activity link separately with a top border
-                navHtml += `<button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg border-t mt-2 pt-2 border-gray-100"><i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i><span class="ml-3">${navItems.myActivity.label}</span></button>`;
+                usageWrapper.innerHTML = `
+                    <div class="p-3 bg-indigo-50 rounded-lg text-center">
+                        <p class="font-semibold text-indigo-700 text-sm">Free Trial Limit</p>
+                        <p class="text-2xl font-bold text-indigo-900">${remaining}/${FREE_USAGE_LIMIT}</p>
+                        <p class="text-xs text-indigo-600">questions remaining this week.</p>
+                        <p class="text-xs text-gray-500 mt-1">Resets in ${Math.max(0, remainingDays)} day(s).</p>
+                    </div>
+                    <button data-nav-link="upgrade" class="w-full bg-rose-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-rose-600 flex items-center justify-center text-sm">
+                        <i data-lucide="zap" class="h-4 w-4 mr-2"></i> Unlock Unlimited Access
+                    </button>
+                `;
+            } else {
+                // Paid tier UI
+                const tierName = state.accountData?.active_tier.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                usageWrapper.innerHTML = `
+                    <div class="p-3 bg-green-50 rounded-lg text-center">
+                        <p class="font-semibold text-green-700 text-sm">${tierName} Active</p>
+                        <p class="text-xs text-green-600">Unlimited questions and access to all ${state.accountData?.profile_limit} profiles.</p>
+                    </div>
+                `;
+            }
+            
+            // Set active link style
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const linkTab = link.dataset.navLink;
+                const isActive = (linkTab === state.activeTab);
 
-                sidebarNav.innerHTML = navHtml; 
-
-                // --- Usage Counter UI Update ---
-                const isFreeTier = state.accountData?.active_tier === 'free';
-                
-                if (isFreeTier) {
-                    const remaining = FREE_USAGE_LIMIT - state.usageData.count;
-                    const remainingDays = Math.ceil((new Date(state.usageData.resetDate).getTime() + (7 * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                    
-                    usageWrapper.innerHTML = `
-                        <div class="p-3 bg-indigo-50 rounded-lg text-center">
-                            <p class="font-semibold text-indigo-700 text-sm">Free Trial Limit</p>
-                            <p class="text-2xl font-bold text-indigo-900">${remaining}/${FREE_USAGE_LIMIT}</p>
-                            <p class="text-xs text-indigo-600">questions remaining this week.</p>
-                            <p class="text-xs text-gray-500 mt-1">Resets in ${Math.max(0, remainingDays)} day(s).</p>
-                        </div>
-                        <button data-nav-link="upgrade" class="w-full bg-rose-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-rose-600 flex items-center justify-center text-sm">
-                            <i data-lucide="zap" class="h-4 w-4 mr-2"></i> Unlock Unlimited Access
+                if (isActive) {
+                    link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                    link.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                } else {
+                    link.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                    link.classList.add('text-gray-600', 'hover:bg-gray-100');
+                }
+            });
+        }
+        
+        // --- TOOL TEMPLATES (Moved outside DOMContentLoaded) ---
+        
+        const myActivityTemplate = () => { 
+            const isFreeTier = state.accountData?.active_tier === 'free';
+            
+            if (isFreeTier) {
+                return `
+                    <div class="max-w-4xl mx-auto p-8 bg-white rounded-xl shadow-xl border-t-4 border-rose-500 text-center">
+                        <i data-lucide="archive-x" class="mx-auto h-16 w-16 text-rose-500 mb-4"></i>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Unlock Full Activity History</h2>
+                        <p class="text-gray-600 mb-6">Saved work is a premium feature. Upgrade your plan to view, save, and export all past sessions for your learner profiles.</p>
+                        <button data-nav-link="upgrade" class="mt-4 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
+                            Upgrade Now to Unlock
                         </button>
-                    `;
-                } else {
-                    // Paid tier UI
-                    const tierName = state.accountData?.active_tier.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                    usageWrapper.innerHTML = `
-                        <div class="p-3 bg-green-50 rounded-lg text-center">
-                            <p class="font-semibold text-green-700 text-sm">${tierName} Active</p>
-                            <p class="text-xs text-green-600">Unlimited questions and access to all ${state.accountData?.profile_limit} profiles.</p>
-                        </div>
-                    `;
-                }
-                
-                // Set active link style
-                document.querySelectorAll('.nav-link').forEach(link => {
-                    const linkTab = link.dataset.navLink;
-                    const isActive = (linkTab === state.activeTab);
+                    </div>
+                `;
+            }
 
-                    if (isActive) {
-                        link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
-                        link.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                    } else {
-                        link.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
-                        link.classList.add('text-gray-600', 'hover:bg-gray-100');
-                    }
+            return `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">My Activity</h2>
+                    <p class="text-gray-500 mb-8">Here's a list of your past work for ${state.activeProfile.name}.</p>
+                </div>
+                <div id="my-activity-output" class="mt-8 space-y-6">
+                    <div class="text-center text-gray-600"><p>Loading activity...</p></div>
+                </div>
+            </div>`;
+        }
+        
+        function upgradeTemplate(message = 'Unlock unlimited power and features.') {
+            return `
+                <div class="max-w-4xl mx-auto p-4 md:p-8">
+                    <div class="bg-white p-6 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
+                        <i data-lucide="zap" class="mx-auto h-16 w-16 text-indigo-500 mb-4"></i>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">Upgrade Your Learning Genie</h1>
+                        <p class="text-lg text-gray-600 mb-8">${message}</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+                        
+                        <!-- Card 1: Single Learner R69 -->
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Single Learner</h3>
+                            <p class="text-gray-600 mb-4 text-sm">Full access for one child.</p>
+                            <div class="text-4xl font-extrabold mb-6 text-indigo-600">R69<span class="text-lg font-normal">/month</span></div>
+                            <ul class="text-left space-y-2 text-sm flex-1 mb-6">
+                                <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> 1 Learner Profile</li>
+                                <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-4 w-4 text-green-500 mr-2"></i> Unlimited tool usage</li>
+                                <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-4 w-4 text-green-500 mr-2"></i> Full activity history</li>
+                            </ul>
+                            <button data-plan="paid_single" class="upgrade-btn w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
+                                Subscribe for R69
+                            </button>
+                        </div>
+
+                        <!-- Card 2: Family Two R99 (Best Value) -->
+                        <div class="bg-indigo-600 p-6 rounded-xl shadow-2xl border-4 border-indigo-500 text-white flex flex-col transform scale-105">
+                            <div class="bg-amber-400 text-indigo-900 font-bold px-3 py-1 text-sm rounded-full w-fit mx-auto mb-3">Best Value</div>
+                            <h3 class="text-2xl font-bold mb-2">Family Two</h3>
+                            <p class="text-indigo-200 mb-4 text-sm">Ideal for two children.</p>
+                            <div class="text-4xl font-extrabold mb-6">R99<span class="text-lg font-normal">/month</span></div>
+                            <ul class="text-left space-y-2 text-sm flex-1 mb-6">
+                                <li class="flex items-center"><i data-lucide="check" class="h-4 w-4 text-amber-300 mr-2"></i> Up to 2 Learner Profiles</li>
+                                <li class="flex items-center"><i data-lucide="infinity" class="h-4 w-4 text-amber-300 mr-2"></i> Unlimited tool usage</li>
+                                <li class="flex items-center"><i data-lucide="save" class="h-4 w-4 text-amber-300 mr-2"></i> Full activity history</li>
+                            </ul>
+                            <button data-plan="paid_family" class="upgrade-btn w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-indigo-50 transition duration-150 shadow-lg">
+                                Subscribe for R99
+                            </button>
+                        </div>
+                        
+                        <!-- Card 3: Family Ultra R149 -->
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Family Ultra</h3>
+                            <p class="text-gray-600 mb-4 text-sm">Support for up to four children.</p>
+                            <div class="text-4xl font-extrabold mb-6 text-indigo-600">R149<span class="text-lg font-normal">/month</span></div>
+                            <ul class="text-left space-y-2 text-sm flex-1 mb-6">
+                                <li class="flex items-center text-gray-700"><i data-lucide="check" class="h-4 w-4 text-green-500 mr-2"></i> Up to 4 Learner Profiles</li>
+                                <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-4 w-4 text-green-500 mr-2"></i> Unlimited tool usage</li>
+                                <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-4 w-4 text-green-500 mr-2"></i> Full activity history</li>
+                            </ul>
+                            <button data-plan="paid_ultra" class="upgrade-btn w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
+                                Subscribe for R149
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        const paywallModalHTML = (reason) => {
+            let title, message;
+            if (reason === 'usage') {
+                title = "Weekly Limit Reached";
+                message = `You've used your ${FREE_USAGE_LIMIT} free questions this week. Upgrade now for unlimited access!`;
+            } else if (reason === 'profiles') {
+                 title = "Profile Limit Reached";
+                 message = `You have reached your limit of ${state.accountData.profile_limit} learner profile(s). Upgrade your plan to add more profiles.`;
+            }
+            
+            return `
+                <i data-lucide="lock" class="h-12 w-12 text-rose-500 mx-auto mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">${title}</h2>
+                <p class="text-gray-600 mb-6">${message}</p>
+                <button id="close-paywall-modal-btn" class="mt-4 mr-2 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">
+                    Close
+                </button>
+                <button data-nav-link="upgrade" class="mt-4 ml-2 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">
+                    Upgrade Now
+                </button>
+            `;
+        };
+        
+        const createProfileTemplate = (message = 'Create your first learner profile.') => `
+            <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                    <h1 class="text-3xl font-bold text-gray-800 mb-2">Create Learner Profile</h1>
+                    <p class="text-gray-600 mb-6">${message}</p>
+                    <form id="create-profile-form">
+                        <label for="profile-name" class="block text-sm font-medium text-gray-700 text-left mb-1">Profile Name</label>
+                        <input type="text" id="profile-name" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="e.g., Alex">
+                        <button type="submit" id="create-profile-btn" class="mt-4 w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300">
+                            Create Profile
+                        </button>
+                        <div id="profile-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                    </form>
+                </div>
+            </div>
+        `;
+        
+        async function handleUpgrade(plan) {
+            const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
+
+            try {
+                const response = await fetch('/.netlify/functions/create-subscription', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan })
                 });
+                
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Failed to initialize Paystack checkout.');
+                }
+
+                window.location.href = data.checkoutUrl;
+
+            } catch (error) {
+                console.error('Upgrade Error:', error);
+                alert(`Subscription failed to start: ${error.message}`);
+            } finally {
+                button.disabled = false;
+                button.innerHTML = originalText;
+            }
+        }
+
+        async function checkAndIncrementUsage() {
+            if (state.accountData?.active_tier !== 'free') {
+                return true;
             }
             
-            // --- AUTH & ONBOARDING LOGIC ---
+            const now = new Date();
+            const resetDate = new Date(state.usageData.resetDate);
+            const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
             
-            const appContainer = document.getElementById('app-container');
+            let currentCount = state.usageData.count;
 
-            async function checkAccountStatus(user) {
-                try {
-                    // 1. Fetch Account Data (tier, limits)
-                    const { data: account, error: accountError } = await supabaseClient
-                        .from('accounts')
-                        .select('active_tier, profile_limit')
-                        .eq('id', user.id)
-                        .single();
+            if (now > new Date(resetDate.getTime() + oneWeekMs)) {
+                currentCount = 0;
+                const newResetDate = now.toISOString();
 
-                    if (accountError && accountError.code !== 'PGRST116') {
-                        // PGRST116 means "No rows found". If it's another error, throw.
-                         throw new Error(`Failed to fetch account: ${accountError.message}`);
-                    }
-                     if (!account) {
-                        // Handle the case where the user exists but the account row does not (e.g., brand new user)
-                        console.warn("Account record not found, inserting new free user record.");
-                        const { error: insertError } = await supabaseClient
-                             .from('accounts')
-                             .insert({ id: user.id, active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT });
-
-                        if (insertError) throw new Error(`Failed to insert new account: ${insertError.message}`);
-                        state.accountData = { active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT };
-                    } else {
-                        state.accountData = account;
-                    }
-
-                    
-                    // 2. Fetch Usage Data
-                    const { data: usage, error: usageError } = await supabaseClient
-                        .from('monthly_usage')
-                        .select('usage_count, last_reset_date')
-                        .eq('account_id', user.id)
-                        .single();
-                        
-                    if (usageError && usageError.code !== 'PGRST116') {
-                         throw new Error(`Failed to fetch usage: ${usageError.message}`);
-                    }
-                    
-                    if (!usage) {
-                        // Create initial usage record if missing
-                        const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
-                        // We use upsert here to handle potential race conditions if the record was created but not fetched.
-                        await supabaseClient.from('monthly_usage').upsert(initialUsage, { onConflict: 'account_id' }); 
-                        state.usageData = { count: 0, resetDate: new Date().toISOString() };
-                    } else {
-                        state.usageData = { count: usage.usage_count, resetDate: usage.last_reset_date };
-                    }
-                    
-                    // 3. Fetch Profiles
-                    const { data: profiles, error: profileError } = await supabaseClient
-                        .from('profiles')
-                        .select('*')
-                        .eq('account_id', user.id);
-
-                    if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`);
-
-                    // 4. Determine next screen
-                    if (profiles && profiles.length > 0) {
-                        appContainer.innerHTML = profilePickerTemplate(profiles);
-                        lucide.createIcons();
-                    } else {
-                        appContainer.innerHTML = createProfileTemplate('Welcome! Create your first learner profile to start using the tools.');
-                        lucide.createIcons();
-                    }
-
-                } catch (error) {
-                    console.error('Error in checkAccountStatus:', error);
-                    // Fallback error screen
-                    appContainer.innerHTML = `<div class="min-h-screen flex items-center justify-center p-4">
-                        <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                            <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
-                            <h1 class="text-2xl font-bold text-gray-800 mb-2">Login Error</h1>
-                            <p class="text-gray-600 mb-6">Could not load your account data. Check the console for database errors. Details: ${error.message}</p>
-                            <button onclick="window.location.href='/login.html'" class="mt-4 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Go to Login</button>
-                        </div>
-                    </div>`;
-                    lucide.createIcons();
-                }
-            }
-            
-            // --- EVENT HANDLING (Delegated to appContainer) ---
-            appContainer.addEventListener('click', async (e) => {
-                const sidebar = document.getElementById('sidebar');
-
-                // App Navigation
-                if (e.target.closest('#menu-toggle-btn')) {
-                    if(sidebar) sidebar.classList.remove('hidden');
-                }
-                if (e.target.closest('#menu-close-btn')) {
-                    if(sidebar) sidebar.classList.add('hidden');
-                }
-                const navLink = e.target.closest('[data-nav-link]');
-                if (navLink) { 
-                    state.activeTab = navLink.dataset.navLink;
-                    state.uploadedImageBase64 = null;
-                    state.currentTest = null;
-                    state.myActivityData = []; 
-                    renderToolContent();
-                    if (sidebar && sidebar.classList.contains('md:flex') && !sidebar.classList.contains('hidden')) {
-                        sidebar.classList.add('hidden');
-                    }
-                }
-                
-                // Paywall Modal Controls
-                const paywallModal = document.getElementById('paywall-modal');
-                if (e.target.closest('#close-paywall-modal-btn')) {
-                     if (paywallModal) paywallModal.classList.add('hidden');
-                }
-
-                // NEW: Handle Upgrade Button Click
-                const upgradeBtn = e.target.closest('.upgrade-btn');
-                if (upgradeBtn) {
-                    const plan = upgradeBtn.dataset.plan;
-                    handleUpgrade(plan);
-                }
-                
-                // NEW: Handle View Past Work button (only available if not free tier)
-                const viewWorkBtn = e.target.closest('.view-work-btn');
-                if (viewWorkBtn && state.accountData?.active_tier !== 'free') {
-                    e.preventDefault();
-                    const workIndex = viewWorkBtn.dataset.workIndex;
-                    const workItem = state.myActivityData[workIndex];
-                    
-                    if (workItem) {
-                        state.workToView = workItem; 
-                        state.activeTab = workItem.work_type;
-                        renderToolContent(); 
-                    } else {
-                        console.error('Could not find work item for index:', workIndex);
-                    }
-                }
-
-                // App Tool Buttons (Now wrapped in usage check)
-                if (e.target.closest('#generate-homework-help-btn')) handleGenerateHomeworkHelp();
-                if (e.target.closest('#generate-learning-help-btn')) handleGenerateLearningHelp();
-                if (e.target.closest('#generate-explanation-btn')) handleGenerateExplanation();
-                if (e.target.closest('#generate-test-builder-btn')) handleGenerateTestBuilder(); 
-                if (e.target.closest('#remove-image-btn')) handleRemoveImage();
-
-                // Auth & Onboarding Buttons
-                if (e.target.closest('#logout-btn')) {
-                    await supabaseClient.auth.signOut();
-                    state.activeProfile = null;
-                }
-                if (e.target.closest('#profile-picker-btn')) {
-                    state.activeProfile = null;
-                    await checkAccountStatus(state.session.user);
-                }
-                // Removed #skip-payment-btn as the new flow automatically enrolls in the free tier
-                
-                // FIX: Profile Selection Logic
-                const profileButton = e.target.closest('.profile-select-btn');
-                if (profileButton) {
-                    const profileId = profileButton.dataset.profileId;
-                    
-                    // Fetch all profiles and find the correct one using strict comparison after conversion
-                    const { data: profiles } = await supabaseClient.from('profiles').select('*').eq('account_id', state.session.user.id);
-                    
-                    const profile = profiles.find(p => p.id === parseInt(profileId)); // Convert ID from string (dataset) to integer
-
-                    if (profile) {
-                        state.activeProfile = profile;
-                        showMainApp();
-                    } else {
-                        console.error("Profile not found or ID mismatch.");
-                    }
-                }
-                // END FIX
-
-                if (e.target.closest('#show-add-profile-btn')) {
-                    // This logic is now handled in the form submit handler
-                     appContainer.innerHTML = createProfileTemplate('Add a new learner profile to your account.');
-                     lucide.createIcons();
-                }
-            });
-
-            // Handle image uploads
-            appContainer.addEventListener('change', (e) => {
-                if (e.target.id === 'image-upload') handleImageChange(e);
-            });
-            
-            // Handle form submissions
-            appContainer.addEventListener('submit', async (e) => {
-                e.preventDefault(); 
-
-                if (e.target.id === 'quiz-form') {
-                    await handleQuizSubmit(e.target);
-                }
-
-                if (e.target.id === 'create-profile-form') {
-                    const name = document.getElementById('profile-name').value;
-                    const button = document.getElementById('create-profile-btn');
-                    const errorEl = document.getElementById('profile-error');
-                    errorEl.classList.add('hidden');
-
-                    button.disabled = true;
-
-                    // 1. Check Profile Limit
-                    const { data: profiles, count } = await supabaseClient.from('profiles').select('*', { count: 'exact' }).eq('account_id', state.session.user.id);
-                    
-                    const currentLimit = state.accountData?.profile_limit || FREE_PROFILE_LIMIT;
-
-                    if (count >= currentLimit) {
-                        errorEl.textContent = `Limit reached. Your current plan allows for ${currentLimit} profile(s). Please upgrade.`;
-                        errorEl.classList.remove('hidden');
-                        button.disabled = false;
-                        showPaywallModal('profiles');
-                        return;
-                    }
-                    
-                    // 2. Create Profile
-                    const { error } = await supabaseClient
-                        .from('profiles')
-                        .insert({ 
-                            account_id: state.session.user.id, 
-                            name: name 
-                        });
-                    
-                    if (error) {
-                        errorEl.textContent = `Error creating profile: ${error.message}`;
-                        errorEl.classList.remove('hidden');
-                        button.disabled = false;
-                    } else {
-                        await checkAccountStatus(state.session.user);
-                    }
-                }
-            });
-
-
-            // --- PAYSTACK & USAGE LOGIC ---
-
-            /**
-             * Handles the Paystack checkout process.
-             * @param {string} plan The plan code (e.g., 'paid_single', 'paid_family').
-             */
-            async function handleUpgrade(plan) {
-                const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
-                const originalText = button.innerHTML;
-                button.disabled = true;
-                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
-
-                try {
-                    // 1. Call Netlify function to get the secure checkout URL
-                    const response = await fetch('/.netlify/functions/create-subscription', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ plan })
-                    });
-                    
-                    const data = await response.json();
-
-                    if (!response.ok || data.error) {
-                        throw new Error(data.error || 'Failed to initialize Paystack checkout.');
-                    }
-
-                    // 2. Redirect to Paystack or use Paystack's JS method (Redirect is simpler here)
-                    window.location.href = data.checkoutUrl;
-
-                } catch (error) {
-                    console.error('Upgrade Error:', error);
-                    alert(`Subscription failed to start: ${error.message}`);
-                } finally {
-                    button.disabled = false;
-                    button.innerHTML = originalText;
-                }
-            }
-
-            /**
-             * Checks the usage limit for the free tier and increments the count.
-             * Resets the counter if the week has passed.
-             * @returns {boolean} True if the tool can be used, false otherwise (limit hit).
-             */
-            async function checkAndIncrementUsage() {
-                if (state.accountData?.active_tier !== 'free') {
-                    return true; // Paid user, no limits
-                }
-                
-                const now = new Date();
-                const resetDate = new Date(state.usageData.resetDate);
-                const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-                
-                let currentCount = state.usageData.count;
-
-                // 1. Check if the usage week has passed
-                if (now > new Date(resetDate.getTime() + oneWeekMs)) {
-                    // Reset required
-                    currentCount = 0;
-                    const newResetDate = now.toISOString();
-
-                    // Update DB with reset
-                    const { error } = await supabaseClient
-                        .from('monthly_usage')
-                        .update({ usage_count: 0, last_reset_date: newResetDate })
-                        .eq('account_id', state.session.user.id);
-                        
-                    if (error) console.error("Error resetting usage:", error);
-                    
-                    state.usageData.count = 0;
-                    state.usageData.resetDate = newResetDate;
-                    
-                    // Since it reset, we proceed to check limit against 0
-                }
-
-                // 2. Check Limit
-                if (currentCount >= FREE_USAGE_LIMIT) {
-                    showPaywallModal('usage');
-                    return false; // Limit hit
-                }
-
-                // 3. Increment usage (before running the query, for safety)
-                const newCount = currentCount + 1;
-                const { error: updateError } = await supabaseClient
+                const { error } = await supabaseClient
                     .from('monthly_usage')
-                    .update({ usage_count: newCount })
+                    .update({ usage_count: 0, last_reset_date: newResetDate })
                     .eq('account_id', state.session.user.id);
+                    
+                if (error) console.error("Error resetting usage:", error);
                 
-                if (updateError) {
-                    console.error("Error incrementing usage:", updateError);
-                    // Continue, but log error
-                } else {
-                    state.usageData.count = newCount;
-                    updateSidebar(); // Refresh the counter immediately
-                }
-
-                return true; // Limit not hit, proceed
-            }
-            
-            // --- MODAL DISPLAY ---
-            
-            function showPaywallModal(reason) {
-                const modal = document.getElementById('paywall-modal');
-                const content = document.getElementById('paywall-content');
-
-                content.innerHTML = paywallModalHTML(reason);
-                lucide.createIcons();
-
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
+                state.usageData.count = 0;
+                state.usageData.resetDate = newResetDate;
             }
 
-            // --- TOOL HANDLERS (Updated with Usage Check) ---
+            if (currentCount >= FREE_USAGE_LIMIT) {
+                showPaywallModal('usage');
+                return false;
+            }
+
+            const newCount = currentCount + 1;
+            const { error: updateError } = await supabaseClient
+                .from('monthly_usage')
+                .update({ usage_count: newCount })
+                .eq('account_id', state.session.user.id);
             
-            async function handleGenerateHomeworkHelp() {
-                if (!await checkAndIncrementUsage()) return;
-                // ... [Rest of existing logic] ...
-                const questionText = document.getElementById('hh-question').value.trim();
-                const errorEl = document.getElementById('hh-error');
-                const outputEl = document.getElementById('hh-output');
-                const button = document.getElementById('generate-homework-help-btn');
+            if (updateError) {
+                console.error("Error incrementing usage:", updateError);
+            } else {
+                state.usageData.count = newCount;
+                updateSidebar();
+            }
 
-                errorEl.classList.add('hidden');
-                if (!questionText && !state.uploadedImageBase64) {
-                    errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
-                    errorEl.classList.remove('hidden');
-                    return;
-                }
-                if (questionText && state.uploadedImageBase64) {
-                     errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
-                     errorEl.classList.remove('hidden');
-                     return;
-                }
+            return true;
+        }
 
-                button.disabled = true;
-                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
-                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`;
-                
-                let prompt = '';
-                let imageData = state.uploadedImageBase64;
-                let inputPromptForDb = questionText; 
+        function showPaywallModal(reason) {
+            const modal = document.getElementById('paywall-modal');
+            const content = document.getElementById('paywall-content');
 
-                if (questionText) {
-                    prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
+            content.innerHTML = paywallModalHTML(reason);
+            lucide.createIcons();
+
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+        }
+
+        async function handleGenerateHomeworkHelp() {
+            if (!await checkAndIncrementUsage()) return;
+            const questionText = document.getElementById('hh-question').value.trim();
+            const errorEl = document.getElementById('hh-error');
+            const outputEl = document.getElementById('hh-output');
+            const button = document.getElementById('generate-homework-help-btn');
+
+            errorEl.classList.add('hidden');
+            if (!questionText && !state.uploadedImageBase64) {
+                errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            if (questionText && state.uploadedImageBase64) {
+                 errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
+                 errorEl.classList.remove('hidden');
+                 return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`;
+            
+            let prompt = '';
+            let imageData = state.uploadedImageBase64;
+            let inputPromptForDb = questionText; 
+
+            if (questionText) {
+                prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
     Provide a JSON object with two keys: "hints" and "answer". 
     - "hints": An array of gentle hints to guide the student towards the answer.
     - "answer": A clear and concise final answer to the question.`;
-                    imageData = null; 
-                } else if (imageData) {
-                    prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
-                    inputPromptForDb = "Homework Help (Image)"; 
-                } else {
-                     errorEl.textContent = 'No input provided.';
-                     errorEl.classList.remove('hidden');
-                     button.disabled = false;
-                     button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
-                     return;
-                }
-
-                try {
-                    const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
-                    const result = JSON.parse(jsonText);
-
-                    supabaseClient.from('saved_work').insert({
-                        profile_id: state.activeProfile.id,
-                        work_type: 'homeworkHelper',
-                        input_prompt: { "prompt": inputPromptForDb },
-                        output_content: result
-                    }).then(({ error }) => {
-                        if (error) console.error("Error saving work:", error.message);
-                    });
-
-                    let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
-                    if (result.breakdown) {
-                        outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
-                    }
-                    if (result.hints) {
-                        outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
-                    }
-                    if (result.answer) {
-                         outputHtml += createSectionHTML('key-round', 'green', 'Answer', result.answer);
-                    } else if (result.answers) {
-                        outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
-                    }
-                    outputHtml += '</div>';
-                    outputEl.innerHTML = outputHtml;
-
-                    lucide.createIcons();
-                } catch (e) {
-                    errorEl.textContent = `An error occurred: ${e.message}`;
-                    errorEl.classList.remove('hidden');
-                    outputEl.innerHTML = '';
-                } finally {
-                    button.disabled = false;
-                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
-                    lucide.createIcons();
-                }
+                imageData = null; 
+            } else if (imageData) {
+                prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
+                inputPromptForDb = "Homework Help (Image)"; 
+            } else {
+                 errorEl.textContent = 'No input provided.';
+                 errorEl.classList.remove('hidden');
+                 button.disabled = false;
+                 button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
+                 return;
             }
 
-            async function handleGenerateLearningHelp() {
-                if (!await checkAndIncrementUsage()) return;
-                // ... [Rest of existing logic] ...
-                const topic = document.getElementById('learn-topic').value;
-                const errorEl = document.getElementById('lh-error');
-                const outputEl = document.getElementById('lh-output');
-                const button = document.getElementById('generate-learning-help-btn');
+            try {
+                const jsonText = await fetchWithRetry(prompt, true, 1, 'text', imageData);
+                const result = JSON.parse(jsonText);
 
-                errorEl.classList.add('hidden');
-                if (!topic && !state.uploadedImageBase64) {
-                    errorEl.textContent = 'Please enter a topic or upload a photo.';
-                    errorEl.classList.remove('hidden');
-                    return;
+                supabaseClient.from('saved_work').insert({
+                    profile_id: state.activeProfile.id,
+                    work_type: 'homeworkHelper',
+                    input_prompt: { "prompt": inputPromptForDb },
+                    output_content: result
+                }).then(({ error }) => {
+                    if (error) console.error("Error saving work:", error.message);
+                });
+
+                let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
+                if (result.breakdown) {
+                    outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
                 }
+                if (result.hints) {
+                    outputHtml += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
+                }
+                if (result.answer) {
+                     outputHtml += createSectionHTML('key-round', 'green', 'Answer', result.answer);
+                } else if (result.answers) {
+                    outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
+                }
+                outputHtml += '</div>';
+                outputEl.innerHTML = outputHtml;
 
-                button.disabled = true;
-                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
-                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
-                state.currentTest = null; 
+                lucide.createIcons();
+            } catch (e) {
+                errorEl.textContent = `An error occurred: ${e.message}`;
+                errorEl.classList.remove('hidden');
+                outputEl.innerHTML = '';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
+                lucide.createIcons();
+            }
+        }
 
-                const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
+        async function handleGenerateLearningHelp() {
+            if (!await checkAndIncrementUsage()) return;
+            const topic = document.getElementById('learn-topic').value;
+            const errorEl = document.getElementById('lh-error');
+            const outputEl = document.getElementById('lh-output');
+            const button = document.getElementById('generate-learning-help-btn');
+
+            errorEl.classList.add('hidden');
+            if (!topic && !state.uploadedImageBase64) {
+                errorEl.textContent = 'Please enter a topic or upload a photo.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
+            state.currentTest = null; 
+
+            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
     Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test".
     - "learning_objectives": A bulleted list of key things a student should know.
     - "revision_notes": Detailed and comprehensive notes, broken into key sections.
@@ -965,126 +951,124 @@
         3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
         4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
     The topic is: ${topic}`;
-                const inputPromptForDb = topic || "Learning Hub (Image)"; 
+            const inputPromptForDb = topic || "Learning Hub (Image)"; 
 
-                try {
-                    const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
-                    const result = JSON.parse(jsonText);
-                    
-                    supabaseClient.from('saved_work').insert({
-                        profile_id: state.activeProfile.id,
-                        work_type: 'learningHub',
-                        input_prompt: { "prompt": inputPromptForDb },
-                        output_content: result
-                    }).then(({ error }) => {
-                        if (error) console.error("Error saving work:", error.message);
-                    });
-                    
-                    state.currentTest = result.practice_test || [];
-                    const quizHtml = renderPracticeTest(state.currentTest);
+            try {
+                const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
+                const result = JSON.parse(jsonText);
+                
+                supabaseClient.from('saved_work').insert({
+                    profile_id: state.activeProfile.id,
+                    work_type: 'learningHub',
+                    input_prompt: { "prompt": inputPromptForDb },
+                    output_content: result
+                }).then(({ error }) => {
+                    if (error) console.error("Error saving work:", error.message);
+                });
+                
+                state.currentTest = result.practice_test || [];
+                const quizHtml = renderPracticeTest(state.currentTest);
 
-                    outputEl.innerHTML = `
-                        <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                            ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
-                            ${createSectionHTML('book-open', 'indigo', "Revision Notes", result.revision_notes)}
-                            
-                            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                                 <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
-                                 <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                                 <div id="quiz-results" class="mb-6"></div>
-                                 ${quizHtml}
-                            </div>
+                outputEl.innerHTML = `
+                    <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
+                        ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
+                        ${createSectionHTML('book-open', 'indigo', "Revision Notes", result.revision_notes)}
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                             <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
+                             <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                             <div id="quiz-results" class="mb-6"></div>
+                             ${quizHtml}
                         </div>
-                    `;
-                    lucide.createIcons();
-                } catch (e) {
-                    errorEl.textContent = `An error occurred: ${e.message}`;
-                    errorEl.classList.remove('hidden');
-                    outputEl.innerHTML = '';
-                } finally {
-                    button.disabled = false;
-                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn`;
-                    lucide.createIcons();
-                }
+                    </div>
+                `;
+                lucide.createIcons();
+            } catch (e) {
+                errorEl.textContent = `An error occurred: ${e.message}`;
+                errorEl.classList.remove('hidden');
+                outputEl.innerHTML = '';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn`;
+                lucide.createIcons();
+            }
+        }
+
+        async function handleGenerateExplanation() {
+            if (!await checkAndIncrementUsage()) return;
+            const topic = document.getElementById('explain-topic').value;
+            const errorEl = document.getElementById('es-error');
+            const outputEl = document.getElementById('es-output');
+            const button = document.getElementById('generate-explanation-btn');
+
+            errorEl.classList.add('hidden');
+            if (!topic) {
+                errorEl.textContent = 'Please enter a topic or question.';
+                errorEl.classList.remove('hidden');
+                return;
             }
 
-            async function handleGenerateExplanation() {
-                if (!await checkAndIncrementUsage()) return;
-                // ... [Rest of existing logic] ...
-                const topic = document.getElementById('explain-topic').value;
-                const errorEl = document.getElementById('es-error');
-                const outputEl = document.getElementById('es-output');
-                const button = document.getElementById('generate-explanation-btn');
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Explaining...`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking of a simple explanation...</p></div>`;
 
-                errorEl.classList.add('hidden');
-                if (!topic) {
-                    errorEl.textContent = 'Please enter a topic or question.';
-                    errorEl.classList.remove('hidden');
-                    return;
-                }
+            const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Topic: "${topic}"`;
 
-                button.disabled = true;
-                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Explaining...`;
-                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking of a simple explanation...</p></div>`;
+            try {
+                const text = await fetchWithRetry(prompt, false);
+                
+                supabaseClient.from('saved_work').insert({
+                    profile_id: state.activeProfile.id,
+                    work_type: 'explainSimply',
+                    input_prompt: { "prompt": topic },
+                    output_content: { "explanation": text } 
+                }).then(({ error }) => {
+                    if (error) console.error("Error saving work:", error.message);
+                });
 
-                const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Topic: "${topic}"`;
-
-                try {
-                    const text = await fetchWithRetry(prompt, false);
-                    
-                    supabaseClient.from('saved_work').insert({
-                        profile_id: state.activeProfile.id,
-                        work_type: 'explainSimply',
-                        input_prompt: { "prompt": topic },
-                        output_content: { "explanation": text } 
-                    }).then(({ error }) => {
-                        if (error) console.error("Error saving work:", error.message);
-                    });
-
-                    outputEl.innerHTML = `
-                        <div class="bg-gray-50/50 p-6 rounded-lg">
-                            ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
-                        </div>
-                    `;
-                    lucide.createIcons();
-                } catch (e) {
-                    errorEl.textContent = `An error occurred: ${e.message}`;
-                    errorEl.classList.remove('hidden');
-                    outputEl.innerHTML = '';
-                } finally {
-                    button.disabled = false;
-                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain`;
-                    lucide.createIcons();
-                }
+                outputEl.innerHTML = `
+                    <div class="bg-gray-50/50 p-6 rounded-lg">
+                        ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
+                    </div>
+                `;
+                lucide.createIcons();
+            } catch (e) {
+                errorEl.textContent = `An error occurred: ${e.message}`;
+                errorEl.classList.remove('hidden');
+                outputEl.innerHTML = '';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain`;
+                lucide.createIcons();
             }
-            
-            async function handleGenerateTestBuilder() {
-                if (!await checkAndIncrementUsage()) return;
-                // ... [Rest of existing logic] ...
-                const topic = document.getElementById('tb-topic').value;
-                const numQuestions = document.getElementById('tb-num-questions').value;
-                const errorEl = document.getElementById('tb-error');
-                const outputEl = document.getElementById('tb-output');
-                const button = document.getElementById('generate-test-builder-btn');
+        }
 
-                const questionTypes = [];
-                if (document.getElementById('tb-qt-mcq').checked) questionTypes.push('MCQ');
-                if (document.getElementById('tb-qt-tf').checked) questionTypes.push('TrueFalse');
-                if (document.getElementById('tb-qt-short').checked) questionTypes.push('ShortAnswer');
+        async function handleGenerateTestBuilder() {
+            if (!await checkAndIncrementUsage()) return;
+            const topic = document.getElementById('tb-topic').value;
+            const numQuestions = document.getElementById('tb-num-questions').value;
+            const errorEl = document.getElementById('tb-error');
+            const outputEl = document.getElementById('tb-output');
+            const button = document.getElementById('generate-test-builder-btn');
 
-                errorEl.classList.add('hidden');
-                if (!topic || questionTypes.length === 0) {
-                    errorEl.textContent = 'Please provide a topic and select at least one question type.';
-                    errorEl.classList.remove('hidden');
-                    return;
-                }
+            const questionTypes = [];
+            if (document.getElementById('tb-qt-mcq').checked) questionTypes.push('MCQ');
+            if (document.getElementById('tb-qt-tf').checked) questionTypes.push('TrueFalse');
+            if (document.getElementById('tb-qt-short').checked) questionTypes.push('ShortAnswer');
 
-                button.disabled = true;
-                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
-                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
-                state.currentTest = null; 
+            errorEl.classList.add('hidden');
+            if (!topic || questionTypes.length === 0) {
+                errorEl.textContent = 'Please provide a topic and select at least one question type.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
 
-                const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
+            state.currentTest = null; 
+
+            const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
     Provide a JSON object with a single key: "practice_test".
     - "practice_test": An array of exactly ${numQuestions} question objects. Each object must have three keys:
         1. "question": The string of the question text.
@@ -1093,316 +1077,164 @@
         4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
     The topic for the test is: ${topic}`;
 
-                try {
-                    const jsonText = await fetchWithRetry(prompt, true);
-                    const result = JSON.parse(jsonText);
-                    
-                    supabaseClient.from('saved_work').insert({
-                        profile_id: state.activeProfile.id,
-                        work_type: 'testBuilder',
-                        input_prompt: { "prompt": topic },
-                        output_content: result
-                    }).then(({ error }) => {
-                        if (error) console.error("Error saving work:", error.message);
-                    });
-                    
-                    state.currentTest = result.practice_test || [];
-                    const quizHtml = renderPracticeTest(state.currentTest);
-
-                    outputEl.innerHTML = `
-                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                             <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
-                             <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                             <div id="quiz-results" class="mb-6"></div>
-                             ${quizHtml}
-                        </div>
-                    `;
-                    lucide.createIcons();
-
-                } catch (e) {
-                    errorEl.textContent = `An error occurred: ${e.message}`;
-                    errorEl.classList.remove('hidden');
-                    outputEl.innerHTML = '<div class="text-center text-red-600"><p>Could not generate test. Please try again.</p></div>';
-                } finally {
-                    button.disabled = false;
-                    button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test`;
-                    lucide.createIcons();
-                }
-            }
-            
-            // --- FILE & IMAGE HANDLERS / UTILITIES (Remaining existing functions) ---
-            
-            function handleImageChange(e) {
-                const file = e.target.files[0];
-                if (!file) return;
-                const previewWrapper = document.getElementById('image-preview-wrapper');
-                const previewImg = document.getElementById('image-preview');
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    state.uploadedImageBase64 = event.target.result.split(',')[1];
-                    previewImg.src = event.target.result;
-                    previewWrapper.classList.remove('hidden');
-                };
-                reader.readAsDataURL(file);
-            }
-
-            function handleRemoveImage() {
-                state.uploadedImageBase64 = null;
-                document.getElementById('image-preview-wrapper').classList.add('hidden');
-                document.getElementById('image-upload').value = null;
-            }
-
-            function shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-            }
-
-            function createSectionHTML(icon, color, title, content) {
-                const cleanMarkdown = (text) => {
-                    return String(text)
-                        .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
-                        .replace(/\*\*/g, '')
-                        .replace(/\*/g, '')
-                        .replace(/## /g, '<h3 class="text-md font-semibold mt-4">')
-                        .replace(/\n/g, '<br>');
-                };
-
-                let textContent = 'No content provided.';
-                if (typeof content === 'string') {
-                    textContent = cleanMarkdown(content);
-                } else if (Array.isArray(content)) {
-                    textContent = `<ol class="list-decimal list-inside">${content.map(item => `<li>${cleanMarkdown(item)}</li>`).join('')}</ol>`;
-                } else if (typeof content === 'object' && content !== null) {
-                    const formatObject = (obj) => {
-                        return `<ul class="list-disc list-inside ml-4">${Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${formatContent(value)}</li>`).join('')}</ul>`;
-                    };
-                    const formatArray = (arr) => {
-                        return `<ol class="list-decimal list-inside">${arr.map(item => `<li>${formatContent(item)}</li>`).join('')}</ol>`;
-                    };
-                    const formatContent = (item) => {
-                        if (typeof item === 'string') return cleanMarkdown(item);
-                        if (Array.isArray(item)) return formatArray(item);
-                        if (typeof item === 'object' && item !== null) return formatObject(item);
-                        return cleanMarkdown(String(item));
-                    };
-                    textContent = formatContent(content);
-                } else if (content) {
-                    textContent = cleanMarkdown(String(content));
-                }
-                return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
-            }
-            
-            function renderPracticeTest(testData) {
-                if (!testData || testData.length === 0) {
-                    return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
-                }
-
-                let html = '<form id="quiz-form" class="space-y-6">';
+            try {
+                const jsonText = await fetchWithRetry(prompt, true);
+                const result = JSON.parse(jsonText);
                 
-                testData.forEach((question, index) => {
-                    html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
-                    html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
-                    html += `<div class="space-y-2">`;
-
-                    if (question.type === 'MCQ' || question.type === 'TrueFalse') {
-                        
-                        shuffleArray(question.options);
-
-                        question.options.forEach((option) => {
-                            html += `
-                                <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                    <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                                    <span class="ml-3 text-sm text-gray-700">${option}</span>
-                                </label>
-                            `;
-                        });
-                    } else if (question.type === 'ShortAnswer') {
-                        html += `
-                            <label>
-                                <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
-                                <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
-                            </label>
-                        `;
-                    }
-                    html += `</div>`;
-                    html += `
-                        <div class="quiz-feedback correct">
-                            <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
-                        </div>
-                        <div class="quiz-feedback incorrect">
-                            <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
-                        </div>
-                    `;
-                    html += `</div>`;
+                supabaseClient.from('saved_work').insert({
+                    profile_id: state.activeProfile.id,
+                    work_type: 'testBuilder',
+                    input_prompt: { "prompt": topic },
+                    output_content: result
+                }).then(({ error }) => {
+                    if (error) console.error("Error saving work:", error.message);
                 });
-
-                html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
-                html += '</form>';
-                return html;
-            }
-
-            async function handleQuizSubmit(formElement) {
-                if (!state.currentTest) return;
-
-                const formData = new FormData(formElement);
-                const submitButton = formElement.querySelector('button[type="submit"]');
-
-                submitButton.disabled = true;
-                submitButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Grading...`;
-                formElement.querySelectorAll('input').forEach(input => input.disabled = true);
                 
-                const gradingPromises = state.currentTest.map((question, index) => {
-                    const userAnswer = formData.get(`question_${index}`);
-                    const correctAnswer = question.correct_answer;
+                state.currentTest = result.practice_test || [];
+                const quizHtml = renderPracticeTest(state.currentTest);
 
-                    if (!userAnswer) {
-                        return Promise.resolve(false);
-                    }
+                outputEl.innerHTML = `
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                         <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
+                         <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                         <div id="quiz-results" class="mb-6"></div>
+                         ${quizHtml}
+                    </div>
+                `;
+                lucide.createIcons();
 
-                    if (question.type === 'MCQ' || question.type === 'TrueFalse') {
-                        return Promise.resolve(userAnswer === correctAnswer);
-                    } 
-                    
-                    if (question.type === 'ShortAnswer') {
-                        if (userAnswer.trim().toLowerCase() === correctAnswer.trim().toLowerCase()) {
-                            return Promise.resolve(true);
-                        }
-                        const prompt = `You are an AI grader. A student was asked the following question: "${question.question}". The model answer is: "${correctAnswer}". The student provided this answer: "${userAnswer}". Is the student's answer substantially correct? Your response must be a single word: "Correct" or "Incorrect".`;
-                        return fetchWithRetry(prompt, false);
-                    }
-                });
-
-                const results = await Promise.all(gradingPromises);
-
-                let score = 0;
-                
-                results.forEach((result, index) => {
-                    const question = state.currentTest[index];
-                    const questionBlock = document.getElementById(`question-block-${index}`);
-                    
-                    let isCorrect;
-                    if (question.type === 'ShortAnswer') {
-                        isCorrect = (typeof result === 'boolean') ? result : (result.trim().toLowerCase() === 'correct');
-                    } else {
-                        isCorrect = result;
-                    }
-
-                    if (isCorrect) {
-                        score++;
-                        questionBlock.classList.add('correct');
-                        questionBlock.classList.remove('incorrect');
-                    } else {
-                        questionBlock.classList.add('incorrect');
-                        questionBlock.classList.remove('correct');
-                    }
-                });
-
-                const resultsEl = document.getElementById('quiz-results');
-                resultsEl.innerHTML = `<h3 class="text-2xl font-bold text-center text-indigo-700">You scored ${score} out of ${state.currentTest.length}!</h3><p class="text-center text-gray-600">Review your answers below.</p>`;
-                
-                submitButton.innerHTML = `<i data-lucide="check-circle" class="w-5 h-5 mr-2"></i>Graded!`;
+            } catch (e) {
+                errorEl.textContent = `An error occurred: ${e.message}`;
+                errorEl.classList.remove('hidden');
+                outputEl.innerHTML = '<div class="text-center text-red-600"><p>Could not generate test. Please try again.</p></div>';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test`;
                 lucide.createIcons();
             }
+        }
+        
+        // --- FILE & IMAGE HANDLERS / UTILITIES (Remaining existing functions) ---
+        
+        function handleImageChange(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const previewWrapper = document.getElementById('image-preview-wrapper');
+            const previewImg = document.getElementById('image-preview');
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                state.uploadedImageBase64 = event.target.result.split(',')[1];
+                previewImg.src = event.target.result;
+                previewWrapper.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
 
-            async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-                try {
-                    const response = await fetch('/.netlify/functions/generate', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt, isJson, requestType, imageData })
+        function handleRemoveImage() {
+            state.uploadedImageBase64 = null;
+            document.getElementById('image-preview-wrapper').classList.add('hidden');
+            document.getElementById('image-upload').value = null;
+        }
+
+        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+            try {
+                const response = await fetch('/.netlify/functions/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
+                });
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+                }
+                
+                const result = await response.json();
+
+                if (requestType === 'image') {
+                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
+                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                }
+                
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("The AI returned an empty response.");
+                return text;
+            } catch (error) {
+                if (retries > 0) {
+                    console.warn("Request failed, retrying...", error);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                }
+                throw error;
+            }
+        }
+
+        async function loadMyActivity() {
+            const outputEl = document.getElementById('my-activity-output');
+            if (!outputEl) return;
+
+            try {
+                const { data, error } = await supabaseClient
+                    .from('saved_work')
+                    .select('*')
+                    .eq('profile_id', state.activeProfile.id)
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                if (!data || data.length === 0) {
+                    outputEl.innerHTML = `<p class="text-center text-gray-500">No activity found for ${state.activeProfile.name} yet.</p>`;
+                    return;
+                }
+
+                state.myActivityData = data; 
+                
+                const toolIcons = {
+                    homeworkHelper: 'life-buoy',
+                    learningHub: 'book-marked',
+                    explainSimply: 'baby',
+                    testBuilder: 'clipboard-check'
+                };
+
+                outputEl.innerHTML = data.map((item, index) => {
+                    const icon = toolIcons[item.work_type] || 'help-circle';
+                    const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
+                    const date = new Date(item.created_at).toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
                     });
-                    if (!response.ok) {
-                        const errorBody = await response.text();
-                        throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-                    }
-                    
-                    const result = await response.json();
 
-                    if (requestType === 'image') {
-                        if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
-                        return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                    }
-                    
-                    const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (!text) throw new Error("The AI returned an empty response.");
-                    return text;
-                } catch (error) {
-                    if (retries > 0) {
-                        console.warn("Request failed, retrying...", error);
-                        await new Promise(resolve => setTimeout(resolve, 500));
-                        return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
-                    }
-                    throw error;
-                }
-            }
-
-            async function loadMyActivity() {
-                // Already gated in myActivityTemplate, this is just the fetch
-                const outputEl = document.getElementById('my-activity-output');
-                if (!outputEl) return;
-
-                try {
-                    const { data, error } = await supabaseClient
-                        .from('saved_work')
-                        .select('*')
-                        .eq('profile_id', state.activeProfile.id)
-                        .order('created_at', { ascending: false });
-
-                    if (error) throw error;
-
-                    if (!data || data.length === 0) {
-                        outputEl.innerHTML = `<p class="text-center text-gray-500">No activity found for ${state.activeProfile.name} yet.</p>`;
-                        return;
-                    }
-
-                    state.myActivityData = data; 
-                    
-                    const toolIcons = {
-                        homeworkHelper: 'life-buoy',
-                        learningHub: 'book-marked',
-                        explainSimply: 'baby',
-                        testBuilder: 'clipboard-check'
-                    };
-
-                    outputEl.innerHTML = data.map((item, index) => {
-                        const icon = toolIcons[item.work_type] || 'help-circle';
-                        const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
-                        const date = new Date(item.created_at).toLocaleDateString(undefined, {
-                            day: 'numeric',
-                            month: 'long',
-                            year: 'numeric'
-                        });
-
-                        return `
-                            <div class="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center">
-                                <div class="flex items-center">
-                                    <i data-lucide="${icon}" class="h-6 w-6 text-indigo-500 mr-4"></i>
-                                    <div>
-                                        <h3 class="font-semibold text-gray-800 truncate max-w-xs">${title}</h3>
-                                        <p class="text-sm text-gray-500">${date}</p>
-                                    </div>
+                    return `
+                        <div class="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center">
+                            <div class="flex items-center">
+                                <i data-lucide="${icon}" class="h-6 w-6 text-indigo-500 mr-4"></i>
+                                <div>
+                                    <h3 class="font-semibold text-gray-800 truncate max-w-xs">${title}</h3>
+                                    <p class="text-sm text-gray-500">${date}</p>
                                 </div>
-                                <button class="view-work-btn bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200" data-work-index="${index}">
-                                    View
-                                </button>
                             </div>
-                        `;
-                    }).join('');
+                            <button class="view-work-btn bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200" data-work-index="${index}">
+                                View
+                            </button>
+                        </div>
+                    `;
+                }).join('');
 
-                    lucide.createIcons();
+                lucide.createIcons();
 
-                } catch (error) {
-                    console.error("Error loading activity:", error);
-                    outputEl.innerHTML = `<p class="text-center text-red-600">Could not load activity. Please try again.</p>`;
-                }
+            } catch (error) {
+                console.error("Error loading activity:", error);
+                outputEl.innerHTML = `<p class="text-center text-red-600">Could not load activity. Please try again.</p>`;
             }
+        }
 
-            // --- INITIAL RENDER ---
+        // --- DOMContentLoaded Wrapper ---
+        document.addEventListener("DOMContentLoaded", () => {
+    
+            // This is the starting point of the application after DOM is ready
             handleAuth();
 
-        }); // --- END OF THE DOMContentLoaded WRAPPER ---
+        });
     </script>
     
     <div id="cookie-consent-banner" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 shadow-lg z-50 flex-col md:flex-row justify-between items-center">
