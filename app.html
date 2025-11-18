@@ -517,14 +517,23 @@
                         .eq('id', user.id)
                         .single();
 
-                    if (accountError) {
-                        // This handles new users that haven't been created in the accounts table yet
-                        // which shouldn't happen if the login.html logic creates the account record.
-                        console.warn("Account record not found, treating as new free user.");
+                    if (accountError && accountError.code !== 'PGRST116') {
+                        // PGRST116 means "No rows found". If it's another error, throw.
+                         throw new Error(`Failed to fetch account: ${accountError.message}`);
+                    }
+                     if (!account) {
+                        // Handle the case where the user exists but the account row does not (e.g., brand new user)
+                        console.warn("Account record not found, inserting new free user record.");
+                        const { error: insertError } = await supabaseClient
+                             .from('accounts')
+                             .insert({ id: user.id, active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT });
+
+                        if (insertError) throw new Error(`Failed to insert new account: ${insertError.message}`);
                         state.accountData = { active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT };
                     } else {
                         state.accountData = account;
                     }
+
                     
                     // 2. Fetch Usage Data
                     const { data: usage, error: usageError } = await supabaseClient
@@ -533,7 +542,11 @@
                         .eq('account_id', user.id)
                         .single();
                         
-                    if (usageError) {
+                    if (usageError && usageError.code !== 'PGRST116') {
+                         throw new Error(`Failed to fetch usage: ${usageError.message}`);
+                    }
+                    
+                    if (!usage) {
                         // Create initial usage record if missing
                         const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
                         // We use upsert here to handle potential race conditions if the record was created but not fetched.
@@ -567,7 +580,7 @@
                         <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
                             <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
                             <h1 class="text-2xl font-bold text-gray-800 mb-2">Login Error</h1>
-                            <p class="text-gray-600 mb-6">Could not load your account data. Check the console for database errors.</p>
+                            <p class="text-gray-600 mb-6">Could not load your account data. Check the console for database errors. Details: ${error.message}</p>
                             <button onclick="window.location.href='/login.html'" class="mt-4 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Go to Login</button>
                         </div>
                     </div>`;
@@ -645,16 +658,25 @@
                 }
                 // Removed #skip-payment-btn as the new flow automatically enrolls in the free tier
                 
+                // FIX: Profile Selection Logic
                 const profileButton = e.target.closest('.profile-select-btn');
                 if (profileButton) {
                     const profileId = profileButton.dataset.profileId;
+                    
+                    // Fetch all profiles and find the correct one using strict comparison after conversion
                     const { data: profiles } = await supabaseClient.from('profiles').select('*').eq('account_id', state.session.user.id);
-                    const profile = profiles.find(p => p.id == profileId);
+                    
+                    const profile = profiles.find(p => p.id === parseInt(profileId)); // Convert ID from string (dataset) to integer
+
                     if (profile) {
                         state.activeProfile = profile;
                         showMainApp();
+                    } else {
+                        console.error("Profile not found or ID mismatch.");
                     }
                 }
+                // END FIX
+
                 if (e.target.closest('#show-add-profile-btn')) {
                     // This logic is now handled in the form submit handler
                      appContainer.innerHTML = createProfileTemplate('Add a new learner profile to your account.');
