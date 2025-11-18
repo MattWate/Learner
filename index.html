@@ -40,10 +40,9 @@
                 <img src="/logo.svg" alt="Learning Genie Logo" class="landing-logo-sm">
                 <span class="ml-3 text-2xl font-bold text-gray-800">Learning Genie</span>
             </div>
-            <div>
-                <!-- CHANGED: Link points to login.html -->
-                <a href="/login.html" class="text-indigo-600 font-medium hover:text-indigo-800 mr-4">Log In</a>
-                <!-- CHANGED: Link points to login.html -->
+            <div class="flex items-center space-x-4">
+                <a href="#pricing" class="hidden sm:inline text-gray-600 font-medium hover:text-indigo-600">Pricing</a>
+                <a href="/login.html" class="text-indigo-600 font-medium hover:text-indigo-800">Log In</a>
                 <a href="/login.html" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out">
                     Get Started
                 </a>
@@ -56,36 +55,33 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
             <!-- Text Content -->
             <div class="text-center md:text-left">
-                 <!-- REMOVED this line: <img src="/logo.svg" alt="Learning Genie Logo" class="h-16 w-16 mx-auto md:mx-0 mb-4">  -->
                 <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
                     Unlock Your Learning <span class="gradient-text">Superpowers</span>
                 </h1>
                 <p class="mt-4 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto md:mx-0 mb-8">
-                    Learning Genie is your personal AI assistant for homework, revision, and understanding tricky topics. Get instant help, practice tests, and simple explanations.
+                    Get instant AI help for homework, practice tests, and simple explanations. Start free, upgrade for unlimited access.
                 </p>
-                 <!-- CHANGED: Link points to login.html -->
                 <a href="/login.html" class="inline-block bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg text-lg hover:bg-indigo-700 transition duration-150 ease-in-out shadow-lg transform hover:scale-105">
                     Start Learning Free
                 </a>
             </div>
             <!-- Image Column -->
             <div class="flex justify-center">
-                <!-- CHANGED: Corrected image path -->
                 <img src="/hero_image.png" alt="Parent and child learning together on a laptop" class="rounded-lg shadow-2xl max-w-md w-full"> 
             </div>
         </div>
     </section>
 
-    <!-- Features Section -->
+    <!-- Features Section (Simplified for space) -->
     <section id="features" class="py-16 md:py-24 bg-white">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">Everything You Need to Succeed</h2>
+            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">The Tools You Need to Succeed</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
                 <!-- Feature 1: Homework Helper -->
                 <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-rose-400 text-center">
                     <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
                     <h3 class="text-xl font-semibold text-gray-800 mb-2">Homework Helper</h3>
-                    <p class="text-gray-600">Stuck? Snap a photo or type your question for hints and answers.</p>
+                    <p class="text-gray-600">Snap a photo or type your question for hints and answers.</p>
                 </div>
                 <!-- Feature 2: Learning Hub -->
                 <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-indigo-500 text-center">
@@ -108,47 +104,106 @@
             </div>
         </div>
     </section>
+    
+    <!-- NEW: Pricing Section -->
+    <section id="pricing" class="py-16 md:py-24 bg-gray-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 class="text-4xl font-extrabold text-gray-800 mb-4">Simple, Transparent Pricing</h2>
+            <p class="text-xl text-gray-600 mb-16">Start free, upgrade for unlimited access and family support.</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                
+                <!-- Pricing Card 1: Free Tier -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-100 flex flex-col">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Free Trial</h3>
+                    <p class="text-gray-600 mb-4 text-sm">Explore the power of AI learning.</p>
+                    
+                    <div class="text-4xl font-extrabold mb-6 text-indigo-600">R0</div>
+                    
+                    <ul class="text-left space-y-3 flex-1">
+                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> 1 Learner Profile</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="sparkle" class="h-5 w-5 text-amber-400 mr-2"></i> 5 Questions/Week limit</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="x-circle" class="h-5 w-5 text-red-500 mr-2"></i> No saved work history</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> Access to all 4 tools</li>
+                    </ul>
+                    
+                    <a href="/login.html" class="mt-8 w-full bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-lg hover:bg-gray-300 transition duration-150">
+                        Sign Up Free
+                    </a>
+                </div>
+                
+                <!-- Pricing Card 2: Single Learner -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-100 flex flex-col">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Single Learner</h3>
+                    <p class="text-gray-600 mb-4 text-sm">Full access for one child.</p>
+                    
+                    <div class="text-4xl font-extrabold mb-6 text-indigo-600">R69<span class="text-lg font-normal">/month</span></div>
+                    
+                    <ul class="text-left space-y-3 flex-1">
+                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> 1 Learner Profile</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-5 w-5 text-green-500 mr-2"></i> Unlimited tool usage</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-5 w-5 text-green-500 mr-2"></i> Full activity history</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="book-open-check" class="h-5 w-5 text-green-500 mr-2"></i> Full access to all tools</li>
+                    </ul>
+                    
+                    <a href="/login.html" class="mt-8 w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
+                        Subscribe Now
+                    </a>
+                </div>
 
-    <!-- How It Works Section -->
-     <section class="py-16 md:py-24 bg-gray-50">
-        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-3xl font-bold text-gray-800 mb-12">Get Started in 3 Simple Steps</h2>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                <div class="text-center">
-                    <div class="bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold mx-auto mb-4">1</div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Sign Up Free</h3>
-                    <p class="text-gray-600">Create your account in seconds with just your email.</p>
+                <!-- Pricing Card 3: Family Two (Best Value) -->
+                <div class="bg-indigo-600 p-6 rounded-xl shadow-2xl border-4 border-indigo-500 text-white flex flex-col transform scale-105">
+                    <div class="bg-amber-400 text-indigo-900 font-bold px-3 py-1 text-sm rounded-full w-fit mx-auto mb-3">Best Value</div>
+                    <h3 class="text-xl font-bold mb-2">Family Two</h3>
+                    <p class="text-indigo-200 mb-4 text-sm">Ideal for two children.</p>
+                    
+                    <div class="text-4xl font-extrabold mb-6">R99<span class="text-lg font-normal">/month</span></div>
+                    
+                    <ul class="text-left space-y-3 flex-1">
+                        <li class="flex items-center"><i data-lucide="check-circle" class="h-5 w-5 text-amber-300 mr-2"></i> Up to 2 Learner Profiles</li>
+                        <li class="flex items-center"><i data-lucide="infinity" class="h-5 w-5 text-amber-300 mr-2"></i> Unlimited tool usage</li>
+                        <li class="flex items-center"><i data-lucide="save" class="h-5 w-5 text-amber-300 mr-2"></i> Full activity history</li>
+                        <li class="flex items-center"><i data-lucide="book-open-check" class="h-5 w-5 text-amber-300 mr-2"></i> Full access to all tools</li>
+                    </ul>
+                    
+                    <a href="/login.html" class="mt-8 w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-indigo-50 transition duration-150 shadow-lg">
+                        Get Family Plan
+                    </a>
                 </div>
-                 <div class="text-center">
-                    <div class="bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold mx-auto mb-4">2</div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Create Learner Profiles</h3>
-                    <p class="text-gray-600">Set up profiles for each child using the app.</p>
+
+
+                 <!-- Pricing Card 4: Family Ultra -->
+                <div class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-100 flex flex-col">
+                    <h3 class="text-xl font-bold text-gray-800 mb-2">Family Ultra</h3>
+                    <p class="text-gray-600 mb-4 text-sm">Support for up to four children.</p>
+                    
+                    <div class="text-4xl font-extrabold mb-6 text-indigo-600">R149<span class="text-lg font-normal">/month</span></div>
+                    
+                    <ul class="text-left space-y-3 flex-1">
+                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> Up to 4 Learner Profiles</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-5 w-5 text-green-500 mr-2"></i> Unlimited tool usage</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-5 w-5 text-green-500 mr-2"></i> Full activity history</li>
+                        <li class="flex items-center text-gray-700"><i data-lucide="book-open-check" class="h-5 w-5 text-green-500 mr-2"></i> Full access to all tools</li>
+                    </ul>
+                    
+                    <a href="/login.html" class="mt-8 w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
+                        Get Ultra Plan
+                    </a>
                 </div>
-                 <div class="text-center">
-                    <div class="bg-indigo-600 text-white rounded-full h-12 w-12 flex items-center justify-center text-xl font-bold mx-auto mb-4">3</div>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Start Learning!</h3>
-                    <p class="text-gray-600">Access all the AI tools to boost understanding and grades.</p>
-                </div>
+                
             </div>
         </div>
     </section>
-
-    <!-- REMOVED: Pricing Section (Placeholder) -->
-    <!-- <section id="signup" class="py-16 md:py-24 bg-white"> ... </section> -->
 
     <!-- Footer -->
     <footer class="bg-gray-800 text-gray-400 py-8">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <p>&copy; 2025 Learning Genie. All rights reserved.</p>
-            <!-- Add links to Privacy Policy / Terms later -->
         </div>
     </footer>
 
     <script>
         lucide.createIcons();
-
-        // REMOVED: Smooth scroll script as the signup anchor is gone
-        // REMOVED: Signup form placeholder script
 
     </script>
 
@@ -186,5 +241,3 @@
     
 </body>
 </html>
-
-
