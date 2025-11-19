@@ -1038,38 +1038,55 @@ async function handleUpgrade(plan) {
             document.getElementById('image-upload').value = null;
         }
 
-        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-            try {
-                const response = await fetch('/.netlify/functions/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
-                });
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
-                }
-                
-                const result = await response.json();
-
-                if (requestType === 'image') {
-                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
-                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                }
-                
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!text) throw new Error("The AI returned an empty response.");
-                return text;
-            } catch (error) {
-                if (retries > 0) {
-                    console.warn("Request failed, retrying...", error);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
-                }
-                throw error;
-            }
+       // In app.html (around line 849)
+async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+    try {
+        // CRITICAL FIX: Get the user's JWT from the global state
+        const token = state.session.access_token;
+        
+        // FIX: Use the new /api/generate path for all AI calls
+        const response = await fetch('/api/generate', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                // PASS TOKEN FOR AUTHENTICATION
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ prompt, isJson, requestType, imageData })
+        });
+        
+        // Check for non-JSON response (i.e., routing/HTML error)
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            const text = await response.text();
+            console.error("Non-JSON Response (Likely HTML Error Page):", text.substring(0, 100) + '...');
+            throw new Error(`Routing Error: The site returned an HTML page. Verify the '_redirects' file is deployed.`);
         }
 
+        if (!response.ok) {
+            const errorBody = await response.json();
+            throw new Error(`API request failed with status ${response.status}: ${errorBody.error || errorBody.message || 'Unknown error'}`);
+        }
+        
+        const result = await response.json();
+
+        if (requestType === 'image') {
+            if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
+            return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+        }
+        
+        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) throw new Error("The AI returned an empty response.");
+        return text;
+    } catch (error) {
+        if (retries > 0 && !String(error).includes('Routing Error')) {
+            console.warn("Request failed, retrying...", error);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+        }
+        throw error;
+    }
+}
         async function handleGenerateHomeworkHelp() {
             if (!await checkAndIncrementUsage()) return;
             const questionText = document.getElementById('hh-question').value.trim();
@@ -1536,6 +1553,7 @@ async function handleUpgrade(plan) {
     </script>
 </body>
 </html>
+
 
 
 
