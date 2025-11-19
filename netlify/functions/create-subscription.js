@@ -6,7 +6,7 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const fetch = require('node-fetch');
+// const fetch = require('node-fetch'); <--- REMOVED: Relying on Netlify's global fetch
 
 // Helper function to validate the Supabase JWT outside the handler for clarity
 async function getUserFromSupabaseToken(supabaseAdmin, authHeader) {
@@ -118,6 +118,7 @@ exports.handler = async (event, context) => {
             }
         };
 
+        // Using the global 'fetch' provided by the Netlify runtime
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
             headers: {
@@ -132,6 +133,7 @@ exports.handler = async (event, context) => {
         
         // CRITICAL DEBUGGING: Check for Paystack errors
         if (!response.ok || !data.status) {
+            // This will log the specific Paystack error (e.g., "Invalid Secret Key")
             console.error('Paystack API Error:', JSON.stringify(data, null, 2));
             throw new Error(data.message || 'Paystack API returned an error');
         }
@@ -143,6 +145,7 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
+        // Catch any remaining errors and return a 500
         console.error("Create Subscription Error:", error);
         return { 
             statusCode: 500, 
