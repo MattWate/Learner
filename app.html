@@ -907,34 +907,41 @@
         }
 
         async function handleUpgrade(plan) {
-            const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
-            const originalText = button.innerHTML;
-            button.disabled = true;
-            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
+    const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
+    const originalText = button.innerHTML;
+    button.disabled = true;
+    button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
-            try {
-                const response = await fetch('/.netlify/functions/create-subscription', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plan })
-                });
-                
-                const data = await response.json();
+    try {
+        
+        const token = state.session.access_token;
 
-                if (!response.ok || data.error) {
-                    throw new Error(data.error || 'Failed to initialize Paystack checkout.');
-                }
+        const response = await fetch('/.netlify/functions/create-subscription', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                // PASS THE JWT TO THE NETLIFY FUNCTION FOR AUTHENTICATION
+                'Authorization': `Bearer ${token}` 
+            },
+            body: JSON.stringify({ plan })
+        });
+        
+        const data = await response.json();
 
-                window.location.href = data.checkoutUrl;
-
-            } catch (error) {
-                console.error('Upgrade Error:', error);
-                alert(`Subscription failed to start: ${error.message}`);
-            } finally {
-                button.disabled = false;
-                button.innerHTML = originalText;
-            }
+        if (!response.ok || data.error) {
+            throw new Error(data.error || 'Failed to initialize Paystack checkout.');
         }
+
+        window.location.href = data.checkoutUrl;
+
+    } catch (error) {
+        console.error('Upgrade Error:', error);
+        alert(`Subscription failed to start: ${error.message}`);
+    } finally {
+        button.disabled = false;
+        button.innerHTML = originalText;
+    }
+}
 
         async function checkAndIncrementUsage() {
             if (state.accountData?.active_tier !== 'free') {
@@ -1512,3 +1519,4 @@
     </script>
 </body>
 </html>
+
