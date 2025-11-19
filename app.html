@@ -130,7 +130,7 @@
                     <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
                         <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
                         <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
-                        <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
+                        <p class="mt-2 text-gray-600">Confusing concepts made easy with simple explanations.</p>
                     </div>
                     <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
                         <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
@@ -913,11 +913,21 @@
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
             try {
+                // FIX START: Retrieve the Supabase access token to authenticate the Netlify function call.
+                const token = state.session?.access_token; 
+                if (!token) {
+                    throw new Error('User session not found. Please log in again.');
+                }
+                
                 const response = await fetch('/.netlify/functions/create-subscription', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // CRITICAL: Pass the token in the Authorization header
+                    },
                     body: JSON.stringify({ plan })
                 });
+                // FIX END
                 
                 const data = await response.json();
 
