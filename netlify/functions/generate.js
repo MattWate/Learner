@@ -1,20 +1,5 @@
-// Drop-in Replacement for netlify/functions/generate.js
+// Fixed netlify/functions/generate.js
 const { createClient } = require('@supabase/supabase-js');
-// The explicit require('node-fetch') is REMOVED to stabilize the function runtime.
-
-// Helper function to validate the Supabase JWT
-async function getUserFromSupabaseToken(supabaseAdmin, authHeader) {
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-         return { userId: null, userEmail: null, error: 'Missing or invalid Authorization header.' };
-    }
-    const token = authHeader.replace('Bearer ', '');
-    const { data: userResponse, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !userResponse.user) { 
-        return { userId: null, userEmail: null, error: `Token validation failed: ${authError?.message || 'User object is empty.'}` };
-    }
-    return { userId: userResponse.user.id, userEmail: userResponse.user.email, error: null };
-}
 
 exports.handler = async function (event) {
     // 1. Get environment variables
@@ -26,27 +11,60 @@ exports.handler = async function (event) {
 
     // 2. Check for POST request
     if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return { 
+            statusCode: 405,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: 'Method Not Allowed' })
+        };
     }
     
-    // 3. CRITICAL: AUTHENTICATE THE USER
+    // 3. AUTHENTICATE THE USER (FIXED)
     try {
         if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-             throw new Error('CRITICAL: Supabase keys are missing for authentication.');
+            throw new Error('CRITICAL: Supabase keys are missing for authentication.');
         }
 
-        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-        const authHeader = event.headers.authorization;
+        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        });
         
-        const authResult = await getUserFromSupabaseToken(supabaseAdmin, authHeader);
-        if (authResult.error) {
-             return { statusCode: 401, body: JSON.stringify({ error: authResult.error }) };
+        const authHeader = event.headers.authorization || event.headers.Authorization;
+        
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.error('Auth Error: Missing or malformed Authorization header');
+            return { 
+                statusCode: 401,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'You must be logged in.' })
+            };
         }
-        // User is authenticated, proceed.
+        
+        const token = authHeader.replace('Bearer ', '');
+        
+        // CRITICAL FIX: Proper JWT validation
+        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        
+        if (authError || !user) {
+            console.error('JWT Verification Failed:', authError?.message);
+            return { 
+                statusCode: 401,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'Invalid or expired session.' })
+            };
+        }
+        
+        console.log('User authenticated:', user.id);
 
     } catch (error) {
-        console.error("Generate Function Auth/Setup Error:", error.message);
-        return { statusCode: 500, body: JSON.stringify({ error: 'Server initialization error.' }) };
+        console.error("Generate Function Auth Error:", error.message);
+        return { 
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: 'Server initialization error.' })
+        };
     }
     
     const { requestType, prompt, isJson, imageData } = JSON.parse(event.body);
@@ -54,7 +72,11 @@ exports.handler = async function (event) {
 
     if (!apiKey) {
         console.error("CRITICAL: GOOGLE_API_KEY environment variable is not set.");
-        return { statusCode: 500, body: JSON.stringify({ error: 'API key is not set on the server.' }) };
+        return { 
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: 'API key is not set on the server.' })
+        };
     }
 
     // --- Handle Image Generation Request ---
@@ -70,16 +92,23 @@ exports.handler = async function (event) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(imagePayload),
             });
-            // ... (rest of image logic)
             const responseBody = await response.json();
             if (!response.ok) {
                 console.error("Image Generation API Error:", JSON.stringify(responseBody, null, 2));
                 throw new Error(`Image API request failed: ${responseBody.error?.message || 'Unknown error'}`);
             }
-            return { statusCode: 200, body: JSON.stringify(responseBody) };
+            return { 
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(responseBody)
+            };
         } catch (error) {
-            console.error("Caught Image Generation Exception:", error);
-            return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+            console.error("Image Generation Exception:", error);
+            return { 
+                statusCode: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: error.message })
+            };
         }
     }
 
@@ -112,9 +141,17 @@ exports.handler = async function (event) {
             console.error("Text/Multimodal API Error:", JSON.stringify(responseBody, null, 2));
             throw new Error(`Text/Multimodal API request failed: ${responseBody.error?.message || 'Unknown error'}`);
         }
-        return { statusCode: 200, body: JSON.stringify(responseBody) };
+        return { 
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(responseBody)
+        };
     } catch (error) {
-        console.error("Caught Text/Multimodal Generation Exception:", error);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+        console.error("Text Generation Exception:", error);
+        return { 
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: error.message })
+        };
     }
 };
