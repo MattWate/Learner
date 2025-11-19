@@ -1,7 +1,7 @@
 [functions]
-
   directory = "netlify/functions"
 
+# --- ADDED: CRITICAL REWRITE RULE ---
 [[redirects]]
   from = "/.netlify/functions/*"
   to = "/.netlify/functions/:splat"
