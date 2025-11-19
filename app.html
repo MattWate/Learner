@@ -1044,11 +1044,16 @@ async function handleUpgrade(plan) {
             document.getElementById('image-upload').value = null;
         }
 
-       // In app.html (around line 849)
 async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
     try {
-        // CRITICAL FIX: Get the user's JWT from the global state
-        const token = state.session.access_token;
+        // *** CRITICAL FIX: Get a fresh session token from Supabase for every API call ***
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+        
+        if (sessionError || !session) {
+            throw new Error('Your session has expired. Please log in again.');
+        }
+        
+        const token = session.access_token;
         
         // FIX: Use the new /api/generate path for all AI calls
         const response = await fetch('/api/generate', {
@@ -1559,6 +1564,7 @@ async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text',
     </script>
 </body>
 </html>
+
 
 
 
