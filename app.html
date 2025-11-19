@@ -1456,7 +1456,7 @@
                 showAddProfileForm();
             }
             
-            if (e.target.id === 'close-paywall-modal-btn') {
+            if (e.target.closest('#close-paywall-modal-btn')) {
                 document.getElementById('paywall-modal').classList.add('hidden');
                 document.getElementById('paywall-modal').classList.remove('flex');
             }
@@ -1469,11 +1469,13 @@
                 document.getElementById('sidebar').classList.add('hidden');
             }
             
-            if (e.target.id === 'logout-btn') {
+            // Fixed: Use closest() for logout button
+            if (e.target.closest('#logout-btn')) {
                 supabaseClient.auth.signOut();
             }
             
-            if (e.target.id === 'profile-picker-btn') {
+            // Fixed: Use closest() for profile picker button
+            if (e.target.closest('#profile-picker-btn')) {
                 checkAccountStatus(state.session.user);
             }
         });
