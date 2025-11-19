@@ -906,7 +906,7 @@
             showMainApp();
         }
 
-        // In app.html (around line 727)
+// In app.html (around line 727)
 async function handleUpgrade(plan) {
     const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
     const originalText = button.innerHTML;
@@ -914,13 +914,15 @@ async function handleUpgrade(plan) {
     button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
     try {
-        // Retrieve the current user's JWT from the session state
+        // CRITICAL FIX: Retrieve the current user's JWT
         const token = state.session.access_token;
 
-        const response = await fetch('/.netlify/functions/create-subscription', {
+        // FIX 1: Use the new /api/ path established in netlify.toml
+        const response = await fetch('/api/create-subscription', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
+                // FIX 2: Pass the JWT in the Authorization header to resolve "You must be logged in"
                 'Authorization': `Bearer ${token}` 
             },
             body: JSON.stringify({ plan })
@@ -928,12 +930,8 @@ async function handleUpgrade(plan) {
         
         const data = await response.json();
 
-        // 🛑 NEW DEBUGGING LOGIC 🛑
         if (!response.ok) {
-            // Log the full response data from the 500/502/401 error
             console.error("Backend Error Response:", data);
-            
-            // Throw a specific error using the message returned from the backend's catch block
             throw new Error(data.error || 'Server returned an unknown error. Check console for details.');
         }
 
@@ -945,7 +943,6 @@ async function handleUpgrade(plan) {
 
     } catch (error) {
         console.error('Upgrade Error:', error);
-        // Display the specific message returned by the backend.
         alert(`Subscription failed to start: ${error.message}`);
     } finally {
         button.disabled = false;
@@ -1529,5 +1526,6 @@ async function handleUpgrade(plan) {
     </script>
 </body>
 </html>
+
 
 
