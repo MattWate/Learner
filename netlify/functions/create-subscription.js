@@ -105,9 +105,10 @@ exports.handler = async (event, context) => {
                 throw new Error('Invalid plan specified.');
         }
 
-        if (!planCode) {
-            console.error(`Plan code not configured for: ${plan}`);
-            throw new Error('Plan configuration error. Please contact support.');
+       if (!planCode) {
+            // CRITICAL FIX: Improved logging and error message for a missing environment variable
+            console.error(`Plan code not configured for: ${plan}. Check Netlify environment variables.`);
+            throw new Error(`CRITICAL: Plan configuration error for plan '${plan}'. Please check your Netlify environment variables (PAYSTACK_PLAN_SINGLE_CODE, etc.).`);
         }
 
         // 7. Initialize Paystack transaction
