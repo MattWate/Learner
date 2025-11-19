@@ -1,8 +1,5 @@
 [functions]
   directory = "netlify/functions"
 
-# --- ADDED: CRITICAL REWRITE RULE ---
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+# The redirect rules have been REMOVED from netlify.toml 
+# to rely solely on the more stable _redirects file.
