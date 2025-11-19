@@ -1,30 +1,25 @@
-/*
- * NETLIFY FUNCTION: cancel-subscription.js
- *
- * This function is called by the frontend to securely cancel a user's Paystack subscription.
- */
-
+// Drop-in Replacement for netlify/functions/cancel-subscription.js
 const { createClient } = require('@supabase/supabase-js');
-const fetch = require('node-fetch'); // Paystack API calls
+// const fetch = require('node-fetch'); // REMOVED: Using global fetch
 
 exports.handler = async (event, context) => {
     
-    // 1. REMOVED Netlify Identity check.
-    // 2. Retrieve environment variables and initialize Supabase Admin Client
     const {
         SUPABASE_URL,
         SUPABASE_SERVICE_KEY,
         PAYSTACK_SECRET_KEY
     } = process.env;
 
-    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     let userId;
-
-    // 3. NEW: Validate Supabase JWT from the Authorization header
+    
     try {
+        // 1. Initialize Supabase Admin Client
+        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        
+        // 2. Validate Supabase JWT from the Authorization header
         const authHeader = event.headers.authorization;
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw new Error('Missing or invalid Authorization header.');
+            return { statusCode: 401, body: JSON.stringify({ error: 'You must be logged in.' }) };
         }
         const token = authHeader.replace('Bearer ', '');
         
@@ -45,7 +40,8 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // 4. Fetch the user's current subscription ID from the database
+        // 3. Fetch the user's current subscription ID from the database
+        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
         const { data: account, error: fetchError } = await supabaseAdmin
             .from('accounts')
             .select('subscription_id')
@@ -61,7 +57,7 @@ exports.handler = async (event, context) => {
         
         const subscriptionId = account.subscription_id;
 
-        // 5. Call the Paystack API to disable the subscription immediately
+        // 4. Call the Paystack API to disable the subscription immediately
         const response = await fetch(`https://api.paystack.co/subscription/disable`, {
             method: 'POST',
             headers: {
@@ -69,8 +65,8 @@ exports.handler = async (event, context) => {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                code: subscriptionId, // Paystack calls the subscription ID a 'code' here
-                token: PAYSTACK_SECRET_KEY // Using the secret key as the token for immediate disable
+                code: subscriptionId, 
+                token: PAYSTACK_SECRET_KEY 
             })
         });
 
@@ -81,7 +77,7 @@ exports.handler = async (event, context) => {
             throw new Error(data.message || 'Paystack API failed to cancel subscription');
         }
 
-        // 6. Update the user's Supabase account status (Downgrade to free)
+        // 5. Update the user's Supabase account status
         const { error: updateError } = await supabaseAdmin
             .from('accounts')
             .update({ 
@@ -96,7 +92,7 @@ exports.handler = async (event, context) => {
             console.error(`Supabase downgrade error on cancel: ${updateError.message}`);
         }
 
-        // 7. Success
+        // 6. Success
         return {
             statusCode: 200,
             body: JSON.stringify({ message: 'Subscription successfully cancelled. You have been downgraded to the free tier.' }),
