@@ -33,7 +33,8 @@ exports.handler = async (event, context) => {
         PAYSTACK_SECRET_KEY,        // Your Paystack *Secret* Key (starts with 'sk_')
         PAYSTACK_PLAN_SINGLE_CODE,  // PLN_XXXXXX for R69
         PAYSTACK_PLAN_FAMILY_CODE,  // PLN_YYYYYY for R99
-        PAYSTACK_PLAN_ULTRA_CODE    // PLN_ZZZZZZ for R149
+        PAYSTACK_PLAN_ULTRA_CODE,   // PLN_ZZZZZZ for R149
+        URL                         // Netlify provides this automatically
     } = process.env;
 
     // 3. Get the plan ID and set the corresponding Paystack Plan Code and profile limit
@@ -71,11 +72,15 @@ exports.handler = async (event, context) => {
         const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
         const userEmail = await getUserEmail(supabaseAdmin, userId);
 
-        // 5. Build the Paystack API Payload
+        // 5. Determine callback URL (use environment variable or construct it)
+        const callbackUrl = URL ? `${URL}/payment-success.html` : 'https://yoursite.com/payment-success.html';
+
+        // 6. Build the Paystack API Payload
         // We pass the profileLimit and user ID in the metadata for the webhook
         const paystackPayload = {
             email: userEmail,
             plan: planCode,
+            callback_url: callbackUrl,  // ADDED: Where to redirect after payment
             metadata: {
                 supabase_user_id: userId,
                 profile_limit: profileLimit, // CRITICAL: Used by the webhook
@@ -87,7 +92,7 @@ exports.handler = async (event, context) => {
             }
         };
 
-        // 6. Call the Paystack "Initialize Transaction" Endpoint
+        // 7. Call the Paystack "Initialize Transaction" Endpoint
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
             headers: {
@@ -105,7 +110,7 @@ exports.handler = async (event, context) => {
             throw new Error(data.message || 'Paystack API returned an error');
         }
 
-        // 7. Send the secure checkout URL back to the frontend
+        // 8. Send the secure checkout URL back to the frontend
         return {
             statusCode: 200,
             body: JSON.stringify({ checkoutUrl: data.data.authorization_url }),
