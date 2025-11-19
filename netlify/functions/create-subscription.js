@@ -1,11 +1,11 @@
 /*
  * NETLIFY FUNCTION: create-subscription.js
  *
- * This version is designed to be highly resilient and provide detailed logs
- * for debugging 502/500 errors during subscription initialization.
+ * This version is stable, secure, and includes detailed logging for debugging.
  */
 
 const { createClient } = require('@supabase/supabase-js');
+// The explicit require('node-fetch') is REMOVED to stabilize the function runtime.
 
 // Helper function to validate the Supabase JWT
 async function getUserFromSupabaseToken(supabaseAdmin, authHeader) {
@@ -67,6 +67,7 @@ exports.handler = async (event, context) => {
             };
         }
         
+        // Use the validated user ID and email
         userId = authResult.userId;
         userEmail = authResult.userEmail;
 
@@ -112,6 +113,7 @@ exports.handler = async (event, context) => {
             }
         };
 
+        // Using the global 'fetch' provided by the Netlify runtime
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
             headers: {
@@ -128,7 +130,7 @@ exports.handler = async (event, context) => {
         if (!response.ok || !data.status) {
             // This will log the specific Paystack error
             console.error('Paystack API Error:', JSON.stringify(data, null, 2));
-            throw new Error(data.message || 'Paystack API failed to initialize transaction. Check Netlify logs.');
+            throw new Error(data.message || 'Paystack API failed to initialize transaction. Check Netlify logs for details.');
         }
 
         // Success
