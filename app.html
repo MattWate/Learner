@@ -914,21 +914,31 @@ async function handleUpgrade(plan) {
     button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
     try {
-        // CRITICAL FIX: Retrieve the current user's JWT
         const token = state.session.access_token;
-
-        // FIX 1: Use the new /api/ path established in netlify.toml
+        
+        // Using the fixed /api/ path that requires the netlify.toml redirect
         const response = await fetch('/api/create-subscription', {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                // FIX 2: Pass the JWT in the Authorization header to resolve "You must be logged in"
                 'Authorization': `Bearer ${token}` 
             },
             body: JSON.stringify({ plan })
         });
         
+        // *** CRITICAL FIX: Check if the response is JSON before parsing ***
+        const contentType = response.headers.get("content-type");
+        if (!contentType || !contentType.includes("application/json")) {
+            // If it's not JSON, it's likely an HTML error page from the CDN.
+            const text = await response.text();
+            console.error("Non-JSON Response (Likely HTML Error Page):", text.substring(0, 100) + '...');
+            
+            // This error message is designed to force you to check the Netlify configuration.
+            throw new Error(`Routing Error: The site returned an HTML page (likely a 404/index) instead of API data. Verify the '[[redirects]]' rule in netlify.toml is deployed.`);
+        }
+
         const data = await response.json();
+        // End CRITICAL FIX
 
         if (!response.ok) {
             console.error("Backend Error Response:", data);
@@ -1526,6 +1536,7 @@ async function handleUpgrade(plan) {
     </script>
 </body>
 </html>
+
 
 
 
