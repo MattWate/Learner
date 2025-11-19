@@ -1,21 +1,21 @@
 /*
  * NETLIFY FUNCTION: create-subscription.js
  *
- * This function is called by app.html when a user clicks "Upgrade".
- * It securely calls the Paystack API to create a "checkout session" for a subscription.
+ * This function securely validates the user's Supabase JWT, retrieves their email,
+ * and calls the Paystack API to create a checkout session.
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const fetch = require('node-fetch'); // Paystack API calls
+const fetch = require('node-fetch');
 
-// Helper function to validate the Supabase JWT using the Supabase Admin/Service Key
+// Helper function to validate the Supabase JWT outside the handler for clarity
 async function getUserFromSupabaseToken(supabaseAdmin, authHeader) {
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
          return { userId: null, userEmail: null, error: 'Missing or invalid Authorization header.' };
     }
     const token = authHeader.replace('Bearer ', '');
     
-    // We use the admin client's auth.getUser(token) to securely verify the JWT.
+    // Use the admin client to verify the JWT
     const { data: userResponse, error: authError } = await supabaseAdmin.auth.getUser(token);
     
     if (authError || !userResponse.user) { 
@@ -27,12 +27,10 @@ async function getUserFromSupabaseToken(supabaseAdmin, authHeader) {
 }
 
 exports.handler = async (event, context) => {
-    // 1. Netlify Identity check is REMOVED.
-    
-    // 2. Get all our secret keys from Netlify environment variables
+    // 1. Get environment variables
     const {
         SUPABASE_URL,
-        SUPABASE_SERVICE_KEY,       // Your Admin key
+        SUPABASE_SERVICE_KEY,       
         PAYSTACK_SECRET_KEY,        
         PAYSTACK_PLAN_SINGLE_CODE,
         PAYSTACK_PLAN_FAMILY_CODE,
@@ -40,11 +38,17 @@ exports.handler = async (event, context) => {
         URL                         
     } = process.env;
     
+    // 2. Initialize Supabase Admin Client
     const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
     let userId;
     let userEmail;
+
+    // 3. Check for POST request
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
     
-    // 3. NEW AUTHENTICATION & USER INFO RETRIEVAL
+    // 4. AUTHENTICATION: Validate Supabase JWT from the Authorization header
     try {
         const authHeader = event.headers.authorization;
         const authResult = await getUserFromSupabaseToken(supabaseAdmin, authHeader);
@@ -57,6 +61,7 @@ exports.handler = async (event, context) => {
         userEmail = authResult.userEmail;
 
     } catch (error) {
+        // Send 401 if authentication fails
         console.error('Supabase JWT Auth Error:', error.message);
         return { 
             statusCode: 401, 
@@ -64,7 +69,7 @@ exports.handler = async (event, context) => {
         };
     }
     
-    // 4. Get the plan ID and set the corresponding Paystack Plan Code and profile limit
+    // 5. Get the plan details from the request body
     let planCode;
     let profileLimit;
     try {
@@ -94,11 +99,10 @@ exports.handler = async (event, context) => {
         };
     }
 
+    // 6. Call Paystack API
     try {
-        // 5. Determine callback URL (use environment variable or construct it)
         const callbackUrl = URL ? `${URL}/payment-success.html` : 'https://yoursite.com/payment-success.html';
 
-        // 6. Build the Paystack API Payload
         const paystackPayload = {
             email: userEmail,
             plan: planCode,
@@ -114,7 +118,6 @@ exports.handler = async (event, context) => {
             }
         };
 
-        // 7. Call the Paystack "Initialize Transaction" Endpoint
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
             headers: {
@@ -126,13 +129,14 @@ exports.handler = async (event, context) => {
         });
         
         const data = await response.json();
-
+        
+        // CRITICAL DEBUGGING: Check for Paystack errors
         if (!response.ok || !data.status) {
-            console.error('Paystack API Error:', data);
+            console.error('Paystack API Error:', JSON.stringify(data, null, 2));
             throw new Error(data.message || 'Paystack API returned an error');
         }
 
-        // 8. Send the secure checkout URL back to the frontend
+        // Success
         return {
             statusCode: 200,
             body: JSON.stringify({ checkoutUrl: data.data.authorization_url }),
