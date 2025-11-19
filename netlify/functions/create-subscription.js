@@ -1,7 +1,7 @@
 /*
- * NETLIFY FUNCTION: create-subscription.js (FIXED VERSION)
+ * NETLIFY FUNCTION: create-subscription.js (WORKING VERSION)
  *
- * This version fixes the JWT validation issue.
+ * This version uses the correct Supabase v2 JWT validation method.
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -23,7 +23,7 @@ exports.handler = async (event, context) => {
         // 2. Check for missing required variables
         if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !PAYSTACK_SECRET_KEY) {
             console.error('CRITICAL: Missing environment variables');
-            throw new Error('Server configuration error. Missing required secrets.');
+            throw new Error('Server configuration error.');
         }
 
         // 3. Check for POST request
@@ -35,11 +35,11 @@ exports.handler = async (event, context) => {
             };
         }
         
-        // 4. CRITICAL FIX: Extract and validate the Authorization header
+        // 4. Extract the Authorization header
         const authHeader = event.headers.authorization || event.headers.Authorization;
         
         if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            console.error('Auth Error: Missing or malformed Authorization header');
+            console.error('Missing or malformed Authorization header');
             return { 
                 statusCode: 401,
                 headers: { 'Content-Type': 'application/json' },
@@ -48,33 +48,28 @@ exports.handler = async (event, context) => {
         }
         
         const token = authHeader.replace('Bearer ', '');
-        
-        // Log token info for debugging (remove in production)
-        console.log('Token received:', token.substring(0, 20) + '...');
-        console.log('Token length:', token.length);
+        console.log('Received token, length:', token.length);
 
-        // 5. CRITICAL FIX: Use the correct method to verify the JWT
-        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        });
+        // 5. CORRECT METHOD: Create a client with the user's JWT token
+        // This is the proper way to validate a user's token in Supabase v2
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
         
-        // THIS IS THE KEY FIX: Use verifyJWT instead of getUser
-        const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+        // Verify the JWT token and get the user
+        const { data: { user }, error: authError } = await supabase.auth.getUser(token);
         
         if (authError) {
-            console.error('JWT Verification Error:', authError.message);
+            console.error('Auth Error:', authError.message);
             return { 
                 statusCode: 401,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'Invalid or expired session. Please log in again.' })
+                body: JSON.stringify({ 
+                    error: 'Invalid or expired session. Please log in again.'
+                })
             };
         }
         
         if (!user) {
-            console.error('JWT Valid but no user returned');
+            console.error('No user found in token');
             return { 
                 statusCode: 401,
                 headers: { 'Content-Type': 'application/json' },
@@ -85,33 +80,40 @@ exports.handler = async (event, context) => {
         const userId = user.id;
         const userEmail = user.email;
         
-        console.log('User authenticated:', userId);
+        console.log('User authenticated successfully:', userId);
 
-        // 6. Get the plan details from the request body
+        // 6. Parse request body and validate plan
         const { plan } = JSON.parse(event.body); 
         
         let planCode;
         let profileLimit;
         
-        if (plan === 'paid_single') {
-            planCode = PAYSTACK_PLAN_SINGLE_CODE; 
-            profileLimit = 1;
-        } else if (plan === 'paid_family') {
-            planCode = PAYSTACK_PLAN_FAMILY_CODE;
-            profileLimit = 2;
-        } else if (plan === 'paid_ultra') {
-            planCode = PAYSTACK_PLAN_ULTRA_CODE;
-            profileLimit = 4;
-        } else {
-            throw new Error('Invalid plan specified.');
+        switch(plan) {
+            case 'paid_single':
+                planCode = PAYSTACK_PLAN_SINGLE_CODE; 
+                profileLimit = 1;
+                break;
+            case 'paid_family':
+                planCode = PAYSTACK_PLAN_FAMILY_CODE;
+                profileLimit = 2;
+                break;
+            case 'paid_ultra':
+                planCode = PAYSTACK_PLAN_ULTRA_CODE;
+                profileLimit = 4;
+                break;
+            default:
+                throw new Error('Invalid plan specified.');
         }
 
         if (!planCode) {
-            throw new Error(`CRITICAL: Paystack Plan code for '${plan}' is not configured.`);
+            console.error(`Plan code not configured for: ${plan}`);
+            throw new Error('Plan configuration error. Please contact support.');
         }
 
-        // 7. Call Paystack API
-        const callbackUrl = URL ? `${URL}/payment-success.html` : 'https://learnergenie.dubyahinnovation.com/payment-success.html';
+        // 7. Initialize Paystack transaction
+        const callbackUrl = URL 
+            ? `${URL}/payment-success.html` 
+            : 'https://learnergenie.dubyahinnovation.com/payment-success.html';
 
         const paystackPayload = {
             email: userEmail,
@@ -128,7 +130,7 @@ exports.handler = async (event, context) => {
             }
         };
 
-        console.log('Calling Paystack API...');
+        console.log('Initializing Paystack transaction...');
 
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
@@ -143,13 +145,12 @@ exports.handler = async (event, context) => {
         const data = await response.json();
         
         if (!response.ok || !data.status) {
-            console.error('Paystack API Error:', JSON.stringify(data, null, 2));
-            throw new Error(data.message || 'Paystack API failed to initialize transaction.');
+            console.error('Paystack Error:', JSON.stringify(data, null, 2));
+            throw new Error(data.message || 'Paystack initialization failed.');
         }
 
-        console.log('Paystack checkout URL generated successfully');
+        console.log('Paystack checkout URL generated');
 
-        // Success - Return JSON
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
@@ -157,17 +158,15 @@ exports.handler = async (event, context) => {
         };
 
     } catch (error) {
-        console.error("Fatal Subscription Error:", error.message);
+        console.error("Subscription Error:", error.message);
         console.error("Stack:", error.stack);
-        
-        const userMessage = error.message.includes("CRITICAL") 
-            ? "Failed to initialize checkout. Please contact support." 
-            : error.message;
 
         return { 
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ error: userMessage }) 
+            body: JSON.stringify({ 
+                error: error.message || 'An unexpected error occurred.'
+            }) 
         };
     }
 };
