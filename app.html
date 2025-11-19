@@ -906,7 +906,8 @@
             showMainApp();
         }
 
-// In app.html (around line 727)
+// FIXED VERSION: Replace the handleUpgrade function in app.html (around line 727)
+
 async function handleUpgrade(plan) {
     const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
     const originalText = button.innerHTML;
@@ -914,9 +915,17 @@ async function handleUpgrade(plan) {
     button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
     try {
-        const token = state.session.access_token;
+        // CRITICAL FIX: Get a fresh session token instead of relying on state
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
         
-        // Using the fixed /api/ path that requires the netlify.toml redirect
+        if (sessionError || !session) {
+            throw new Error('You must be logged in to upgrade. Please refresh and try again.');
+        }
+        
+        const token = session.access_token;
+        
+        console.log('Token being sent:', token ? 'Token exists' : 'No token'); // Debug log
+        
         const response = await fetch('/api/create-subscription', {
             method: 'POST',
             headers: { 
@@ -926,19 +935,15 @@ async function handleUpgrade(plan) {
             body: JSON.stringify({ plan })
         });
         
-        // *** CRITICAL FIX: Check if the response is JSON before parsing ***
+        // Check if the response is JSON before parsing
         const contentType = response.headers.get("content-type");
         if (!contentType || !contentType.includes("application/json")) {
-            // If it's not JSON, it's likely an HTML error page from the CDN.
             const text = await response.text();
-            console.error("Non-JSON Response (Likely HTML Error Page):", text.substring(0, 100) + '...');
-            
-            // This error message is designed to force you to check the Netlify configuration.
-            throw new Error(`Routing Error: The site returned an HTML page (likely a 404/index) instead of API data. Verify the '[[redirects]]' rule in netlify.toml is deployed.`);
+            console.error("Non-JSON Response (Likely HTML Error Page):", text.substring(0, 200));
+            throw new Error(`Routing Error: The site returned an HTML page instead of API data. This usually means the _redirects file isn't working.`);
         }
 
         const data = await response.json();
-        // End CRITICAL FIX
 
         if (!response.ok) {
             console.error("Backend Error Response:", data);
@@ -949,6 +954,7 @@ async function handleUpgrade(plan) {
             throw new Error('Paystack initialization failed. No checkout URL received.');
         }
 
+        // Redirect to Paystack checkout
         window.location.href = data.checkoutUrl;
 
     } catch (error) {
@@ -1553,6 +1559,7 @@ async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text',
     </script>
 </body>
 </html>
+
 
 
 
