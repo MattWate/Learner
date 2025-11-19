@@ -8,40 +8,67 @@
 const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch'); // Paystack API calls
 
-// Helper function to fetch the user's email securely
-async function getUserEmail(supabaseAdmin, userId) {
-    const { data: user, error } = await supabaseAdmin.auth.admin.getUserById(userId);
-    if (error) throw new Error(`Supabase user error: ${error.message}`);
-    if (!user) throw new Error('Supabase user not found.');
-    return user.user.email;
+// Helper function to validate the Supabase JWT using the Supabase Admin/Service Key
+async function getUserFromSupabaseToken(supabaseAdmin, authHeader) {
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+         return { userId: null, userEmail: null, error: 'Missing or invalid Authorization header.' };
+    }
+    const token = authHeader.replace('Bearer ', '');
+    
+    // We use the admin client's auth.getUser(token) to securely verify the JWT.
+    const { data: userResponse, error: authError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (authError || !userResponse.user) { 
+        return { userId: null, userEmail: null, error: `Token validation failed: ${authError?.message || 'User object is empty.'}` };
+    }
+    
+    const user = userResponse.user;
+    return { userId: user.id, userEmail: user.email, error: null };
 }
 
 exports.handler = async (event, context) => {
-    // 1. Check for user authentication
-    if (!context.clientContext || !context.clientContext.user) {
+    // 1. Netlify Identity check is REMOVED.
+    
+    // 2. Get all our secret keys from Netlify environment variables
+    const {
+        SUPABASE_URL,
+        SUPABASE_SERVICE_KEY,       // Your Admin key
+        PAYSTACK_SECRET_KEY,        
+        PAYSTACK_PLAN_SINGLE_CODE,
+        PAYSTACK_PLAN_FAMILY_CODE,
+        PAYSTACK_PLAN_ULTRA_CODE,
+        URL                         
+    } = process.env;
+    
+    const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+    let userId;
+    let userEmail;
+    
+    // 3. NEW AUTHENTICATION & USER INFO RETRIEVAL
+    try {
+        const authHeader = event.headers.authorization;
+        const authResult = await getUserFromSupabaseToken(supabaseAdmin, authHeader);
+        
+        if (authResult.error) {
+             throw new Error(authResult.error);
+        }
+        
+        userId = authResult.userId;
+        userEmail = authResult.userEmail;
+
+    } catch (error) {
+        console.error('Supabase JWT Auth Error:', error.message);
         return { 
             statusCode: 401, 
             body: JSON.stringify({ error: 'You must be logged in.' }) 
         };
     }
-    const userId = context.clientContext.user.sub;
-
-    // 2. Get all our secret keys from Netlify environment variables
-    const {
-        SUPABASE_URL,
-        SUPABASE_SERVICE_KEY,       // Your Admin key
-        PAYSTACK_SECRET_KEY,        // Your Paystack *Secret* Key (starts with 'sk_')
-        PAYSTACK_PLAN_SINGLE_CODE,  // PLN_XXXXXX for R69
-        PAYSTACK_PLAN_FAMILY_CODE,  // PLN_YYYYYY for R99
-        PAYSTACK_PLAN_ULTRA_CODE,   // PLN_ZZZZZZ for R149
-        URL                         // Netlify provides this automatically
-    } = process.env;
-
-    // 3. Get the plan ID and set the corresponding Paystack Plan Code and profile limit
+    
+    // 4. Get the plan ID and set the corresponding Paystack Plan Code and profile limit
     let planCode;
     let profileLimit;
     try {
-        const { plan } = JSON.parse(event.body); // e.g., 'paid_single', 'paid_family', or 'paid_ultra'
+        const { plan } = JSON.parse(event.body); 
         
         if (plan === 'paid_single') {
             planCode = PAYSTACK_PLAN_SINGLE_CODE; 
@@ -68,22 +95,17 @@ exports.handler = async (event, context) => {
     }
 
     try {
-        // 4. Get the user's email from Supabase
-        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-        const userEmail = await getUserEmail(supabaseAdmin, userId);
-
         // 5. Determine callback URL (use environment variable or construct it)
         const callbackUrl = URL ? `${URL}/payment-success.html` : 'https://yoursite.com/payment-success.html';
 
         // 6. Build the Paystack API Payload
-        // We pass the profileLimit and user ID in the metadata for the webhook
         const paystackPayload = {
             email: userEmail,
             plan: planCode,
-            callback_url: callbackUrl,  // ADDED: Where to redirect after payment
+            callback_url: callbackUrl,  
             metadata: {
                 supabase_user_id: userId,
-                profile_limit: profileLimit, // CRITICAL: Used by the webhook
+                profile_limit: profileLimit, 
                 custom_fields: [{
                     display_name: "Subscription Plan",
                     variable_name: "subscription_plan",
