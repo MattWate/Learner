@@ -15,7 +15,6 @@
     <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- Paystack JavaScript SDK for checkout widget -->
     <script src="https://js.paystack.co/v1/inline.js"></script> 
 
     <style>
@@ -61,8 +60,6 @@
             display: block;
             color: #991b1b;
         }
-
-        /* Modal Backdrop */
         .modal-backdrop {
             background-color: rgba(0, 0, 0, 0.7);
         }
@@ -75,13 +72,10 @@
         </div>
     </div>
 
-    <!-- NEW: Paywall Modal Structure -->
     <div id="paywall-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop transition-opacity">
         <div id="paywall-content" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform scale-90">
-            <!-- Content injected here by showPaywallModal -->
         </div>
     </div>
-
 
     <script>
         // --- GLOBAL CONSTANTS & CONFIGURATION ---
@@ -112,14 +106,15 @@
             myActivityData: [] 
         };
 
-        // --- CORE UI TEMPLATES (Moved outside DOMContentLoaded) ---
+        // --- CORE UI TEMPLATES ---
 
         function homePageTemplate() {
             return `
             <div class="max-w-4xl mx-auto text-center">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
-                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1> <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
                     <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
@@ -174,156 +169,6 @@
             `;
         }
 
-        // --- CORE APP RENDER FUNCTION (Moved outside DOMContentLoaded) ---
-        function showMainApp() {
-            const appContainer = document.getElementById('app-container');
-            appContainer.innerHTML = `
-                <div class="min-h-screen md:flex">
-                    <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
-                        <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
-                            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
-                            <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
-                        </button>
-                        <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
-                            <i data-lucide="x" class="h-6 w-6"></i>
-                        </button>
-                        <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
-                        
-                        <!-- NEW: Usage Counter / Upgrade Prompt -->
-                        <div id="usage-prompt-wrapper" class="mt-auto pt-4 space-y-2 border-t border-gray-100"></div>
-
-                        <div class="pt-2">
-                            <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                <i data-lucide="users" class="h-5 w-5"></i>
-                                <span class="ml-3">Switch Profile</span>
-                            </button>
-                            <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                <i data-lucide="log-out" class="h-5 w-5"></i>
-                                <span class="ml-3">Log Out</span>
-                            </button>
-                            <a href="/legal.html" target="_blank" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
-                                <i data-lucide="shield" class="h-5 w-5"></i>
-                                <span class="ml-3">Terms & Privacy</span>
-                            </a>
-                        </div>
-                    </aside>
-                    
-                    <!-- Main Content Wrapper (For Mobile Header) -->
-                    <div class="flex-1 flex flex-col min-w-0">
-                        <!-- Mobile Header (Visible only on mobile) -->
-                        <header class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-40">
-                            <div class="flex items-center cursor-pointer" data-nav-link="home">
-                                <img src="/logo.svg" alt="Learning Genie Logo" class="h-8 w-8 mr-2">
-                                <span class="font-bold text-lg text-gray-800">Learning Genie</span>
-                            </div>
-                            <button id="menu-toggle-btn" class="p-2 -mr-2 text-gray-600 rounded-lg hover:bg-gray-100 focus:outline-none focus:bg-gray-100">
-                                <i data-lucide="menu" class="h-6 w-6"></i>
-                            </button>
-                        </header>
-
-                        <!-- Tool Content -->
-                        <main id="main-content" class="flex-1 p-4 md:p-8"></main>
-                    </div>
-                </div>
-            `;
-            renderToolContent();
-        }
-
-        // --- UTILITY FUNCTIONS (Moved outside DOMContentLoaded) ---
-        // These are required by showMainApp and renderToolContent.
-        
-        function shuffleArray(array) {
-            for (let i = array.length - 1; i > 0; i--) {
-                const j = Math.floor(Math.random() * (i + 1));
-                [array[i], array[j]] = [array[j], array[i]];
-            }
-        }
-        
-        function renderPracticeTest(testData) {
-            if (!testData || testData.length === 0) {
-                return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
-            }
-
-            let html = '<form id="quiz-form" class="space-y-6">';
-            
-            testData.forEach((question, index) => {
-                html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
-                html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
-                html += `<div class="space-y-2">`;
-
-                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
-                    
-                    shuffleArray(question.options);
-
-                    question.options.forEach((option) => {
-                        html += `
-                            <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
-                                <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
-                                <span class="ml-3 text-sm text-gray-700">${option}</span>
-                            </label>
-                        `;
-                    });
-                } else if (question.type === 'ShortAnswer') {
-                    html += `
-                        <label>
-                            <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
-                            <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
-                        </label>
-                    `;
-                }
-                html += `</div>`;
-                html += `
-                    <div class="quiz-feedback correct">
-                        <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
-                    </div>
-                    <div class="quiz-feedback incorrect">
-                        <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
-                    </div>
-                `;
-                html += `</div>`;
-            });
-
-            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
-            html += '</form>';
-            return html;
-        }
-
-        function createSectionHTML(icon, color, title, content) {
-            const cleanMarkdown = (text) => {
-                return String(text)
-                    .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
-                    .replace(/\*\*/g, '')
-                    .replace(/\*/g, '')
-                    .replace(/## /g, '<h3 class="text-md font-semibold mt-4">')
-                    .replace(/\n/g, '<br>');
-            };
-
-            let textContent = 'No content provided.';
-            if (typeof content === 'string') {
-                textContent = cleanMarkdown(content);
-            } else if (Array.isArray(content)) {
-                textContent = `<ol class="list-decimal list-inside">${content.map(item => `<li>${cleanMarkdown(item)}</li>`).join('')}</ol>`;
-            } else if (typeof content === 'object' && content !== null) {
-                const formatObject = (obj) => {
-                    return `<ul class="list-disc list-inside ml-4">${Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${formatContent(value)}</li>`).join('')}</ul>`;
-                };
-                const formatArray = (arr) => {
-                    return `<ol class="list-decimal list-inside">${arr.map(item => `<li>${formatContent(item)}</li>`).join('')}</ol>`;
-                };
-                const formatContent = (item) => {
-                    if (typeof item === 'string') return cleanMarkdown(item);
-                    if (Array.isArray(item)) return formatArray(item);
-                    if (typeof item === 'object' && item !== null) return formatObject(item);
-                    return cleanMarkdown(String(item));
-                };
-                textContent = formatContent(content);
-            } else if (content) {
-                textContent = cleanMarkdown(String(content));
-            }
-            return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
-        }
-        
-        // --- TOOL TEMPLATES (Needed for renderToolContent) ---
         const homeworkHelperTemplate = `
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
@@ -445,182 +290,6 @@
                 </div>
             </div>`;
         
-
-        // --- CORE LOGIC FUNCTIONS (Must be defined before DOMContentLoaded) ---
-
-        async function handleAuth() {
-            supabaseClient.auth.onAuthStateChange((event, session) => {
-                if (event === 'SIGNED_OUT') {
-                    state.session = null;
-                    state.activeProfile = null;
-                    window.location.href = '/login.html';
-                }
-            });
-
-            const { data: { session }, error } = await supabaseClient.auth.getSession();
-
-            if (error) {
-                console.error('Error getting session:', error);
-                appContainer.innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
-                return;
-            }
-
-            if (!session) {
-                window.location.href = '/login.html';
-            } else {
-                state.session = session;
-                await checkAccountStatus(session.user);
-            }
-        }
-        
-        async function checkAccountStatus(user) {
-            try {
-                // 1. Fetch Account Data (tier, limits)
-                const { data: account, error: accountError } = await supabaseClient
-                    .from('accounts')
-                    .select('active_tier, profile_limit')
-                    .eq('id', user.id)
-                    .single();
-
-                if (accountError && accountError.code !== 'PGRST116') {
-                     throw new Error(`Failed to fetch account: ${accountError.message}`);
-                }
-                 if (!account) {
-                    console.warn("Account record not found, inserting new free user record.");
-                    const { error: insertError } = await supabaseClient
-                         .from('accounts')
-                         .insert({ id: user.id, active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT });
-
-                    if (insertError) throw new Error(`Failed to insert new account: ${insertError.message}`);
-                    state.accountData = { active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT };
-                } else {
-                    state.accountData = account;
-                }
-
-                
-                // 2. Fetch Usage Data
-                const { data: usage, error: usageError } = await supabaseClient
-                    .from('monthly_usage')
-                    .select('usage_count, last_reset_date')
-                    .eq('account_id', user.id)
-                    .single();
-                    
-                if (usageError && usageError.code !== 'PGRST116') {
-                     throw new Error(`Failed to fetch usage: ${usageError.message}`);
-                }
-                
-                if (!usage) {
-                    const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
-                    await supabaseClient.from('monthly_usage').upsert(initialUsage, { onConflict: 'account_id' }); 
-                    state.usageData = { count: 0, resetDate: new Date().toISOString() };
-                } else {
-                    state.usageData = { count: usage.usage_count, resetDate: usage.last_reset_date };
-                }
-                
-                // 3. Fetch Profiles
-                const { data: profiles, error: profileError } = await supabaseClient
-                    .from('profiles')
-                    .select('*')
-                    .eq('account_id', user.id);
-
-                if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`);
-
-                // 4. Determine next screen
-                if (profiles && profiles.length > 0) {
-                    appContainer.innerHTML = profilePickerTemplate(profiles);
-                    lucide.createIcons();
-                } else {
-                    appContainer.innerHTML = createProfileTemplate('Welcome! Create your first learner profile to start using the tools.');
-                    lucide.createIcons();
-                }
-
-            } catch (error) {
-                console.error('Error in checkAccountStatus:', error);
-                // Fallback error screen
-                appContainer.innerHTML = `<div class="min-h-screen flex items-center justify-center p-4">
-                    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
-                        <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
-                        <h1 class="text-2xl font-bold text-gray-800 mb-2">Login Error</h1>
-                        <p class="text-gray-600 mb-6">Could not load your account data. Check the console for database errors. Details: ${error.message}</p>
-                        <button onclick="window.location.href='/login.html'" class="mt-4 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Go to Login</button>
-                    </div>
-                </div>`;
-                lucide.createIcons();
-            }
-        }
-
-        function updateSidebar() {
-            const sidebarNav = document.getElementById('sidebar-nav');
-            const usageWrapper = document.getElementById('usage-prompt-wrapper');
-            if (!sidebarNav || !usageWrapper) return; 
-
-            const navItems = {
-                home: { icon: 'home', label: 'Home' },
-                homeworkHelper: { icon: 'life-buoy', label: 'Homework Helper' },
-                learningHub: { icon: 'book-marked', label: 'Learning Hub' },
-                explainSimply: { icon: 'baby', label: 'Explain It Simply' },
-                testBuilder: { icon: 'clipboard-check', label: 'Test Builder' },
-                myActivity: { icon: 'history', label: 'My Activity' },
-                upgrade: { icon: 'zap', label: 'Upgrade Now' }
-            };
-            
-            let navHtml = '';
-            // Render core tools
-            ['home', 'homeworkHelper', 'learningHub', 'explainSimply', 'testBuilder'].forEach(tab => {
-                const item = navItems[tab];
-                navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
-            });
-            // Render My Activity link separately with a top border
-            navHtml += `<button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg border-t mt-2 pt-2 border-gray-100"><i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i><span class="ml-3">${navItems.myActivity.label}</span></button>`;
-
-            sidebarNav.innerHTML = navHtml; 
-
-            // --- Usage Counter UI Update ---
-            const isFreeTier = state.accountData?.active_tier === 'free';
-            
-            if (isFreeTier) {
-                const remaining = FREE_USAGE_LIMIT - state.usageData.count;
-                const remainingDays = Math.ceil((new Date(state.usageData.resetDate).getTime() + (7 * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24));
-                
-                usageWrapper.innerHTML = `
-                    <div class="p-3 bg-indigo-50 rounded-lg text-center">
-                        <p class="font-semibold text-indigo-700 text-sm">Free Trial Limit</p>
-                        <p class="text-2xl font-bold text-indigo-900">${remaining}/${FREE_USAGE_LIMIT}</p>
-                        <p class="text-xs text-indigo-600">questions remaining this week.</p>
-                        <p class="text-xs text-gray-500 mt-1">Resets in ${Math.max(0, remainingDays)} day(s).</p>
-                    </div>
-                    <button data-nav-link="upgrade" class="w-full bg-rose-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-rose-600 flex items-center justify-center text-sm">
-                        <i data-lucide="zap" class="h-4 w-4 mr-2"></i> Unlock Unlimited Access
-                    </button>
-                `;
-            } else {
-                // Paid tier UI
-                const tierName = state.accountData?.active_tier.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-                usageWrapper.innerHTML = `
-                    <div class="p-3 bg-green-50 rounded-lg text-center">
-                        <p class="font-semibold text-green-700 text-sm">${tierName} Active</p>
-                        <p class="text-xs text-green-600">Unlimited questions and access to all ${state.accountData?.profile_limit} profiles.</p>
-                    </div>
-                `;
-            }
-            
-            // Set active link style
-            document.querySelectorAll('.nav-link').forEach(link => {
-                const linkTab = link.dataset.navLink;
-                const isActive = (linkTab === state.activeTab);
-
-                if (isActive) {
-                    link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
-                    link.classList.remove('text-gray-600', 'hover:bg-gray-100');
-                } else {
-                    link.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
-                    link.classList.add('text-gray-600', 'hover:bg-gray-100');
-                }
-            });
-        }
-        
-        // --- TOOL TEMPLATES (Moved outside DOMContentLoaded) ---
-        
         const myActivityTemplate = () => { 
             const isFreeTier = state.accountData?.active_tier === 'free';
             
@@ -660,7 +329,6 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
                         
-                        <!-- Card 1: Single Learner R69 -->
                         <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
                             <h3 class="text-2xl font-bold text-gray-800 mb-2">Single Learner</h3>
                             <p class="text-gray-600 mb-4 text-sm">Full access for one child.</p>
@@ -675,7 +343,6 @@
                             </button>
                         </div>
 
-                        <!-- Card 2: Family Two R99 (Best Value) -->
                         <div class="bg-indigo-600 p-6 rounded-xl shadow-2xl border-4 border-indigo-500 text-white flex flex-col transform scale-105">
                             <div class="bg-amber-400 text-indigo-900 font-bold px-3 py-1 text-sm rounded-full w-fit mx-auto mb-3">Best Value</div>
                             <h3 class="text-2xl font-bold mb-2">Family Two</h3>
@@ -691,7 +358,6 @@
                             </button>
                         </div>
                         
-                        <!-- Card 3: Family Ultra R149 -->
                         <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
                             <h3 class="text-2xl font-bold text-gray-800 mb-2">Family Ultra</h3>
                             <p class="text-gray-600 mb-4 text-sm">Support for up to four children.</p>
@@ -749,7 +415,497 @@
                 </div>
             </div>
         `;
+
+        // --- UTILITY FUNCTIONS ---
         
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        function renderPracticeTest(testData) {
+            if (!testData || testData.length === 0) {
+                return "<p class='text-sm text-gray-500'>No practice test could be generated for this topic.</p>";
+            }
+
+            let html = '<form id="quiz-form" class="space-y-6">';
+            
+            testData.forEach((question, index) => {
+                html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg">`;
+                html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
+                html += `<div class="space-y-2">`;
+
+                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                    
+                    shuffleArray(question.options);
+
+                    question.options.forEach((option) => {
+                        html += `
+                            <label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+                                <input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500">
+                                <span class="ml-3 text-sm text-gray-700">${option}</span>
+                            </label>
+                        `;
+                    });
+                } else if (question.type === 'ShortAnswer') {
+                    html += `
+                        <label>
+                            <span class="text-sm font-medium text-gray-700 sr-only">Your Answer:</span>
+                            <input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your answer here...">
+                        </label>
+                    `;
+                }
+                html += `</div>`;
+                html += `
+                    <div class="quiz-feedback correct">
+                        <i data-lucide="check-circle" class="inline-block h-4 w-4 mr-1"></i>Correct!
+                    </div>
+                    <div class="quiz-feedback incorrect">
+                        <i data-lucide="x-circle" class="inline-block h-4 w-4 mr-1"></i>Incorrect. The correct answer is: <strong>${question.correct_answer}</strong>
+                    </div>
+                `;
+                html += `</div>`;
+            });
+
+            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300"><i data-lucide="check" class="w-5 h-5 mr-2"></i>Check My Answers</button>`;
+            html += '</form>';
+            return html;
+        }
+
+        function createSectionHTML(icon, color, title, content) {
+            const cleanMarkdown = (text) => {
+                return String(text)
+                    .replace(/\*\*\*(.*?)\*\*\*/g, '<hr class="my-4 border-gray-200"><strong><em>$1</em></strong><hr class="my-4 border-gray-200">')
+                    .replace(/\*\*/g, '')
+                    .replace(/\*/g, '')
+                    .replace(/## /g, '<h3 class="text-md font-semibold mt-4">')
+                    .replace(/\n/g, '<br>');
+            };
+
+            let textContent = 'No content provided.';
+            if (typeof content === 'string') {
+                textContent = cleanMarkdown(content);
+            } else if (Array.isArray(content)) {
+                textContent = `<ol class="list-decimal list-inside">${content.map(item => `<li>${cleanMarkdown(item)}</li>`).join('')}</ol>`;
+            } else if (typeof content === 'object' && content !== null) {
+                const formatObject = (obj) => {
+                    return `<ul class="list-disc list-inside ml-4">${Object.entries(obj).map(([key, value]) => `<li><strong>${key}:</strong> ${formatContent(value)}</li>`).join('')}</ul>`;
+                };
+                const formatArray = (arr) => {
+                    return `<ol class="list-decimal list-inside">${arr.map(item => `<li>${formatContent(item)}</li>`).join('')}</ol>`;
+                };
+                const formatContent = (item) => {
+                    if (typeof item === 'string') return cleanMarkdown(item);
+                    if (Array.isArray(item)) return formatArray(item);
+                    if (typeof item === 'object' && item !== null) return formatObject(item);
+                    return cleanMarkdown(String(item));
+                };
+                textContent = formatContent(content);
+            } else if (content) {
+                textContent = cleanMarkdown(String(content));
+            }
+            return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 break-inside-avoid"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500"></i><span class="ml-2">${title}</span></h3><div class="prose prose-sm max-w-none text-gray-600">${textContent}</div></div>`;
+        }
+
+        // --- CORE APP RENDER FUNCTION ---
+        function showMainApp() {
+            const appContainer = document.getElementById('app-container');
+            appContainer.innerHTML = `
+                <div class="min-h-screen md:flex">
+                    <aside id="sidebar" class="hidden md:flex w-full md:w-64 bg-white p-4 md:h-screen md:sticky top-0 border-r border-gray-200 print:hidden flex-col fixed inset-0 z-50 md:relative">
+                        <button data-nav-link="home" class="hidden md:flex flex-col items-center text-center mb-8 w-full group">
+                            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo mb-2 transition-transform group-hover:scale-110">
+                            <h1 class="text-xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</h1>
+                        </button>
+                        <button id="menu-close-btn" class="md:hidden absolute top-4 right-4 p-2 text-gray-600 hover:text-gray-900">
+                            <i data-lucide="x" class="h-6 w-6"></i>
+                        </button>
+                        <nav id="sidebar-nav" class="space-y-2 mt-12 md:mt-0"></nav>
+                        
+                        <div id="usage-prompt-wrapper" class="mt-auto pt-4 space-y-2 border-t border-gray-100"></div>
+
+                        <div class="pt-2">
+                            <button id="profile-picker-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="users" class="h-5 w-5"></i>
+                                <span class="ml-3">Switch Profile</span>
+                            </button>
+                            <button id="logout-btn" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="log-out" class="h-5 w-5"></i>
+                                <span class="ml-3">Log Out</span>
+                            </button>
+                            <a href="/legal.html" target="_blank" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                                <i data-lucide="shield" class="h-5 w-5"></i>
+                                <span class="ml-3">Terms & Privacy</span>
+                            </a>
+                        </div>
+                    </aside>
+                    
+                    <div class="flex-1 flex flex-col min-w-0">
+                        <header class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-40">
+                            <div class="flex items-center cursor-pointer" data-nav-link="home">
+                                <img src="/logo.svg" alt="Learning Genie Logo" class="h-8 w-8 mr-2">
+                                <span class="font-bold text-lg text-gray-800">Learning Genie</span>
+                            </div>
+                            <button id="menu-toggle-btn" class="p-2 -mr-2 text-gray-600 rounded-lg hover:bg-gray-100 focus:outline-none focus:bg-gray-100">
+                                <i data-lucide="menu" class="h-6 w-6"></i>
+                            </button>
+                        </header>
+
+                        <main id="main-content" class="flex-1 p-4 md:p-8"></main>
+                    </div>
+                </div>
+            `;
+            renderToolContent();
+        }
+
+        function renderToolContent() {
+            const mainContent = document.getElementById('main-content');
+            if (!mainContent) return;
+
+            let contentHTML = '';
+            
+            switch (state.activeTab) {
+                case 'home':
+                    contentHTML = homePageTemplate();
+                    break;
+                case 'homeworkHelper':
+                    contentHTML = homeworkHelperTemplate;
+                    break;
+                case 'learningHub':
+                    contentHTML = learningHubTemplate;
+                    break;
+                case 'explainSimply':
+                    contentHTML = explainSimplyTemplate;
+                    break;
+                case 'testBuilder':
+                    contentHTML = testBuilderTemplate;
+                    break;
+                case 'myActivity':
+                    contentHTML = myActivityTemplate();
+                    break;
+                case 'upgrade':
+                    contentHTML = upgradeTemplate();
+                    break;
+                default:
+                    contentHTML = homePageTemplate();
+            }
+            
+            mainContent.innerHTML = contentHTML;
+            updateSidebar();
+            lucide.createIcons();
+            
+            attachToolEventListeners();
+            
+            if (state.activeTab === 'myActivity' && state.accountData?.active_tier !== 'free') {
+                loadMyActivity();
+            }
+        }
+
+        function attachToolEventListeners() {
+            const hhButton = document.getElementById('generate-homework-help-btn');
+            if (hhButton) {
+                hhButton.addEventListener('click', handleGenerateHomeworkHelp);
+            }
+            
+            const imageUpload = document.getElementById('image-upload');
+            if (imageUpload) {
+                imageUpload.addEventListener('change', handleImageChange);
+            }
+            
+            const removeImageBtn = document.getElementById('remove-image-btn');
+            if (removeImageBtn) {
+                removeImageBtn.addEventListener('click', handleRemoveImage);
+            }
+            
+            const lhButton = document.getElementById('generate-learning-help-btn');
+            if (lhButton) {
+                lhButton.addEventListener('click', handleGenerateLearningHelp);
+            }
+            
+            const esButton = document.getElementById('generate-explanation-btn');
+            if (esButton) {
+                esButton.addEventListener('click', handleGenerateExplanation);
+            }
+            
+            const tbButton = document.getElementById('generate-test-builder-btn');
+            if (tbButton) {
+                tbButton.addEventListener('click', handleGenerateTestBuilder);
+            }
+            
+            const quizForm = document.getElementById('quiz-form');
+            if (quizForm) {
+                quizForm.addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    handleQuizSubmit();
+                });
+            }
+            
+            document.querySelectorAll('.upgrade-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const plan = e.target.dataset.plan;
+                    handleUpgrade(plan);
+                });
+            });
+            
+            document.querySelectorAll('.view-work-btn').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    const workIndex = parseInt(e.target.dataset.workIndex);
+                    const work = state.myActivityData[workIndex];
+                    if (work) {
+                        state.workToView = work;
+                        displaySavedWork(work);
+                    }
+                });
+            });
+        }
+
+        function updateSidebar() {
+            const sidebarNav = document.getElementById('sidebar-nav');
+            const usageWrapper = document.getElementById('usage-prompt-wrapper');
+            if (!sidebarNav || !usageWrapper) return; 
+
+            const navItems = {
+                home: { icon: 'home', label: 'Home' },
+                homeworkHelper: { icon: 'life-buoy', label: 'Homework Helper' },
+                learningHub: { icon: 'book-marked', label: 'Learning Hub' },
+                explainSimply: { icon: 'baby', label: 'Explain It Simply' },
+                testBuilder: { icon: 'clipboard-check', label: 'Test Builder' },
+                myActivity: { icon: 'history', label: 'My Activity' },
+                upgrade: { icon: 'zap', label: 'Upgrade Now' }
+            };
+            
+            let navHtml = '';
+            ['home', 'homeworkHelper', 'learningHub', 'explainSimply', 'testBuilder'].forEach(tab => {
+                const item = navItems[tab];
+                navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
+            });
+            navHtml += `<button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg border-t mt-2 pt-2 border-gray-100"><i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i><span class="ml-3">${navItems.myActivity.label}</span></button>`;
+
+            sidebarNav.innerHTML = navHtml; 
+
+            const isFreeTier = state.accountData?.active_tier === 'free';
+            
+            if (isFreeTier) {
+                const remaining = FREE_USAGE_LIMIT - state.usageData.count;
+                const remainingDays = Math.ceil((new Date(state.usageData.resetDate).getTime() + (7 * 24 * 60 * 60 * 1000) - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                
+                usageWrapper.innerHTML = `
+                    <div class="p-3 bg-indigo-50 rounded-lg text-center">
+                        <p class="font-semibold text-indigo-700 text-sm">Free Trial Limit</p>
+                        <p class="text-2xl font-bold text-indigo-900">${remaining}/${FREE_USAGE_LIMIT}</p>
+                        <p class="text-xs text-indigo-600">questions remaining this week.</p>
+                        <p class="text-xs text-gray-500 mt-1">Resets in ${Math.max(0, remainingDays)} day(s).</p>
+                    </div>
+                    <button data-nav-link="upgrade" class="w-full bg-rose-500 text-white font-semibold py-2 px-3 rounded-lg hover:bg-rose-600 flex items-center justify-center text-sm">
+                        <i data-lucide="zap" class="h-4 w-4 mr-2"></i> Unlock Unlimited Access
+                    </button>
+                `;
+            } else {
+                const tierName = state.accountData?.active_tier.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+                usageWrapper.innerHTML = `
+                    <div class="p-3 bg-green-50 rounded-lg text-center">
+                        <p class="font-semibold text-green-700 text-sm">${tierName} Active</p>
+                        <p class="text-xs text-green-600">Unlimited questions and access to all ${state.accountData?.profile_limit} profiles.</p>
+                    </div>
+                `;
+            }
+            
+            document.querySelectorAll('.nav-link').forEach(link => {
+                const linkTab = link.dataset.navLink;
+                const isActive = (linkTab === state.activeTab);
+
+                if (isActive) {
+                    link.classList.add('bg-indigo-600', 'text-white', 'shadow-md');
+                    link.classList.remove('text-gray-600', 'hover:bg-gray-100');
+                } else {
+                    link.classList.remove('bg-indigo-600', 'text-white', 'shadow-md');
+                    link.classList.add('text-gray-600', 'hover:bg-gray-100');
+                }
+            });
+            
+            lucide.createIcons();
+        }
+
+        // --- CORE LOGIC FUNCTIONS ---
+
+        async function handleAuth() {
+            supabaseClient.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_OUT') {
+                    state.session = null;
+                    state.activeProfile = null;
+                    window.location.href = '/login.html';
+                }
+            });
+
+            const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+            if (error) {
+                console.error('Error getting session:', error);
+                document.getElementById('app-container').innerHTML = `<div class="p-4 text-red-700">Error loading session. Please try again.</div>`;
+                return;
+            }
+
+            if (!session) {
+                window.location.href = '/login.html';
+            } else {
+                state.session = session;
+                await checkAccountStatus(session.user);
+            }
+        }
+        
+        async function checkAccountStatus(user) {
+            try {
+                const { data: account, error: accountError } = await supabaseClient
+                    .from('accounts')
+                    .select('active_tier, profile_limit')
+                    .eq('id', user.id)
+                    .single();
+
+                if (accountError && accountError.code !== 'PGRST116') {
+                     throw new Error(`Failed to fetch account: ${accountError.message}`);
+                }
+                 if (!account) {
+                    console.warn("Account record not found, inserting new free user record.");
+                    const { error: insertError } = await supabaseClient
+                         .from('accounts')
+                         .insert({ id: user.id, active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT });
+
+                    if (insertError) throw new Error(`Failed to insert new account: ${insertError.message}`);
+                    state.accountData = { active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT };
+                } else {
+                    state.accountData = account;
+                }
+
+                const { data: usage, error: usageError } = await supabaseClient
+                    .from('monthly_usage')
+                    .select('usage_count, last_reset_date')
+                    .eq('account_id', user.id)
+                    .single();
+                    
+                if (usageError && usageError.code !== 'PGRST116') {
+                     throw new Error(`Failed to fetch usage: ${usageError.message}`);
+                }
+                
+                if (!usage) {
+                    const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
+                    await supabaseClient.from('monthly_usage').upsert(initialUsage, { onConflict: 'account_id' }); 
+                    state.usageData = { count: 0, resetDate: new Date().toISOString() };
+                } else {
+                    state.usageData = { count: usage.usage_count, resetDate: usage.last_reset_date };
+                }
+                
+                const { data: profiles, error: profileError } = await supabaseClient
+                    .from('profiles')
+                    .select('*')
+                    .eq('account_id', user.id);
+
+                if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`);
+
+                if (profiles && profiles.length > 0) {
+                    document.getElementById('app-container').innerHTML = profilePickerTemplate(profiles);
+                    lucide.createIcons();
+                } else {
+                    document.getElementById('app-container').innerHTML = createProfileTemplate('Welcome! Create your first learner profile to start using the tools.');
+                    lucide.createIcons();
+                    document.getElementById('create-profile-form').addEventListener('submit', handleCreateProfile);
+                }
+
+            } catch (error) {
+                console.error('Error in checkAccountStatus:', error);
+                document.getElementById('app-container').innerHTML = `<div class="min-h-screen flex items-center justify-center p-4">
+                    <div class="max-w-md w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <i data-lucide="alert-triangle" class="h-16 w-16 text-red-500 mx-auto mb-4"></i>
+                        <h1 class="text-2xl font-bold text-gray-800 mb-2">Login Error</h1>
+                        <p class="text-gray-600 mb-6">Could not load your account data. Details: ${error.message}</p>
+                        <button onclick="window.location.href='/login.html'" class="mt-4 bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg hover:bg-gray-300">Go to Login</button>
+                    </div>
+                </div>`;
+                lucide.createIcons();
+            }
+        }
+
+        async function selectProfile(profileId) {
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .select('*')
+                .eq('id', profileId)
+                .single();
+            
+            if (error || !data) {
+                console.error('Error loading profile:', error);
+                return;
+            }
+            
+            state.activeProfile = data;
+            state.activeTab = 'home';
+            showMainApp();
+        }
+
+        function showAddProfileForm() {
+            supabaseClient
+                .from('profiles')
+                .select('id', { count: 'exact' })
+                .eq('account_id', state.session.user.id)
+                .then(({ count, error }) => {
+                    if (error) {
+                        console.error('Error checking profile count:', error);
+                        return;
+                    }
+                    
+                    const currentProfileCount = state.accountData?.profile_limit || 1;
+                    
+                    if (count >= currentProfileCount) {
+                        showPaywallModal('profiles');
+                        return;
+                    }
+                    
+                    const appContainer = document.getElementById('app-container');
+                    appContainer.innerHTML = createProfileTemplate('Add a new learner profile.');
+                    lucide.createIcons();
+                    
+                    document.getElementById('create-profile-form').addEventListener('submit', handleCreateProfile);
+                });
+        }
+
+        async function handleCreateProfile(e) {
+            e.preventDefault();
+            const profileName = document.getElementById('profile-name').value.trim();
+            const errorEl = document.getElementById('profile-error');
+            const button = document.getElementById('create-profile-btn');
+            
+            if (!profileName) {
+                errorEl.textContent = 'Please enter a profile name.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            
+            button.disabled = true;
+            button.textContent = 'Creating...';
+            
+            const { data, error } = await supabaseClient
+                .from('profiles')
+                .insert({
+                    account_id: state.session.user.id,
+                    name: profileName
+                })
+                .select()
+                .single();
+            
+            if (error) {
+                errorEl.textContent = error.message;
+                errorEl.classList.remove('hidden');
+                button.disabled = false;
+                button.textContent = 'Create Profile';
+                return;
+            }
+            
+            state.activeProfile = data;
+            state.activeTab = 'home';
+            showMainApp();
+        }
+
         async function handleUpgrade(plan) {
             const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
             const originalText = button.innerHTML;
@@ -836,6 +992,58 @@
 
             modal.classList.remove('hidden');
             modal.classList.add('flex');
+        }
+
+        function handleImageChange(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const previewWrapper = document.getElementById('image-preview-wrapper');
+            const previewImg = document.getElementById('image-preview');
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                state.uploadedImageBase64 = event.target.result.split(',')[1];
+                previewImg.src = event.target.result;
+                previewWrapper.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function handleRemoveImage() {
+            state.uploadedImageBase64 = null;
+            document.getElementById('image-preview-wrapper').classList.add('hidden');
+            document.getElementById('image-upload').value = null;
+        }
+
+        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+            try {
+                const response = await fetch('/.netlify/functions/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
+                });
+                if (!response.ok) {
+                    const errorBody = await response.text();
+                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+                }
+                
+                const result = await response.json();
+
+                if (requestType === 'image') {
+                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
+                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                }
+                
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("The AI returned an empty response.");
+                return text;
+            } catch (error) {
+                if (retries > 0) {
+                    console.warn("Request failed, retrying...", error);
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                    return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                }
+                throw error;
+            }
         }
 
         async function handleGenerateHomeworkHelp() {
@@ -983,6 +1191,7 @@
                     </div>
                 `;
                 lucide.createIcons();
+                attachToolEventListeners();
             } catch (e) {
                 errorEl.textContent = `An error occurred: ${e.message}`;
                 errorEl.classList.remove('hidden');
@@ -1102,6 +1311,7 @@
                     </div>
                 `;
                 lucide.createIcons();
+                attachToolEventListeners();
 
             } catch (e) {
                 errorEl.textContent = `An error occurred: ${e.message}`;
@@ -1113,59 +1323,47 @@
                 lucide.createIcons();
             }
         }
-        
-        // --- FILE & IMAGE HANDLERS / UTILITIES (Remaining existing functions) ---
-        
-        function handleImageChange(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-            const previewWrapper = document.getElementById('image-preview-wrapper');
-            const previewImg = document.getElementById('image-preview');
-            const reader = new FileReader();
-            reader.onload = (event) => {
-                state.uploadedImageBase64 = event.target.result.split(',')[1];
-                previewImg.src = event.target.result;
-                previewWrapper.classList.remove('hidden');
-            };
-            reader.readAsDataURL(file);
-        }
 
-        function handleRemoveImage() {
-            state.uploadedImageBase64 = null;
-            document.getElementById('image-preview-wrapper').classList.add('hidden');
-            document.getElementById('image-upload').value = null;
-        }
-
-        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-            try {
-                const response = await fetch('/.netlify/functions/generate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
-                });
-                if (!response.ok) {
-                    const errorBody = await response.text();
-                    throw new Error(`API request failed with status ${response.status}: ${errorBody}`);
+        function handleQuizSubmit() {
+            if (!state.currentTest || state.currentTest.length === 0) return;
+            
+            let correctCount = 0;
+            
+            state.currentTest.forEach((question, index) => {
+                const questionBlock = document.getElementById(`question-block-${index}`);
+                let userAnswer;
+                
+                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                    const selectedOption = document.querySelector(`input[name="question_${index}"]:checked`);
+                    userAnswer = selectedOption ? selectedOption.value : null;
+                } else if (question.type === 'ShortAnswer') {
+                    userAnswer = document.querySelector(`input[name="question_${index}"]`).value.trim();
                 }
                 
-                const result = await response.json();
-
-                if (requestType === 'image') {
-                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
-                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-                }
+                const isCorrect = userAnswer && userAnswer.toLowerCase() === question.correct_answer.toLowerCase();
                 
-                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (!text) throw new Error("The AI returned an empty response.");
-                return text;
-            } catch (error) {
-                if (retries > 0) {
-                    console.warn("Request failed, retrying...", error);
-                    await new Promise(resolve => setTimeout(resolve, 500));
-                    return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                if (isCorrect) {
+                    correctCount++;
+                    questionBlock.classList.add('correct');
+                    questionBlock.classList.remove('incorrect');
+                } else {
+                    questionBlock.classList.add('incorrect');
+                    questionBlock.classList.remove('correct');
                 }
-                throw error;
+            });
+            
+            const resultsDiv = document.getElementById('quiz-results');
+            if (resultsDiv) {
+                const percentage = Math.round((correctCount / state.currentTest.length) * 100);
+                resultsDiv.innerHTML = `
+                    <div class="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-r-lg">
+                        <p class="font-semibold text-indigo-900">Your Score: ${correctCount}/${state.currentTest.length} (${percentage}%)</p>
+                    </div>
+                `;
             }
+            
+            lucide.createIcons();
+            document.getElementById('quiz-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
 
         async function loadMyActivity() {
@@ -1221,6 +1419,7 @@
                 }).join('');
 
                 lucide.createIcons();
+                attachToolEventListeners();
 
             } catch (error) {
                 console.error("Error loading activity:", error);
@@ -1228,12 +1427,60 @@
             }
         }
 
-        // --- DOMContentLoaded Wrapper ---
-        document.addEventListener("DOMContentLoaded", () => {
-    
-            // This is the starting point of the application after DOM is ready
-            handleAuth();
+        function displaySavedWork(work) {
+            console.log('Displaying saved work:', work);
+            // TODO: Implement full saved work viewer based on UI requirements
+        }
 
+        // --- EVENT DELEGATION FOR NAVIGATION ---
+        document.addEventListener('click', (e) => {
+            const navLink = e.target.closest('[data-nav-link]');
+            if (navLink) {
+                const tab = navLink.dataset.navLink;
+                state.activeTab = tab;
+                renderToolContent();
+                
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && window.innerWidth < 768) {
+                    sidebar.classList.add('hidden');
+                }
+            }
+            
+            const profileBtn = e.target.closest('.profile-select-btn');
+            if (profileBtn) {
+                const profileId = profileBtn.dataset.profileId;
+                selectProfile(profileId);
+            }
+            
+            if (e.target.closest('#show-add-profile-btn')) {
+                showAddProfileForm();
+            }
+            
+            if (e.target.id === 'close-paywall-modal-btn') {
+                document.getElementById('paywall-modal').classList.add('hidden');
+                document.getElementById('paywall-modal').classList.remove('flex');
+            }
+            
+            if (e.target.closest('#menu-toggle-btn')) {
+                document.getElementById('sidebar').classList.remove('hidden');
+            }
+            
+            if (e.target.closest('#menu-close-btn')) {
+                document.getElementById('sidebar').classList.add('hidden');
+            }
+            
+            if (e.target.id === 'logout-btn') {
+                supabaseClient.auth.signOut();
+            }
+            
+            if (e.target.id === 'profile-picker-btn') {
+                checkAccountStatus(state.session.user);
+            }
+        });
+
+        // --- START THE APP ---
+        document.addEventListener("DOMContentLoaded", () => {
+            handleAuth();
         });
     </script>
     
