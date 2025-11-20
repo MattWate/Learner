@@ -20,14 +20,12 @@ exports.handler = async (event) => {
     try {
         // 2. Get environment variables
         const {
-        //    PAYSTACK_SECRET_KEY,        
+            PAYSTACK_SECRET_KEY,        
             PAYSTACK_PLAN_SINGLE_CODE,
             PAYSTACK_PLAN_FAMILY_CODE,
             PAYSTACK_PLAN_ULTRA_CODE,
             URL                         
         } = process.env;
-
-        const PAYSTACK_SECRET_KEY = "sk_live_65afcf927749f5bd957f01c6a4fe828d8f78e854"
 
         if (!PAYSTACK_SECRET_KEY) {
             console.error('CRITICAL: PAYSTACK_SECRET_KEY is missing.');
