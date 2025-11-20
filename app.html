@@ -644,7 +644,9 @@
             
             document.querySelectorAll('.upgrade-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    const plan = e.target.dataset.plan;
+                    // FIX: Use currentTarget to reliably get the button element,
+                    // even if the user clicks on the text or icon inside the button.
+                    const plan = e.currentTarget.dataset.plan;
                     handleUpgrade(plan);
                 });
             });
