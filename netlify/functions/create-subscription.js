@@ -1,14 +1,12 @@
 /*
- * NETLIFY FUNCTION: create-subscription.js (DEBUG & ROBUST VERSION)
- * 1. Receives userId, email, and plan from the frontend.
- * 2. Trims whitespace from plan codes to prevent copy-paste errors.
- * 3. Logs the plan code being used (for debugging).
- * 4. Initializes Paystack transaction.
+ * NETLIFY FUNCTION: create-subscription.js
+ * Uses official 'paystack-api' SDK to initialize transactions.
  */
+
+const Paystack = require('paystack-api');
 
 exports.handler = async (event) => {
     
-    // 1. Check for POST request
     if (event.httpMethod !== 'POST') {
         return { 
             statusCode: 405, 
@@ -18,7 +16,6 @@ exports.handler = async (event) => {
     }
 
     try {
-        // 2. Get environment variables
         const {
             PAYSTACK_SECRET_KEY,        
             PAYSTACK_PLAN_SINGLE_CODE,
@@ -28,22 +25,21 @@ exports.handler = async (event) => {
         } = process.env;
 
         if (!PAYSTACK_SECRET_KEY) {
-            console.error('CRITICAL: PAYSTACK_SECRET_KEY is missing.');
-            throw new Error('Server configuration error.');
+            throw new Error('Server configuration error: Missing Secret Key.');
         }
 
-        // 3. Parse the request body
+        // Initialize SDK with the Secret Key
+        const paystack = Paystack(PAYSTACK_SECRET_KEY);
+
         const { userId, email, plan } = JSON.parse(event.body);
 
         if (!userId || !email || !plan) {
             return {
                 statusCode: 400,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'Missing required fields: userId, email, or plan.' })
+                body: JSON.stringify({ error: 'Missing required fields.' })
             };
         }
 
-        // 4. Map the plan name to the Paystack Plan Code
         let rawPlanCode;
         let profileLimit;
         
@@ -65,18 +61,16 @@ exports.handler = async (event) => {
         }
 
         if (!rawPlanCode) {
-            throw new Error(`Configuration Missing: No Paystack code found for plan '${plan}' in environment variables.`);
+            throw new Error(`Plan code missing for '${plan}'`);
         }
 
-        // 5. CRITICAL FIX: Trim whitespace from the plan code
         const planCode = rawPlanCode.trim();
+        const callbackUrl = URL ? `${URL}/app.html` : 'https://learnergenie.dubyahinnovation.com/app.html';
 
-        // 6. Initialize Paystack Transaction
-        const callbackUrl = URL 
-            ? `${URL}/app.html` 
-            : 'https://learnergenie.dubyahinnovation.com/app.html';
+        console.log(`[SDK Init] User: ${userId}, Plan: ${plan}, Code: "${planCode}"`);
 
-        const paystackPayload = {
+        // SDK Method: transaction.initialize
+        const result = await paystack.transaction.initialize({
             email: email,
             plan: planCode,
             callback_url: callbackUrl,
@@ -84,49 +78,29 @@ exports.handler = async (event) => {
                 supabase_user_id: userId,
                 profile_limit: profileLimit
             }
-        };
-
-        // LOGGING: Check your Netlify Function logs to see this output
-        console.log(`[Init Subscription] User: ${userId}`);
-        console.log(`[Init Subscription] Plan requested: ${plan}`);
-        console.log(`[Init Subscription] Plan Code sent to Paystack: "${planCode}"`); // Quotes added to see if there are issues
-
-        const response = await fetch('https://api.paystack.co/transaction/initialize', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache'
-            },
-            body: JSON.stringify(paystackPayload)
         });
-        
-        const data = await response.json();
-        
-        if (!response.ok || !data.status) {
-            console.error('[Paystack Error Response]:', JSON.stringify(data, null, 2));
-            
-            // Provide a more helpful error if it's the specific "Invalid Amount" issue
-            if (data.message === 'Invalid Amount Sent') {
-                 throw new Error(`Paystack rejected the Plan Code ("${planCode}"). Please verify it exists in your Paystack Dashboard (Live/Test mode mismatch?).`);
-            }
-            
-            throw new Error(data.message || 'Paystack initialization failed.');
+
+        // The SDK returns the data object directly on success
+        if (!result || !result.status) {
+             console.error('[SDK Error]:', result);
+             throw new Error(result.message || 'Paystack initialization failed.');
         }
 
-        // 7. Return the Authorization URL to the frontend
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ checkoutUrl: data.data.authorization_url }),
+            body: JSON.stringify({ checkoutUrl: result.data.authorization_url }),
         };
 
     } catch (error) {
-        console.error("Create Subscription Error:", error.message);
+        console.error("SDK Error:", error.message || error);
+        // SDK errors sometimes come as objects with a 'message' property
+        const errorMsg = error.message || (error.error && error.error.message) || 'Unknown SDK Error';
+        
         return { 
             statusCode: 500,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ error: error.message || 'Internal Server Error' }) 
+            body: JSON.stringify({ error: errorMsg }) 
         };
     }
 };
