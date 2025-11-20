@@ -5,6 +5,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.0.0",
     "node-fetch": "^2.6.7",
-    "raw-body": "^2.5.1"
+    "raw-body": "^2.5.1",
+    "paystack-api": "^2.0.6"
   }
 }
