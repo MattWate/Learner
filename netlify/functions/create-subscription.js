@@ -1,8 +1,9 @@
 /*
- * NETLIFY FUNCTION: create-subscription.js (SIMPLIFIED VERSION)
- * * 1. Receives userId, email, and plan from the frontend.
- * 2. Initializes a Paystack transaction.
- * 3. Returns the checkout URL to the frontend.
+ * NETLIFY FUNCTION: create-subscription.js (DEBUG & ROBUST VERSION)
+ * 1. Receives userId, email, and plan from the frontend.
+ * 2. Trims whitespace from plan codes to prevent copy-paste errors.
+ * 3. Logs the plan code being used (for debugging).
+ * 4. Initializes Paystack transaction.
  */
 
 exports.handler = async (event) => {
@@ -31,7 +32,7 @@ exports.handler = async (event) => {
             throw new Error('Server configuration error.');
         }
 
-        // 3. Parse the request body (Expecting userId, email, plan)
+        // 3. Parse the request body
         const { userId, email, plan } = JSON.parse(event.body);
 
         if (!userId || !email || !plan) {
@@ -43,35 +44,36 @@ exports.handler = async (event) => {
         }
 
         // 4. Map the plan name to the Paystack Plan Code
-        let planCode;
+        let rawPlanCode;
         let profileLimit;
         
         switch(plan) {
             case 'paid_single':
-                planCode = PAYSTACK_PLAN_SINGLE_CODE; 
+                rawPlanCode = PAYSTACK_PLAN_SINGLE_CODE; 
                 profileLimit = 1;
                 break;
             case 'paid_family':
-                planCode = PAYSTACK_PLAN_FAMILY_CODE;
+                rawPlanCode = PAYSTACK_PLAN_FAMILY_CODE;
                 profileLimit = 2;
                 break;
             case 'paid_ultra':
-                planCode = PAYSTACK_PLAN_ULTRA_CODE;
+                rawPlanCode = PAYSTACK_PLAN_ULTRA_CODE;
                 profileLimit = 4;
                 break;
             default:
                 throw new Error(`Invalid plan selected: ${plan}`);
         }
 
-        if (!planCode) {
-            throw new Error(`Configuration Missing: No Paystack code found for plan '${plan}'`);
+        if (!rawPlanCode) {
+            throw new Error(`Configuration Missing: No Paystack code found for plan '${plan}' in environment variables.`);
         }
 
-        // 5. Initialize Paystack Transaction
-        // We pass the userId in "metadata" so the Webhook knows who to upgrade later.
-        
+        // 5. CRITICAL FIX: Trim whitespace from the plan code
+        const planCode = rawPlanCode.trim();
+
+        // 6. Initialize Paystack Transaction
         const callbackUrl = URL 
-            ? `${URL}/app.html` // Redirect back to the app after payment
+            ? `${URL}/app.html` 
             : 'https://learnergenie.dubyahinnovation.com/app.html';
 
         const paystackPayload = {
@@ -84,7 +86,10 @@ exports.handler = async (event) => {
             }
         };
 
-        console.log(`Initializing Paystack for User: ${userId}, Plan: ${plan}`);
+        // LOGGING: Check your Netlify Function logs to see this output
+        console.log(`[Init Subscription] User: ${userId}`);
+        console.log(`[Init Subscription] Plan requested: ${plan}`);
+        console.log(`[Init Subscription] Plan Code sent to Paystack: "${planCode}"`); // Quotes added to see if there are issues
 
         const response = await fetch('https://api.paystack.co/transaction/initialize', {
             method: 'POST',
@@ -99,11 +104,17 @@ exports.handler = async (event) => {
         const data = await response.json();
         
         if (!response.ok || !data.status) {
-            console.error('Paystack Initialization Failed:', data);
+            console.error('[Paystack Error Response]:', JSON.stringify(data, null, 2));
+            
+            // Provide a more helpful error if it's the specific "Invalid Amount" issue
+            if (data.message === 'Invalid Amount Sent') {
+                 throw new Error(`Paystack rejected the Plan Code ("${planCode}"). Please verify it exists in your Paystack Dashboard (Live/Test mode mismatch?).`);
+            }
+            
             throw new Error(data.message || 'Paystack initialization failed.');
         }
 
-        // 6. Return the Authorization URL to the frontend
+        // 7. Return the Authorization URL to the frontend
         return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
