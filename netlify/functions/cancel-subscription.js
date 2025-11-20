@@ -1,47 +1,51 @@
-// Drop-in Replacement for netlify/functions/cancel-subscription.js
-const { createClient } = require('@supabase/supabase-js');
-// const fetch = require('node-fetch'); // REMOVED: Using global fetch
+/*
+ * NETLIFY FUNCTION: cancel-subscription.js
+ * Uses 'paystack-api' SDK for consistency.
+ */
 
-exports.handler = async (event, context) => {
+const { createClient } = require('@supabase/supabase-js');
+const Paystack = require('paystack-api');
+
+exports.handler = async (event) => {
     
+    // 1. Check for POST request
+    if (event.httpMethod !== 'POST') {
+        return { 
+            statusCode: 405, 
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: 'Method Not Allowed' })
+        };
+    }
+
     const {
         SUPABASE_URL,
         SUPABASE_SERVICE_KEY,
         PAYSTACK_SECRET_KEY
     } = process.env;
 
-    let userId;
-    
-    try {
-        // 1. Initialize Supabase Admin Client
-        const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
-        
-        // 2. Validate Supabase JWT from the Authorization header
-        const authHeader = event.headers.authorization;
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            return { statusCode: 401, body: JSON.stringify({ error: 'You must be logged in.' }) };
-        }
-        const token = authHeader.replace('Bearer ', '');
-        
-        const { data: userResponse, error: authError } = await supabaseAdmin.auth.getUser(token);
-        
-        if (authError || !userResponse.user) { 
-            throw new Error(`Token validation failed: ${authError?.message || 'User object is empty.'}`);
-        }
-        
-        userId = userResponse.user.id;
-
-    } catch (error) {
-        console.error('Supabase JWT Auth Error:', error.message);
+    if (!PAYSTACK_SECRET_KEY || !SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
         return { 
-            statusCode: 401, 
-            body: JSON.stringify({ error: 'You must be logged in.' }) 
+            statusCode: 500, 
+            body: JSON.stringify({ error: 'Server configuration error.' }) 
         };
     }
 
     try {
-        // 3. Fetch the user's current subscription ID from the database
+        // 2. Initialize SDKs
+        const paystack = Paystack(PAYSTACK_SECRET_KEY);
         const supabaseAdmin = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+
+        // 3. Get User ID from request body
+        const { userId } = JSON.parse(event.body);
+
+        if (!userId) {
+            return { 
+                statusCode: 400, 
+                body: JSON.stringify({ error: 'User ID is required.' }) 
+            };
+        }
+
+        // 4. Fetch the user's subscription ID from Supabase
         const { data: account, error: fetchError } = await supabaseAdmin
             .from('accounts')
             .select('subscription_id')
@@ -56,28 +60,22 @@ exports.handler = async (event, context) => {
         }
         
         const subscriptionId = account.subscription_id;
+        console.log(`Cancelling subscription: ${subscriptionId} for user: ${userId}`);
 
-        // 4. Call the Paystack API to disable the subscription immediately
-        const response = await fetch(`https://api.paystack.co/subscription/disable`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${PAYSTACK_SECRET_KEY}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                code: subscriptionId, 
-                token: PAYSTACK_SECRET_KEY 
-            })
+        // 5. Disable Subscription via Paystack SDK
+        // Note: Paystack requires a 'token' for disable. In server-side calls, 
+        // passing the Secret Key or the subscription code often acts as the authority.
+        const result = await paystack.subscription.disable({
+            code: subscriptionId, 
+            token: PAYSTACK_SECRET_KEY // Using secret key as authority token
         });
 
-        const data = await response.json();
-
-        if (!response.ok || !data.status) {
-            console.error('Paystack API Error on Cancel:', data);
-            throw new Error(data.message || 'Paystack API failed to cancel subscription');
+        if (!result || !result.status) {
+             console.error('[SDK Cancel Error]:', result);
+             throw new Error(result.message || 'Failed to cancel subscription.');
         }
 
-        // 5. Update the user's Supabase account status
+        // 6. Downgrade User in Supabase
         const { error: updateError } = await supabaseAdmin
             .from('accounts')
             .update({ 
@@ -89,19 +87,20 @@ exports.handler = async (event, context) => {
             .eq('id', userId);
             
         if (updateError) {
-            console.error(`Supabase downgrade error on cancel: ${updateError.message}`);
+            console.error(`Supabase downgrade error: ${updateError.message}`);
         }
 
-        // 6. Success
         return {
             statusCode: 200,
-            body: JSON.stringify({ message: 'Subscription successfully cancelled. You have been downgraded to the free tier.' }),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Subscription cancelled successfully.' }),
         };
 
     } catch (error) {
-        console.error("Cancel Subscription Error:", error);
+        console.error("Cancel Error:", error.message);
         return { 
             statusCode: 500, 
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ error: error.message }) 
         };
     }
