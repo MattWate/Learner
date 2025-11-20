@@ -906,65 +906,70 @@
             showMainApp();
         }
 
-// FIXED VERSION: Replace the handleUpgrade function in app.html (around line 727)
+        async function handleUpgrade(plan) {
+            const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
+            if (!button) return;
+            
+            const originalText = button.innerHTML;
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
-async function handleUpgrade(plan) {
-    const button = document.querySelector(`.upgrade-btn[data-plan="${plan}"]`);
-    const originalText = button.innerHTML;
-    button.disabled = true;
-    button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
+            try {
+                // 1. Get the current user session to extract ID and Email
+                const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+                
+                if (sessionError || !session || !session.user) {
+                    throw new Error('You must be logged in to upgrade. Please refresh and try again.');
+                }
+                
+                const user = session.user;
+                
+                // 2. Call the simplified API endpoint
+                const response = await fetch('/api/create-subscription', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                        // No Authorization header needed for this simplified flow
+                    },
+                    body: JSON.stringify({ 
+                        plan,
+                        userId: user.id,
+                        email: user.email
+                    })
+                });
+                
+                // 3. Handle Response
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    console.error("Non-JSON Response:", text.substring(0, 200));
+                    throw new Error(`Server connection error. Please check your internet or try again later.`);
+                }
 
-    try {
-        // CRITICAL FIX: Get a fresh session token instead of relying on state
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-        
-        if (sessionError || !session) {
-            throw new Error('You must be logged in to upgrade. Please refresh and try again.');
+                const data = await response.json();
+
+                if (!response.ok) {
+                    console.error("Backend Error Response:", data);
+                    throw new Error(data.error || 'Server returned an unknown error.');
+                }
+
+                if (!data.checkoutUrl) {
+                    throw new Error('Paystack initialization failed. No checkout URL received.');
+                }
+
+                // 4. Redirect to Paystack
+                window.location.href = data.checkoutUrl;
+
+            } catch (error) {
+                console.error('Upgrade Error:', error);
+                alert(`Subscription failed to start: ${error.message}`);
+            } finally {
+                if (button) {
+                    button.disabled = false;
+                    button.innerHTML = originalText;
+                }
+            }
         }
-        
-        const token = session.access_token;
-        
-        console.log('Token being sent:', token ? 'Token exists' : 'No token'); // Debug log
-        
-        const response = await fetch('/api/create-subscription', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}` 
-            },
-            body: JSON.stringify({ plan })
-        });
-        
-        // Check if the response is JSON before parsing
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            const text = await response.text();
-            console.error("Non-JSON Response (Likely HTML Error Page):", text.substring(0, 200));
-            throw new Error(`Routing Error: The site returned an HTML page instead of API data. This usually means the _redirects file isn't working.`);
-        }
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("Backend Error Response:", data);
-            throw new Error(data.error || 'Server returned an unknown error. Check console for details.');
-        }
-
-        if (!data.checkoutUrl) {
-            throw new Error('Paystack initialization failed. No checkout URL received.');
-        }
-
-        // Redirect to Paystack checkout
-        window.location.href = data.checkoutUrl;
-
-    } catch (error) {
-        console.error('Upgrade Error:', error);
-        alert(`Subscription failed to start: ${error.message}`);
-    } finally {
-        button.disabled = false;
-        button.innerHTML = originalText;
-    }
-}
 
         async function checkAndIncrementUsage() {
             if (state.accountData?.active_tier !== 'free') {
@@ -1044,60 +1049,57 @@ async function handleUpgrade(plan) {
             document.getElementById('image-upload').value = null;
         }
 
-async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
-    try {
-        // *** CRITICAL FIX: Get a fresh session token from Supabase for every API call ***
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-        
-        if (sessionError || !session) {
-            throw new Error('Your session has expired. Please log in again.');
-        }
-        
-        const token = session.access_token;
-        
-        // FIX: Use the new /api/generate path for all AI calls
-        const response = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                // PASS TOKEN FOR AUTHENTICATION
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({ prompt, isJson, requestType, imageData })
-        });
-        
-        // Check for non-JSON response (i.e., routing/HTML error)
-        const contentType = response.headers.get("content-type");
-        if (!contentType || !contentType.includes("application/json")) {
-            const text = await response.text();
-            console.error("Non-JSON Response (Likely HTML Error Page):", text.substring(0, 100) + '...');
-            throw new Error(`Routing Error: The site returned an HTML page. Verify the '_redirects' file is deployed.`);
+        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+            try {
+                // 1. Local Check: Ensure user is logged in before allowing the request
+                const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+                
+                if (sessionError || !session) {
+                    throw new Error('Your session has expired. Please log in again.');
+                }
+                
+                // 2. Call the API (No Auth Header Needed)
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
+                });
+                
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    const text = await response.text();
+                    console.error("Non-JSON Response:", text.substring(0, 100) + '...');
+                    throw new Error(`Server Error: The AI service is currently unavailable.`);
+                }
+
+                if (!response.ok) {
+                    const errorBody = await response.json();
+                    throw new Error(errorBody.error || errorBody.message || `API request failed with status ${response.status}`);
+                }
+                
+                const result = await response.json();
+
+                if (requestType === 'image') {
+                    if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
+                    return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                }
+                
+                const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (!text) throw new Error("The AI returned an empty response.");
+                return text;
+
+            } catch (error) {
+                if (retries > 0 && !String(error).includes('session') && !String(error).includes('Server Error')) {
+                    console.warn("Request failed, retrying...", error);
+                    await new Promise(resolve => setTimeout(resolve, 1000)); 
+                    return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                }
+                throw error;
+            }
         }
 
-        if (!response.ok) {
-            const errorBody = await response.json();
-            throw new Error(`API request failed with status ${response.status}: ${errorBody.error || errorBody.message || 'Unknown error'}`);
-        }
-        
-        const result = await response.json();
-
-        if (requestType === 'image') {
-            if (!result.predictions?.[0]?.bytesBase64Encoded) throw new Error("Image generation failed.");
-            return `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
-        }
-        
-        const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (!text) throw new Error("The AI returned an empty response.");
-        return text;
-    } catch (error) {
-        if (retries > 0 && !String(error).includes('Routing Error')) {
-            console.warn("Request failed, retrying...", error);
-            await new Promise(resolve => setTimeout(resolve, 500));
-            return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
-        }
-        throw error;
-    }
-}
         async function handleGenerateHomeworkHelp() {
             if (!await checkAndIncrementUsage()) return;
             const questionText = document.getElementById('hh-question').value.trim();
@@ -1564,10 +1566,3 @@ async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text',
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
