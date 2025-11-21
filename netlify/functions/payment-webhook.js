@@ -10,9 +10,10 @@ function mapPaystackPlanToTier(planCode, env) {
     // Remove whitespace just in case
     const cleanCode = planCode ? planCode.trim() : '';
     
-    if (cleanCode === env.PAYSTACK_PLAN_SINGLE_CODE.trim()) return { tier: 'paid_single', profile_limit: 1 };
-    if (cleanCode === env.PAYSTACK_PLAN_FAMILY_CODE.trim()) return { tier: 'paid_family', profile_limit: 2 };
-    if (cleanCode === env.PAYSTACK_PLAN_ULTRA_CODE.trim()) return { tier: 'paid_ultra', profile_limit: 4 };
+    // Check against environment variables (handling potential undefined values)
+    if (env.PAYSTACK_PLAN_SINGLE_CODE && cleanCode === env.PAYSTACK_PLAN_SINGLE_CODE.trim()) return { tier: 'paid_single', profile_limit: 1 };
+    if (env.PAYSTACK_PLAN_FAMILY_CODE && cleanCode === env.PAYSTACK_PLAN_FAMILY_CODE.trim()) return { tier: 'paid_family', profile_limit: 2 };
+    if (env.PAYSTACK_PLAN_ULTRA_CODE && cleanCode === env.PAYSTACK_PLAN_ULTRA_CODE.trim()) return { tier: 'paid_ultra', profile_limit: 4 };
     
     return null;
 }
@@ -43,9 +44,10 @@ exports.handler = async (event) => {
         // IMPORTANT: Must use SERVICE_KEY to bypass RLS and update user accounts
         if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
             console.error('CRITICAL: Missing Supabase credentials in webhook.');
-            throw new Error('Server configuration error.');
+            throw new Error('Server configuration error: Missing Database Credentials.');
         }
         
+        // FIXED: Add options to prevent local storage errors in serverless functions
         const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
             auth: {
                 autoRefreshToken: false,
@@ -57,7 +59,15 @@ exports.handler = async (event) => {
         if (eventType === 'charge.success' || eventType === 'subscription.create') {
             
             // Extract Metadata - Paystack can nest this in different places
-            const metadata = eventData.metadata || {};
+            // We check eventData.metadata directly, and also custom_fields if needed
+            let metadata = eventData.metadata || {};
+            
+            // Sometimes metadata comes as a custom_fields array in older integrations
+            if (!metadata.supabase_user_id && eventData.custom_fields) {
+                 const field = eventData.custom_fields.find(f => f.variable_name === 'supabase_user_id');
+                 if (field) metadata.supabase_user_id = field.value;
+            }
+
             const userId = metadata.supabase_user_id;
             let profileLimit = metadata.profile_limit;
             
@@ -68,7 +78,8 @@ exports.handler = async (event) => {
             console.log(`Processing ${eventType} for User: ${userId}, Plan: ${planCode}`);
 
             if (!userId) {
-                console.error('Missing User ID in webhook metadata.');
+                console.error(`Missing User ID in webhook metadata for event ${eventType}. Payload snippet:`, JSON.stringify(metadata));
+                // We return 200 to stop Paystack from retrying this "bad" event forever
                 return { statusCode: 200, body: 'Ignored: No User ID' };
             }
 
@@ -85,7 +96,6 @@ exports.handler = async (event) => {
 
             if (!tierInfo) {
                 console.error(`Unknown Plan Code: ${planCode} and no valid metadata fallback.`);
-                // Return 200 to stop retries, but log error
                 return { statusCode: 200, body: 'Ignored: Unknown Plan' };
             }
 
@@ -102,7 +112,7 @@ exports.handler = async (event) => {
 
             if (error) {
                 console.error(`Supabase Update Error: ${error.message}`);
-                throw error;
+                throw error; // Rethrow to trigger 500 and retry
             }
 
             console.log(`SUCCESS: User ${userId} upgraded to ${tierInfo.tier}`);
@@ -115,11 +125,15 @@ exports.handler = async (event) => {
 
              if (userId) {
                  console.log(`Downgrading user ${userId} due to cancellation.`);
-                 await supabase.from('accounts').update({ 
+                 const { error } = await supabase.from('accounts').update({ 
                     active_tier: 'free',
                     subscription_status: 'cancelled',
                     profile_limit: 1
                 }).eq('id', userId);
+                
+                if (error) console.error("Supabase Downgrade Error:", error.message);
+             } else {
+                 console.warn("Cancellation event received without User ID.");
              }
         }
 
