@@ -1,6 +1,7 @@
 /*
  * NETLIFY FUNCTION: create-subscription.js
- * Uses official 'paystack-api' SDK to initialize transactions.
+ * Uses official 'paystack-api' SDK.
+ * FIX: Includes 'amount' field to satisfy API validation, even though Plan overrides it.
  */
 
 const Paystack = require('paystack-api');
@@ -73,6 +74,7 @@ exports.handler = async (event) => {
         const result = await paystack.transaction.initialize({
             email: email,
             plan: planCode,
+            amount: 100, // <--- DUMMY AMOUNT (100 cents = R1.00). Required by API but overridden by Plan.
             callback_url: callbackUrl,
             metadata: {
                 supabase_user_id: userId,
@@ -80,7 +82,6 @@ exports.handler = async (event) => {
             }
         });
 
-        // The SDK returns the data object directly on success
         if (!result || !result.status) {
              console.error('[SDK Error]:', result);
              throw new Error(result.message || 'Paystack initialization failed.');
@@ -94,7 +95,6 @@ exports.handler = async (event) => {
 
     } catch (error) {
         console.error("SDK Error:", error.message || error);
-        // SDK errors sometimes come as objects with a 'message' property
         const errorMsg = error.message || (error.error && error.error.message) || 'Unknown SDK Error';
         
         return { 
