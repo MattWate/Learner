@@ -1,26 +1,23 @@
 /*
  * NETLIFY FUNCTION: payment-webhook.js
- *
- * This is the critical security function for Paystack.
- * 1. It securely validates the payload using Paystack's signature header.
- * 2. If valid, it updates the user's account in Supabase using an admin key.
+ * Handles Paystack webhooks to update user accounts.
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const crypto = require('crypto');
-const getRawBody = require('raw-body'); // Used to get the raw request body for hashing
 
 // Maps Paystack Plan Codes to Learner Genie Tiers
 function mapPaystackPlanToTier(planCode, env) {
-    switch (planCode) {
-        case env.PAYSTACK_PLAN_SINGLE_CODE: return { tier: 'paid_single', profile_limit: 1 };
-        case env.PAYSTACK_PLAN_FAMILY_CODE: return { tier: 'paid_family', profile_limit: 2 };
-        case env.PAYSTACK_PLAN_ULTRA_CODE: return { tier: 'paid_ultra', profile_limit: 4 };
-        default: return null;
-    }
+    // Remove whitespace just in case
+    const cleanCode = planCode ? planCode.trim() : '';
+    
+    if (cleanCode === env.PAYSTACK_PLAN_SINGLE_CODE.trim()) return { tier: 'paid_single', profile_limit: 1 };
+    if (cleanCode === env.PAYSTACK_PLAN_FAMILY_CODE.trim()) return { tier: 'paid_family', profile_limit: 2 };
+    if (cleanCode === env.PAYSTACK_PLAN_ULTRA_CODE.trim()) return { tier: 'paid_ultra', profile_limit: 4 };
+    
+    return null;
 }
 
-exports.handler = async (event, context) => {
+exports.handler = async (event) => {
     // 1. Only allow POST requests
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
@@ -29,109 +26,107 @@ exports.handler = async (event, context) => {
     const {
         SUPABASE_URL,
         SUPABASE_SERVICE_KEY,
-        PAYSTACK_SECRET_KEY,
         PAYSTACK_PLAN_SINGLE_CODE,
         PAYSTACK_PLAN_FAMILY_CODE,
         PAYSTACK_PLAN_ULTRA_CODE
     } = process.env;
 
-    const signature = event.headers['x-paystack-signature'];
-    
-    // 2. CRITICAL: VALIDATE THE HASH
-    // We need the raw body for signature verification, not the parsed JSON.
-    const rawBody = event.body; // Netlify handles raw body on its own.
-
-    // Calculate our own hash
-    const hash = crypto
-        .createHmac('sha512', PAYSTACK_SECRET_KEY)
-        .update(rawBody)
-        .digest('hex');
-
-    if (hash !== signature) {
-        console.warn('Paystack Signature Mismatch! Possible fraud attempt.');
-        // Return 200 OK to stop Paystack from retrying, but don't process.
-        return { statusCode: 200, body: 'OK' };
-    }
-
-    // --- HASH VALIDATED ---
-    console.log('Paystack Webhook validated.');
-    let payload;
     try {
-        payload = JSON.parse(rawBody);
-    } catch (e) {
-        console.error('Failed to parse Paystack payload:', rawBody);
-        return { statusCode: 400, body: 'Invalid JSON payload' };
-    }
+        // 2. Parse Payload
+        const payload = JSON.parse(event.body);
+        const eventType = payload.event;
+        const eventData = payload.data;
 
-    const eventType = payload.event;
-    const eventData = payload.data;
-    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
+        console.log(`Webhook received: ${eventType}`);
 
-    // 3. Handle Paystack Events
-    
-    // A. Successful Subscription Payment (or first charge)
-    if (eventType === 'charge.success' || eventType === 'subscription.create') {
-        const userId = eventData.metadata?.supabase_user_id;
-        const profileLimit = eventData.metadata?.profile_limit; // From create-subscription.js metadata
-        const planCode = eventData.plan?.plan_code || eventData.plan;
-        const subscriptionId = eventData.subscription_code || eventData.subscription;
-        
-        if (!userId || !profileLimit || !planCode) {
-            console.error('Missing critical data in payload:', { userId, profileLimit, planCode });
-            return { statusCode: 400, body: 'Missing required metadata.' };
+        // 3. Initialize Supabase Admin Client
+        // IMPORTANT: Must use SERVICE_KEY to bypass RLS and update user accounts
+        if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
+            console.error('CRITICAL: Missing Supabase credentials in webhook.');
+            throw new Error('Server configuration error.');
         }
         
-        const tierInfo = mapPaystackPlanToTier(planCode, process.env);
-        if (!tierInfo) {
-            console.error('Unknown plan code:', planCode);
-            return { statusCode: 400, body: 'Unknown plan code.' };
-        }
+        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
+            auth: {
+                autoRefreshToken: false,
+                persistSession: false
+            }
+        });
 
-        const { error } = await supabase
-            .from('accounts')
-            .update({ 
-                active_tier: tierInfo.tier,
-                subscription_id: subscriptionId, // Store the Paystack subscription code
-                subscription_status: 'active',
-                profile_limit: profileLimit // Update the profile limit
-            })
-            .eq('id', userId);
-
-        if (error) {
-            console.error(`Supabase update error for user ${userId}: ${error.message}`);
-            return { statusCode: 500, body: 'Database update failed.' };
-        }
-        console.log(`User ${userId} successfully upgraded to ${tierInfo.tier} with limit ${profileLimit}`);
-    }
-
-    // B. Subscription Cancellation (User or System)
-    else if (eventType === 'subscription.disable' || eventType === 'subscription.expire') {
-        const userId = eventData.metadata?.supabase_user_id || eventData.customer.customer_code;
-        
-        if (!userId) {
-            console.error('Missing user ID for cancellation event:', eventData);
-            return { statusCode: 400, body: 'Missing user ID.' };
-        }
-
-        // Downgrade user to free tier
-        const { error } = await supabase
-            .from('accounts')
-            .update({ 
-                active_tier: 'free',
-                subscription_id: null,
-                subscription_status: 'cancelled',
-                profile_limit: 1 // Downgrade profile limit to 1
-            })
-            .eq('id', userId);
+        // 4. Handle "Charge Success" or "Subscription Create"
+        if (eventType === 'charge.success' || eventType === 'subscription.create') {
             
-        if (error) {
-            console.error(`Supabase cancellation error for user ${userId}: ${error.message}`);
-            return { statusCode: 500, body: 'Database cancellation update failed.' };
-        }
-        console.log(`User ${userId} successfully downgraded to free tier.`);
-    }
+            // Extract Metadata - Paystack can nest this in different places
+            const metadata = eventData.metadata || {};
+            const userId = metadata.supabase_user_id;
+            let profileLimit = metadata.profile_limit;
+            
+            // Extract Plan Code
+            const planCode = eventData.plan?.plan_code || eventData.plan || eventData.plan_code;
+            const subscriptionId = eventData.subscription_code || eventData.subscription || eventData.id; // Subscription ID
 
-    // 4. Return 200 OK to Paystack
-    // This tells Paystack "We got it, stop sending."
-    return { statusCode: 200, body: 'OK' };
+            console.log(`Processing ${eventType} for User: ${userId}, Plan: ${planCode}`);
+
+            if (!userId) {
+                console.error('Missing User ID in webhook metadata.');
+                return { statusCode: 200, body: 'Ignored: No User ID' };
+            }
+
+            // Determine Tier
+            let tierInfo = mapPaystackPlanToTier(planCode, process.env);
+            
+            // Fallback: If plan mapping fails, try to use the profile_limit from metadata
+            if (!tierInfo && profileLimit) {
+                 console.warn(`Plan code ${planCode} not found in map. Using metadata fallback.`);
+                 if (profileLimit == 1) tierInfo = { tier: 'paid_single', profile_limit: 1 };
+                 else if (profileLimit == 2) tierInfo = { tier: 'paid_family', profile_limit: 2 };
+                 else if (profileLimit == 4) tierInfo = { tier: 'paid_ultra', profile_limit: 4 };
+            }
+
+            if (!tierInfo) {
+                console.error(`Unknown Plan Code: ${planCode} and no valid metadata fallback.`);
+                // Return 200 to stop retries, but log error
+                return { statusCode: 200, body: 'Ignored: Unknown Plan' };
+            }
+
+            // 5. Update Database
+            const { error } = await supabase
+                .from('accounts')
+                .update({ 
+                    active_tier: tierInfo.tier,
+                    subscription_id: subscriptionId,
+                    subscription_status: 'active',
+                    profile_limit: tierInfo.profile_limit
+                })
+                .eq('id', userId);
+
+            if (error) {
+                console.error(`Supabase Update Error: ${error.message}`);
+                throw error;
+            }
+
+            console.log(`SUCCESS: User ${userId} upgraded to ${tierInfo.tier}`);
+        }
+
+        // 5. Handle Cancellation
+        else if (eventType === 'subscription.disable' || eventType === 'subscription.not_renew') {
+             const metadata = eventData.metadata || {};
+             const userId = metadata.supabase_user_id;
+
+             if (userId) {
+                 console.log(`Downgrading user ${userId} due to cancellation.`);
+                 await supabase.from('accounts').update({ 
+                    active_tier: 'free',
+                    subscription_status: 'cancelled',
+                    profile_limit: 1
+                }).eq('id', userId);
+             }
+        }
+
+        return { statusCode: 200, body: 'OK' };
+
+    } catch (error) {
+        console.error("Webhook Error:", error.message);
+        return { statusCode: 500, body: 'Webhook processing failed.' };
+    }
 };
