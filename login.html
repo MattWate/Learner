@@ -147,13 +147,17 @@
                 error = signUpError;
                 
                 if (!error && data.user) {
-                     // Check if user needs confirmation
-                    if (data.user.identities && data.user.identities.length === 0) {
-                        // This can happen if "Confirm email" is OFF. Log them in.
+                    // *** CRITICAL FIX: Check for immediate session ***
+                    if (data.session) {
+                        // If a session exists, the user is logged in (Optimistic Login). Redirect immediately.
+                        window.location.href = '/app.html';
+                        return;
+                    } else if (data.user.identities && data.user.identities.length === 0) {
+                        // User exists but identities array is empty (rare edge case for existing users)
                          window.location.href = '/app.html';
                          return;
                     } else {
-                        // Success! Show confirmation message
+                        // Session is null, meaning "Confirm email" is likely ON. Show message.
                         showMessage('Success! Please check your email for a confirmation link.', 'success');
                         emailInput.value = '';
                         passwordInput.value = '';
@@ -203,4 +207,3 @@
     </script>
 </body>
 </html>
-
