@@ -46,7 +46,6 @@
         // --- CONFIGURATION ---
         const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
-        const FREE_USAGE_LIMIT = 5;
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -65,12 +64,12 @@
                     <p class="mt-4 text-gray-600">What would you like to learn today?</p>
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
-                    <div data-nav-link="mathsMastery" class="bg-white p-8 rounded-xl shadow border-t-4 border-blue-500 cursor-pointer">
+                    <div data-nav-link="mathsMastery" class="group bg-white p-8 rounded-xl shadow hover:shadow-lg transition-all border-t-4 border-blue-500 cursor-pointer">
                         <i data-lucide="calculator" class="h-12 w-12 text-blue-600 mb-4 mx-auto"></i>
                         <h2 class="text-2xl font-bold">Maths Mastery</h2>
                         <p class="text-gray-600">Step-by-step math help.</p>
                     </div>
-                    <div data-nav-link="learningHub" class="bg-white p-8 rounded-xl shadow border-t-4 border-indigo-500 cursor-pointer">
+                    <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow hover:shadow-lg transition-all border-t-4 border-indigo-500 cursor-pointer">
                         <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
                         <h2 class="text-2xl font-bold">Learning Hub</h2>
                         <p class="text-gray-600">Revision notes & tests.</p>
@@ -110,7 +109,6 @@
                 const prompt = `Solve this math problem. Show your work step-by-step. Return JSON: {"steps": ["Step 1", "Step 2"], "final_answer": "Result"}`;
                 const res = JSON.parse(await fetchAI(prompt, true, state.uploadedImageBase64));
                 
-                // Save Activity
                 await supabaseClient.from('saved_work').insert({
                     profile_id: state.activeProfile.id,
                     work_type: 'mathsMastery',
@@ -126,24 +124,6 @@
             btn.disabled = false; btn.innerHTML = "Solve Problem";
         }
 
-        async function handleQuizSubmit() {
-            const btn = document.getElementById('submit-quiz-btn');
-            btn.disabled = true; btn.innerHTML = "AI is marking...";
-            
-            for (let i = 0; i < state.currentTest.length; i++) {
-                const q = state.currentTest[i];
-                const block = document.getElementById(`question-block-${i}`);
-                const userAnswer = q.type === 'ShortAnswer' ? document.querySelector(`input[name="question_${i}"]`).value : document.querySelector(`input[name="question_${i}"]:checked`)?.value;
-
-                const checkPrompt = `Is this answer correct? Question: "${q.question}", Correct Answer: "${q.correct_answer}", User Answer: "${userAnswer}". Return JSON: {"isCorrect": true/false, "explanation": "feedback"}`;
-                const res = JSON.parse(await fetchAI(checkPrompt, true));
-                
-                block.className = `quiz-question-wrapper border-l-4 p-4 rounded ${res.isCorrect ? 'correct' : 'incorrect'}`;
-                block.querySelector('.quiz-feedback.incorrect').innerHTML = res.explanation;
-            }
-            btn.disabled = false; btn.innerHTML = "Check My Answers";
-        }
-
         async function fetchAI(prompt, isJson, imageData = null) {
             const response = await fetch('/api/generate', {
                 method: 'POST',
@@ -157,6 +137,7 @@
         async function loadActivity() {
             const { data } = await supabaseClient.from('saved_work').select('*').eq('profile_id', state.activeProfile.id).order('created_at', { ascending: false });
             const list = document.getElementById('activity-list');
+            if (!list) return;
             if (!data || data.length === 0) { list.innerHTML = "No activity yet."; return; }
             list.innerHTML = data.map(item => `
                 <div class="bg-white p-4 rounded shadow flex justify-between">
@@ -170,9 +151,9 @@
                 <div class="flex h-screen">
                     <aside class="w-64 bg-white border-r p-4 flex flex-col">
                         <nav class="flex-1 space-y-2">
-                            <button onclick="state.activeTab='home';renderToolContent()" class="w-full text-left p-2 hover:bg-gray-100 rounded">Home</button>
-                            <button onclick="state.activeTab='mathsMastery';renderToolContent()" class="w-full text-left p-2 hover:bg-gray-100 rounded">Maths Mastery</button>
-                            <button onclick="state.activeTab='myActivity';renderToolContent()" class="w-full text-left p-2 hover:bg-gray-100 rounded">My Activity</button>
+                            <button data-nav-link="home" class="w-full text-left p-2 hover:bg-gray-100 rounded">Home</button>
+                            <button data-nav-link="mathsMastery" class="w-full text-left p-2 hover:bg-gray-100 rounded">Maths Mastery</button>
+                            <button data-nav-link="myActivity" class="w-full text-left p-2 hover:bg-gray-100 rounded">My Activity</button>
                         </nav>
                     </aside>
                     <main id="main-content" class="flex-1 p-8 overflow-y-auto"></main>
@@ -182,19 +163,29 @@
 
         function renderToolContent() {
             const main = document.getElementById('main-content');
+            if (!main) return;
             if (state.activeTab === 'home') main.innerHTML = homePageTemplate();
             else if (state.activeTab === 'mathsMastery') main.innerHTML = mathsMasteryTemplate;
             else if (state.activeTab === 'myActivity') { main.innerHTML = myActivityTemplate(); loadActivity(); }
             lucide.createIcons();
         }
 
+        // --- GLOBAL CLICK LISTENER ---
+        document.addEventListener('click', (e) => {
+            const navLink = e.target.closest('[data-nav-link]');
+            if (navLink) {
+                state.activeTab = navLink.dataset.navLink;
+                renderToolContent();
+            }
+        });
+
         // --- INIT ---
         supabaseClient.auth.getSession().then(({data}) => {
             if (!data.session) window.location.href = '/login.html';
             else {
                 state.session = data.session;
-                supabaseClient.from('accounts').select('*').eq('id', data.session.user.id).single().then(({data}) => {
-                    state.accountData = data;
+                supabaseClient.from('accounts').select('*').eq('id', data.session.user.id).single().then(({data: acc}) => {
+                    state.accountData = acc;
                     supabaseClient.from('profiles').select('*').eq('account_id', state.session.user.id).then(({data: prfs}) => {
                         if (prfs && prfs.length > 0) { state.activeProfile = prfs[0]; showMainApp(); }
                         else { alert("Please create a profile first."); window.location.href='/login.html'; }
