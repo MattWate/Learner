@@ -638,7 +638,7 @@
             const quizForm = document.getElementById('quiz-form');
             if (quizForm) {
                 quizForm.addEventListener('submit', (e) => {
-                    e.preventDefault(); // TARGETED FIX: PREVENT PAGE RELOAD
+                    e.preventDefault(); // FIXED: PREVENT RELOAD
                     handleQuizSubmit();
                 });
             }
@@ -1422,8 +1422,13 @@
                             isCorrect = evaluation.isCorrect;
                             
                             if (feedbackExpEl) {
-                                feedbackExpEl.innerText = evaluation.explanation;
-                                feedbackExpEl.classList.remove('hidden');
+                                // FIXED: Only update and show if the key exists
+                                feedbackExpEl.innerText = evaluation.explanation || evaluation.feedback || "";
+                                if (evaluation.explanation || evaluation.feedback) {
+                                    feedbackExpEl.classList.remove('hidden');
+                                } else {
+                                    feedbackExpEl.classList.add('hidden');
+                                }
                             }
                         } catch (e) {
                             console.error("Semantic marking failed, falling back to basic match", e);
@@ -1486,7 +1491,7 @@
                 };
 
                 outputEl.innerHTML = data.map((item, index) => {
-                    const icon = toolIcons[item.work_type] || 'help-circle';
+                    const icon = toolIcons[item.copy_type] || 'help-circle';
                     const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
                     const date = new Date(item.created_at).toLocaleDateString(undefined, {
                         day: 'numeric',
