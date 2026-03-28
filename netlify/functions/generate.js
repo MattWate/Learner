@@ -12,8 +12,6 @@ exports.handler = async function (event) {
     try {
         const { requestType, prompt, isJson, imageData } = JSON.parse(event.body);
 
-        // --- Model Selection ---
-        // We use Gemini 2.0 Flash for its reasoning capabilities and speed
         const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`;
         
         const parts = [{ text: prompt }];
@@ -30,11 +28,10 @@ exports.handler = async function (event) {
             contents: [{ role: 'user', parts: parts }],
             generationConfig: {
                 ...(isJson && { responseMimeType: 'application/json' }),
-                temperature: 0.2, // Lower temperature for more consistent "Checking" results
+                temperature: 0.1, // Reduced temperature for more reliable grading
             },
-            // System instructions added to ensure pedagogical safety and accuracy
             systemInstruction: {
-                parts: [{ text: "You are an expert pedagogical assistant. When checking answers, prioritize semantic meaning over exact string matches. If a user provides an answer that is factually correct but phrased differently (e.g., 'The Sun' vs 'Sun'), mark it correct. For mathematics, provide step-by-step reasoning." }]
+                parts: [{ text: "You are an expert pedagogical assistant and objective grader. When evaluating student answers, prioritize semantic meaning over exact matches. Accept answers that are factually correct even if phrased differently or contain minor spelling errors. If the prompt asks for a grade, always return a JSON object with 'isCorrect' (boolean) and 'feedback' (string) keys." }]
             }
         };
 
