@@ -18,48 +18,15 @@
     <script src="https://js.paystack.co/v1/inline.js"></script> 
 
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
-            min-height: 100vh;
-        }
+        body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); min-height: 100vh; }
         .prose { max-width: 65ch; }
         .prose-sm { font-size: 0.875rem; line-height: 1.5; }
-        .genie-logo {
-            width: 5rem;
-            height: 5rem;
-        }
-        @media (min-width: 768px) {
-            .genie-logo {
-                width: 12rem;
-                height: 12rem;
-            }
-        }
-        .quiz-question-wrapper.correct {
-            border-left-color: #22c55e;
-            background-color: #f0fdf4;
-        }
-        .quiz-question-wrapper.incorrect {
-            border-left-color: #ef4444;
-            background-color: #fef2f2;
-        }
-        .quiz-feedback {
-            display: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-top: 0.75rem;
-        }
-        .quiz-question-wrapper.correct .quiz-feedback.correct {
-            display: block;
-            color: #166534;
-        }
-        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect {
-            display: block;
-            color: #991b1b;
-        }
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.7);
-        }
+        .genie-logo { width: 5rem; height: 5rem; }
+        @media (min-width: 768px) { .genie-logo { width: 12rem; height: 12rem; } }
+        .quiz-question-wrapper.correct { border-left: 4px solid #22c55e; background-color: #f0fdf4; }
+        .quiz-question-wrapper.incorrect { border-left: 4px solid #ef4444; background-color: #fef2f2; }
+        .quiz-feedback-explanation { font-size: 0.75rem; font-style: italic; margin-top: 0.5rem; color: #4f46e5; }
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.7); }
     </style>
 </head>
 <body>
@@ -70,56 +37,41 @@
     </div>
 
     <div id="paywall-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop transition-opacity">
-        <div id="paywall-content" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform scale-90">
-        </div>
+        <div id="paywall-content" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform scale-90"></div>
     </div>
 
     <script>
         const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
         const PAYSTACK_PUBLIC_KEY = 'pk_live_dbe21af87a81e8b20ff1e5ddd1706a3153dd1fd2';
-
         const FREE_USAGE_LIMIT = 5;
         const FREE_PROFILE_LIMIT = 1;
-        const PAID_PROFILE_LIMITS = {
-            'paid_single': 1,
-            'paid_family': 2,
-            'paid_ultra': 4
-        };
         
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const state = {
-            session: null,
-            accountData: null,
-            usageData: { count: 0, resetDate: null },
-            activeProfile: null,
-            activeTab: 'home',
-            uploadedImageBase64: null,
-            currentTest: null,
-            workToView: null,
-            myActivityData: [] 
+            session: null, accountData: null, usageData: { count: 0, resetDate: null },
+            activeProfile: null, activeTab: 'home', uploadedImageBase64: null,
+            currentTest: null, myActivityData: [] 
         };
 
-        // --- NEW CATEGORIZED HOME PAGE TEMPLATE ---
+        // --- TEMPLATES ---
         function homePageTemplate() {
             return `
             <div class="max-w-6xl mx-auto space-y-12">
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
                     <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1>
-                    <p class="mt-2 text-gray-600 text-lg">What would you like to achieve today?</p>
+                    <p class="mt-2 text-gray-600">What would you like to achieve today?</p>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                     <div class="space-y-4">
-                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2">
-                            <i data-lucide="graduation-cap" class="mr-2 text-teal-500"></i> Need help studying?
-                        </h2>
+                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="graduation-cap" class="mr-2 text-teal-500"></i> Need help studying?</h2>
                         <div data-nav-link="learningHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-teal-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Learning Hub</h3>
-                            <p class="text-sm text-gray-500 mt-1">Get revision notes and practice tests.</p>
+                            <p class="text-sm text-gray-500 mt-1">Revision notes and practice tests.</p>
                         </div>
                         <div data-nav-link="testBuilder" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-teal-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Test Builder</h3>
@@ -128,9 +80,7 @@
                     </div>
 
                     <div class="space-y-4">
-                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2">
-                            <i data-lucide="help-circle" class="mr-2 text-rose-500"></i> Help with homework?
-                        </h2>
+                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="help-circle" class="mr-2 text-rose-500"></i> Help with homework?</h2>
                         <div data-nav-link="homeworkHelper" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-rose-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Homework Helper</h3>
                             <p class="text-sm text-gray-500 mt-1">Upload photos for hints and guidance.</p>
@@ -141,11 +91,9 @@
                         </div>
                     </div>
 
-                    <div class="space-y-4">
-                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2">
-                            <i data-lucide="plus-circle" class="mr-2 text-violet-500"></i> Math support?
-                        </h2>
-                        <div data-nav-link="mathHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-violet-400 transition-all h-full">
+                    <div class="space-y-4 h-full flex flex-col">
+                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="plus-circle" class="mr-2 text-violet-500"></i> Math support?</h2>
+                        <div data-nav-link="mathHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-violet-400 transition-all flex-1">
                             <h3 class="font-bold text-gray-800 text-lg">Math Hub</h3>
                             <p class="text-sm text-gray-500 mt-1">Python-powered accuracy for calculations.</p>
                         </div>
@@ -153,6 +101,18 @@
                 </div>
             </div>`;
         }
+
+        const mathHubTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2>
+                    <p class="text-gray-500 mb-8">Computational accuracy powered by Python.</p>
+                    <div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <i data-lucide="brain-circuit" class="mx-auto h-16 w-16 text-violet-300"></i>
+                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Math logic engine initializing...</h3>
+                    </div>
+                </div>
+            </div>`;
 
         const homeworkHelperTemplate = `
             <div class="max-w-4xl mx-auto">
@@ -165,30 +125,20 @@
                 <div id="hh-output" class="mt-8"></div>
             </div>`;
 
-        const mathHubTemplate = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2>
-                    <p class="text-gray-500 mb-8">Specialist calculations with Python logic.</p>
-                    <div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
-                        <i data-lucide="brain-circuit" class="mx-auto h-16 w-16 text-violet-300"></i>
-                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Math engine initializing...</h3>
-                    </div>
-                </div>
-            </div>`;
-
         // --- CORE UI FUNCTIONS ---
         function showMainApp() {
             const appContainer = document.getElementById('app-container');
             appContainer.innerHTML = `
                 <div class="min-h-screen md:flex">
-                    <aside id="sidebar" class="w-64 bg-white border-r p-4 hidden md:flex flex-col">
-                        <div data-nav-link="home" class="mb-8 text-center cursor-pointer group"><img src="/logo.svg" class="h-16 mx-auto group-hover:scale-110 transition"><h1 class="font-bold text-gray-800 mt-2">Learning Genie</h1></div>
+                    <aside id="sidebar" class="w-64 bg-white border-r p-4 hidden md:flex flex-col h-screen sticky top-0">
+                        <div data-nav-link="home" class="mb-8 text-center cursor-pointer group"><img src="/logo.svg" class="h-16 mx-auto group-hover:scale-110 transition"><h1 class="font-bold text-gray-800 mt-2 text-xl">Learning Genie</h1></div>
                         <nav id="sidebar-nav" class="space-y-2 flex-1"></nav>
                         <div id="usage-prompt-wrapper" class="mt-auto border-t pt-4"></div>
-                        <button id="logout-btn" class="mt-4 text-gray-500 flex items-center px-4 py-2 hover:bg-gray-100 rounded-lg"><i data-lucide="log-out" class="w-4 h-4 mr-2"></i>Logout</button>
+                        <div class="pt-2 border-t mt-4">
+                            <button id="logout-btn" class="w-full flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"><i data-lucide="log-out" class="w-4 h-4 mr-2"></i>Sign Out</button>
+                        </div>
                     </aside>
-                    <main id="main-content" class="flex-1 p-8 overflow-y-auto bg-slate-50"></main>
+                    <main id="main-content" class="flex-1 p-4 md:p-8 bg-slate-50 overflow-y-auto"></main>
                 </div>`;
             renderToolContent();
         }
@@ -199,40 +149,52 @@
             let contentHTML = '';
             switch (state.activeTab) {
                 case 'home': contentHTML = homePageTemplate(); break;
+                case 'mathHub': contentHTML = mathHubTemplate; break;
                 case 'homeworkHelper': contentHTML = homeworkHelperTemplate; break;
                 case 'learningHub': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Learning Hub Loading...</h2></div>'; break;
-                case 'mathHub': contentHTML = mathHubTemplate; break;
-                case 'explainSimply': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Explain It Simply Loading...</h2></div>'; break;
+                case 'explainSimply': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Explanation Tool Loading...</h2></div>'; break;
                 case 'testBuilder': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Test Builder Loading...</h2></div>'; break;
+                case 'myActivity': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Activity History</h2><div id="my-activity-output" class="mt-8 space-y-4"></div></div>'; break;
                 default: contentHTML = homePageTemplate();
             }
             mainContent.innerHTML = contentHTML;
             updateSidebar();
             lucide.createIcons();
             attachToolEventListeners();
+            if (state.activeTab === 'myActivity') loadMyActivity();
         }
 
         function updateSidebar() {
             const nav = document.getElementById('sidebar-nav');
+            const usageWrapper = document.getElementById('usage-prompt-wrapper');
+            if (!nav || !usageWrapper) return;
+
             const tabs = [
                 { id: 'home', icon: 'home', label: 'Home' },
                 { id: 'learningHub', icon: 'book-marked', label: 'Learning Hub' },
-                { id: 'homeworkHelper', icon: 'life-buoy', label: 'Homework' },
-                { id: 'mathHub', icon: 'calculator', label: 'Math Hub' }
+                { id: 'homeworkHelper', icon: 'life-buoy', label: 'Homework Help' },
+                { id: 'mathHub', icon: 'calculator', label: 'Math Hub' },
+                { id: 'myActivity', icon: 'history', label: 'My Activity' }
             ];
             nav.innerHTML = tabs.map(t => `<button data-nav-link="${t.id}" class="flex items-center w-full px-4 py-2 rounded-lg ${state.activeTab === t.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'} capitalize"><i data-lucide="${t.icon}" class="w-5 h-5 mr-3"></i>${t.label}</button>`).join('');
+
+            // Restore subscription status logic
+            const isFree = state.accountData?.active_tier === 'free';
+            if (isFree) {
+                const remaining = FREE_USAGE_LIMIT - state.usageData.count;
+                usageWrapper.innerHTML = `<div class="p-3 bg-indigo-50 rounded-lg text-center"><p class="text-xs font-bold text-indigo-700">Trial: ${remaining}/${FREE_USAGE_LIMIT} Left</p></div>`;
+            } else {
+                usageWrapper.innerHTML = `<div class="p-3 bg-green-50 rounded-lg text-center font-bold text-green-700 text-xs italic">UNLIMITED ACTIVE</div>`;
+            }
         }
 
         function attachToolEventListeners() {
-            // FIXED: Standard event listener attachments without assignment typos
             const logoutBtn = document.getElementById('logout-btn');
             if (logoutBtn) logoutBtn.onclick = () => supabaseClient.auth.signOut();
             
-            const homeLink = document.querySelector('[data-nav-link="home"]');
-            if (homeLink) homeLink.onclick = () => { state.activeTab = 'home'; renderToolContent(); };
+            document.getElementById('generate-homework-help-btn')?.addEventListener('click', () => { /* logic */ });
         }
 
-        // --- AUTH & INIT ---
         async function handleAuth() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) window.location.href = '/login.html';
@@ -240,6 +202,8 @@
                 state.session = session;
                 const { data: account } = await supabaseClient.from('accounts').select('*').eq('id', session.user.id).single();
                 state.accountData = account || { active_tier: 'free' };
+                const { data: usage } = await supabaseClient.from('monthly_usage').select('*').eq('account_id', session.user.id).single();
+                state.usageData = { count: usage?.usage_count || 0 };
                 const { data: profiles } = await supabaseClient.from('profiles').select('*').eq('account_id', session.user.id);
                 state.activeProfile = profiles?.[0];
                 showMainApp();
