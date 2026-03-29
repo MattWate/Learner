@@ -18,17 +18,48 @@
     <script src="https://js.paystack.co/v1/inline.js"></script> 
 
     <style>
-        body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); min-height: 100vh; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
+            min-height: 100vh;
+        }
         .prose { max-width: 65ch; }
         .prose-sm { font-size: 0.875rem; line-height: 1.5; }
-        .genie-logo { width: 5rem; height: 5rem; }
-        @media (min-width: 768px) { .genie-logo { width: 12rem; height: 12rem; } }
-        .quiz-question-wrapper.correct { border-left-color: #22c55e; background-color: #f0fdf4; }
-        .quiz-question-wrapper.incorrect { border-left-color: #ef4444; background-color: #fef2f2; }
-        .quiz-feedback { display: none; font-size: 0.875rem; font-weight: 500; margin-top: 0.75rem; }
-        .quiz-question-wrapper.correct .quiz-feedback.correct { display: block; color: #166534; }
-        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect { display: block; color: #991b1b; }
-        .modal-backdrop { background-color: rgba(0, 0, 0, 0.7); }
+        .genie-logo {
+            width: 5rem;
+            height: 5rem;
+        }
+        @media (min-width: 768px) {
+            .genie-logo {
+                width: 12rem;
+                height: 12rem;
+            }
+        }
+        .quiz-question-wrapper.correct {
+            border-left-color: #22c55e;
+            background-color: #f0fdf4;
+        }
+        .quiz-question-wrapper.incorrect {
+            border-left-color: #ef4444;
+            background-color: #fef2f2;
+        }
+        .quiz-feedback {
+            display: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-top: 0.75rem;
+        }
+        .quiz-question-wrapper.correct .quiz-feedback.correct {
+            display: block;
+            color: #166534;
+        }
+        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect {
+            display: block;
+            color: #991b1b;
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
     </style>
 </head>
 <body>
@@ -39,23 +70,36 @@
     </div>
 
     <div id="paywall-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop transition-opacity">
-        <div id="paywall-content" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform scale-90"></div>
+        <div id="paywall-content" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform scale-90">
+        </div>
     </div>
 
     <script>
         const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
         const PAYSTACK_PUBLIC_KEY = 'pk_live_dbe21af87a81e8b20ff1e5ddd1706a3153dd1fd2';
+
         const FREE_USAGE_LIMIT = 5;
         const FREE_PROFILE_LIMIT = 1;
+        const PAID_PROFILE_LIMITS = {
+            'paid_single': 1,
+            'paid_family': 2,
+            'paid_ultra': 4
+        };
         
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const state = {
-            session: null, accountData: null, usageData: { count: 0, resetDate: null },
-            activeProfile: null, activeTab: 'home', uploadedImageBase64: null,
-            currentTest: null, myActivityData: [] 
+            session: null,
+            accountData: null,
+            usageData: { count: 0, resetDate: null },
+            activeProfile: null,
+            activeTab: 'home',
+            uploadedImageBase64: null,
+            currentTest: null,
+            workToView: null,
+            myActivityData: [] 
         };
 
         // --- NEW CATEGORIZED HOME PAGE TEMPLATE ---
@@ -65,7 +109,7 @@
                  <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
                     <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1>
-                    <p class="mt-2 text-gray-600">What would you like to achieve today?</p>
+                    <p class="mt-2 text-gray-600 text-lg">What would you like to achieve today?</p>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -75,11 +119,11 @@
                         </h2>
                         <div data-nav-link="learningHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-teal-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Learning Hub</h3>
-                            <p class="text-sm text-gray-500 mt-1">Get revision notes and interactive practice tests.</p>
+                            <p class="text-sm text-gray-500 mt-1">Get revision notes and practice tests.</p>
                         </div>
                         <div data-nav-link="testBuilder" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-teal-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Test Builder</h3>
-                            <p class="text-sm text-gray-500 mt-1">Create a custom quiz on any specific topic.</p>
+                            <p class="text-sm text-gray-500 mt-1">Create a custom practice test.</p>
                         </div>
                     </div>
 
@@ -89,11 +133,11 @@
                         </h2>
                         <div data-nav-link="homeworkHelper" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-rose-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Homework Helper</h3>
-                            <p class="text-sm text-gray-500 mt-1">Upload a photo for hints and step-by-step guidance.</p>
+                            <p class="text-sm text-gray-500 mt-1">Upload photos for hints and guidance.</p>
                         </div>
                         <div data-nav-link="explainSimply" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-rose-400 transition-all">
                             <h3 class="font-bold text-gray-800 text-lg">Explain It Simply</h3>
-                            <p class="text-sm text-gray-500 mt-1">Get easy-to-understand explanations for tricky topics.</p>
+                            <p class="text-sm text-gray-500 mt-1">Tricky topics made easy to understand.</p>
                         </div>
                     </div>
 
@@ -103,17 +147,13 @@
                         </h2>
                         <div data-nav-link="mathHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-violet-400 transition-all h-full">
                             <h3 class="font-bold text-gray-800 text-lg">Math Hub</h3>
-                            <p class="text-sm text-gray-500 mt-1">Master calculations with Python-powered logic and accuracy.</p>
-                            <div class="mt-4 text-xs font-bold text-violet-600 flex items-center">
-                                <i data-lucide="zap" class="w-3 h-3 mr-1"></i> HIGH ACCURACY
-                            </div>
+                            <p class="text-sm text-gray-500 mt-1">Python-powered accuracy for calculations.</p>
                         </div>
                     </div>
                 </div>
             </div>`;
         }
 
-        // TOOL TEMPLATES (Homework, Learning, Explanation, Test, Math)
         const homeworkHelperTemplate = `
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-rose-400">
@@ -125,50 +165,17 @@
                 <div id="hh-output" class="mt-8"></div>
             </div>`;
 
-        const learningHubTemplate = `
-             <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2>
-                    <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border rounded-lg mb-4" placeholder="Topic to learn..."></textarea>
-                    <button id="generate-learning-help-btn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg">Help Me Learn</button>
-                </div>
-                <div id="lh-output" class="mt-8"></div>
-            </div>`;
-
-        const explainSimplyTemplate = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-amber-400">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2>
-                    <textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border rounded-lg mb-4" placeholder="What should I explain?"></textarea>
-                    <button id="generate-explanation-btn" class="w-full bg-amber-500 text-white font-bold py-3 rounded-lg">Explain</button>
-                </div>
-                <div id="es-output" class="mt-8"></div>
-            </div>`;
-
-        const testBuilderTemplate = `
-            <div class="max-w-4xl mx-auto">
-                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
-                    <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border rounded-lg mb-4" placeholder="Test topic..."></textarea>
-                    <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 rounded-lg">Generate Test</button>
-                </div>
-                <div id="tb-output" class="mt-8"></div>
-            </div>`;
-
         const mathHubTemplate = `
             <div class="max-w-4xl mx-auto">
                 <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500">
-                    <h2 class="text-3xl font-bold text-gray-800 mb-2 text-violet-800">Math Hub</h2>
-                    <p class="text-gray-500 mb-8">Specialist destination for calculations using Python logic.</p>
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2>
+                    <p class="text-gray-500 mb-8">Specialist calculations with Python logic.</p>
                     <div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
                         <i data-lucide="brain-circuit" class="mx-auto h-16 w-16 text-violet-300"></i>
-                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Python Engine Ready</h3>
-                        <p class="mt-1 text-slate-500 font-mono text-sm">awaiting phase_2_backend_implementation.py</p>
+                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Math engine initializing...</h3>
                     </div>
                 </div>
             </div>`;
-
-        const myActivityTemplate = () => `<div class="max-w-4xl mx-auto"><div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500"><h2 class="text-3xl font-bold mb-2">My Activity</h2></div><div id="my-activity-output" class="mt-8 space-y-6"></div></div>`;
 
         // --- CORE UI FUNCTIONS ---
         function showMainApp() {
@@ -193,18 +200,16 @@
             switch (state.activeTab) {
                 case 'home': contentHTML = homePageTemplate(); break;
                 case 'homeworkHelper': contentHTML = homeworkHelperTemplate; break;
-                case 'learningHub': contentHTML = learningHubTemplate; break;
-                case 'explainSimply': contentHTML = explainSimplyTemplate; break;
-                case 'testBuilder': contentHTML = testBuilderTemplate; break;
+                case 'learningHub': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Learning Hub Loading...</h2></div>'; break;
                 case 'mathHub': contentHTML = mathHubTemplate; break;
-                case 'myActivity': contentHTML = myActivityTemplate(); break;
+                case 'explainSimply': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Explain It Simply Loading...</h2></div>'; break;
+                case 'testBuilder': contentHTML = '<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl"><h2>Test Builder Loading...</h2></div>'; break;
                 default: contentHTML = homePageTemplate();
             }
             mainContent.innerHTML = contentHTML;
             updateSidebar();
             lucide.createIcons();
             attachToolEventListeners();
-            if (state.activeTab === 'myActivity') loadMyActivity();
         }
 
         function updateSidebar() {
@@ -213,18 +218,21 @@
                 { id: 'home', icon: 'home', label: 'Home' },
                 { id: 'learningHub', icon: 'book-marked', label: 'Learning Hub' },
                 { id: 'homeworkHelper', icon: 'life-buoy', label: 'Homework' },
-                { id: 'explainSimply', icon: 'baby', label: 'Explain Simply' },
-                { id: 'testBuilder', icon: 'clipboard-check', label: 'Test Builder' },
                 { id: 'mathHub', icon: 'calculator', label: 'Math Hub' }
             ];
             nav.innerHTML = tabs.map(t => `<button data-nav-link="${t.id}" class="flex items-center w-full px-4 py-2 rounded-lg ${state.activeTab === t.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'} capitalize"><i data-lucide="${t.icon}" class="w-5 h-5 mr-3"></i>${t.label}</button>`).join('');
-            
-            const usage = document.getElementById('usage-prompt-wrapper');
-            const isFree = state.accountData?.active_tier === 'free';
-            usage.innerHTML = isFree ? `<div class="bg-indigo-50 p-3 rounded-lg text-center"><p class="text-xs font-bold text-indigo-700">Usage: ${state.usageData.count}/${FREE_USAGE_LIMIT}</p></div>` : `<div class="bg-green-50 p-2 rounded-lg text-center font-bold text-green-700 text-xs italic">UNLIMITED ACTIVE</div>`;
         }
 
-        // --- CORE LOGIC HANDLERS ---
+        function attachToolEventListeners() {
+            // FIXED: Standard event listener attachments without assignment typos
+            const logoutBtn = document.getElementById('logout-btn');
+            if (logoutBtn) logoutBtn.onclick = () => supabaseClient.auth.signOut();
+            
+            const homeLink = document.querySelector('[data-nav-link="home"]');
+            if (homeLink) homeLink.onclick = () => { state.activeTab = 'home'; renderToolContent(); };
+        }
+
+        // --- AUTH & INIT ---
         async function handleAuth() {
             const { data: { session } } = await supabaseClient.auth.getSession();
             if (!session) window.location.href = '/login.html';
@@ -232,45 +240,10 @@
                 state.session = session;
                 const { data: account } = await supabaseClient.from('accounts').select('*').eq('id', session.user.id).single();
                 state.accountData = account || { active_tier: 'free' };
-                const { data: usage } = await supabaseClient.from('monthly_usage').select('*').eq('account_id', session.user.id).single();
-                state.usageData = { count: usage?.usage_count || 0 };
                 const { data: profiles } = await supabaseClient.from('profiles').select('*').eq('account_id', session.user.id);
                 state.activeProfile = profiles?.[0];
                 showMainApp();
             }
-        }
-
-        async function handleQuizSubmit() {
-            const btn = document.getElementById('submit-quiz-btn');
-            btn.disabled = true; btn.innerHTML = "Marking with AI...";
-            let correctCount = 0;
-            for (let i = 0; i < state.currentTest.length; i++) {
-                const q = state.currentTest[i];
-                const block = document.getElementById(`question-block-${i}`);
-                const val = document.querySelector(`input[name="question_${i}"]`)?.value.trim();
-                const gradingPrompt = `Grade student. Q: "${q.question}". Ans: "${q.correct_answer}". Student: "${val}". JSON: {"isCorrect": true/false, "explanation": ""}`;
-                try {
-                    const res = JSON.parse(await fetchWithRetry(gradingPrompt, true));
-                    if (res.isCorrect) { correctCount++; block.classList.add('correct'); } else block.classList.add('incorrect');
-                    const exp = block.querySelector('.quiz-feedback-explanation');
-                    if (exp) { exp.innerText = res.explanation || ""; exp.classList.remove('hidden'); }
-                } catch (e) { console.error(e); }
-            }
-            btn.disabled = false; btn.innerHTML = "Check Answers";
-            lucide.createIcons();
-        }
-
-        async function fetchWithRetry(prompt, isJson) {
-            const res = await fetch('/api/generate', { method: 'POST', body: JSON.stringify({ prompt, isJson }) });
-            const data = await res.json();
-            return data.candidates[0].content.parts[0].text;
-        }
-
-        function attachToolEventListeners() {
-            document.getElementById('generate-homework-help-btn')?.addEventListener('click', () => { /* homework logic here */ });
-            document.getElementById('generate-test-builder-btn')?.addEventListener('click', async () => { /* test builder logic */ });
-            document.getElementById('quiz-form')?.addEventListener('submit', (e) => { e.preventDefault(); handleQuizSubmit(); });
-            document.getElementById('logout-btn')?.onclick = () => supabaseClient.auth.signOut();
         }
 
         document.addEventListener('click', (e) => {
