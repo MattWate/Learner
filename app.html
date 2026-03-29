@@ -638,15 +638,13 @@
             const quizForm = document.getElementById('quiz-form');
             if (quizForm) {
                 quizForm.addEventListener('submit', (e) => {
-                    e.preventDefault(); // FIXED: PREVENT RELOAD
+                    e.preventDefault();
                     handleQuizSubmit();
                 });
             }
             
             document.querySelectorAll('.upgrade-btn').forEach(button => {
                 button.addEventListener('click', (e) => {
-                    // FIX: Use currentTarget to reliably get the button element,
-                    // even if the user clicks on the text or icon inside the button.
                     const plan = e.currentTarget.dataset.plan;
                     handleUpgrade(plan);
                 });
@@ -770,7 +768,6 @@
                      throw new Error(`Failed to fetch account: ${accountError.message}`);
                 }
                  if (!account) {
-                    console.warn("Account record not found, inserting new free user record.");
                     const { error: insertError } = await supabaseClient
                          .from('accounts')
                          .insert({ id: user.id, active_tier: 'free', profile_limit: FREE_PROFILE_LIMIT });
@@ -918,7 +915,6 @@
             button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Initializing...`;
 
             try {
-                // 1. Get the current user session to extract ID and Email
                 const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
                 
                 if (sessionError || !session || !session.user) {
@@ -927,12 +923,10 @@
                 
                 const user = session.user;
                 
-                // 2. Call the simplified API endpoint
                 const response = await fetch('/api/create-subscription', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json'
-                        // No Authorization header needed for this simplified flow
                     },
                     body: JSON.stringify({ 
                         plan,
@@ -941,7 +935,6 @@
                     })
                 });
                 
-                // 3. Handle Response
                 const contentType = response.headers.get("content-type");
                 if (!contentType || !contentType.includes("application/json")) {
                     const text = await response.text();
@@ -960,7 +953,6 @@
                     throw new Error('Paystack initialization failed. No checkout URL received.');
                 }
 
-                // 4. Redirect to Paystack
                 window.location.href = data.checkoutUrl;
 
             } catch (error) {
@@ -1054,14 +1046,12 @@
 
         async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
             try {
-                // 1. Local Check: Ensure user is logged in before allowing the request
                 const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
                 
                 if (sessionError || !session) {
                     throw new Error('Your session has expired. Please log in again.');
                 }
                 
-                // 2. Call the API (No Auth Header Needed)
                 const response = await fetch('/api/generate', {
                     method: 'POST',
                     headers: { 
@@ -1139,12 +1129,6 @@
             } else if (imageData) {
                 prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
                 inputPromptForDb = "Homework Help (Image)"; 
-            } else {
-                 errorEl.textContent = 'No input provided.';
-                 errorEl.classList.remove('hidden');
-                 button.disabled = false;
-                 button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
-                 return;
             }
 
             try {
@@ -1392,7 +1376,6 @@
             
             let correctCount = 0;
             
-            // Loop through questions and perform semantic checks for text answers
             for (let index = 0; index < state.currentTest.length; index++) {
                 const question = state.currentTest[index];
                 const questionBlock = document.getElementById(`question-block-${index}`);
@@ -1408,7 +1391,6 @@
                     userAnswer = document.querySelector(`input[name="question_${index}"]`).value.trim();
                     
                     if (userAnswer) {
-                        // AI Prompt for semantic evaluation
                         const gradingPrompt = `You are an expert pedagogical assistant. Evaluate the following student answer.
                             Question: "${question.question}"
                             Correct Concept: "${question.correct_answer}"
@@ -1422,7 +1404,6 @@
                             isCorrect = evaluation.isCorrect;
                             
                             if (feedbackExpEl) {
-                                // FIXED: Only update and show if the key exists
                                 feedbackExpEl.innerText = evaluation.explanation || evaluation.feedback || "";
                                 if (evaluation.explanation || evaluation.feedback) {
                                     feedbackExpEl.classList.remove('hidden');
@@ -1491,7 +1472,7 @@
                 };
 
                 outputEl.innerHTML = data.map((item, index) => {
-                    const icon = toolIcons[item.copy_type] || 'help-circle';
+                    const icon = toolIcons[item.work_type] || 'help-circle';
                     const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
                     const date = new Date(item.created_at).toLocaleDateString(undefined, {
                         day: 'numeric',
@@ -1524,9 +1505,51 @@
             }
         }
 
-        function displaySavedWork(work) {
-            console.log('Displaying saved work:', work);
-            // TODO: Implement full saved work viewer based on UI requirements
+        // --- NEW: DISPLAY SAVED WORK (Tests and Notes) ---
+        async function displaySavedWork(work) {
+            const mainContent = document.getElementById('main-content');
+            const data = work.output_content;
+            
+            let contentHTML = `
+            <div class="max-w-4xl mx-auto space-y-8">
+                <div class="flex justify-between items-center bg-white p-6 rounded-xl shadow border-l-4 border-indigo-500">
+                    <div>
+                        <h2 class="text-2xl font-bold text-gray-800 capitalize">${work.work_type.replace(/([A-Z])/g, ' $1')}</h2>
+                        <p class="text-sm text-gray-500">Completed on ${new Date(work.created_at).toLocaleDateString()}</p>
+                    </div>
+                    <button id="download-work-btn" class="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+                        <i data-lucide="download" class="w-4 h-4 mr-2"></i> Save as Word
+                    </button>
+                </div>`;
+
+            if (work.work_type === 'testBuilder' || (work.work_type === 'learningHub' && data.practice_test)) {
+                state.currentTest = data.practice_test;
+                contentHTML += `
+                <div class="bg-white p-8 rounded-xl shadow">
+                    <h3 class="text-xl font-bold mb-4">Practice Test: ${work.input_prompt.prompt}</h3>
+                    <div id="quiz-results" class="mb-6"></div>
+                    ${renderPracticeTest(data.practice_test)}
+                </div>`;
+            } else if (work.work_type === 'learningHub') {
+                contentHTML += createSectionHTML('check-circle', 'green', "Key Learning Objectives", data.learning_objectives);
+                contentHTML += createSectionHTML('book-open', 'indigo', "Revision Notes", data.revision_notes);
+            } else if (work.work_type === 'explainSimply') {
+                contentHTML += createSectionHTML('baby', 'amber', 'Simple Explanation', data.explanation);
+            } else if (work.work_type === 'homeworkHelper') {
+                if (data.breakdown) contentHTML += createSectionHTML('list-checks', 'blue', "Instructions", data.breakdown);
+                if (data.hints) contentHTML += createSectionHTML('lightbulb', 'yellow', 'Hints', data.hints);
+                if (data.answer || data.answers) contentHTML += createSectionHTML('key-round', 'green', 'Check Work', data.answer || data.answers);
+            }
+
+            contentHTML += `</div>`;
+            mainContent.innerHTML = contentHTML;
+            lucide.createIcons();
+            attachToolEventListeners();
+            
+            document.getElementById('download-work-btn').onclick = async () => {
+                const docx = await window.htmlToDocx.default(mainContent.innerHTML);
+                saveAs(docx, `LearningGenie_${work.work_type}.docx`);
+            };
         }
 
         // --- EVENT DELEGATION FOR NAVIGATION ---
@@ -1566,12 +1589,10 @@
                 document.getElementById('sidebar').classList.add('hidden');
             }
             
-            // Fixed: Use closest() for logout button
             if (e.target.closest('#logout-btn')) {
                 supabaseClient.auth.signOut();
             }
             
-            // Fixed: Use closest() for profile picker button
             if (e.target.closest('#profile-picker-btn')) {
                 checkAccountStatus(state.session.user);
             }
