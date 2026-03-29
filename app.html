@@ -127,10 +127,10 @@
                         <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
                         <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
                     </div>
-                    <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
-                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
-                        <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
+                    <div data-nav-link="mathHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-violet-500">
+                        <i data-lucide="calculator" class="h-12 w-12 text-violet-600 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800">Math Hub</h2>
+                        <p class="mt-2 text-gray-600">Master BODMAS, fractions, and calculations with Python-powered accuracy.</p>
                     </div>
                     <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
                         <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
@@ -140,6 +140,36 @@
                 </div>
             </div>`;
         }
+
+        // MATH HUB UI SKELETON (Safety Shell)
+        const mathHubTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2>
+                    <p class="text-gray-500 mb-8">Step-by-step logic powered by Python for guaranteed accuracy.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <button class="p-4 border-2 border-violet-100 rounded-xl hover:bg-violet-50 text-left transition-colors">
+                            <i data-lucide="list-ordered" class="text-violet-500 mb-2"></i>
+                            <h3 class="font-bold">BODMAS</h3>
+                        </button>
+                        <button class="p-4 border-2 border-violet-100 rounded-xl hover:bg-violet-50 text-left transition-colors">
+                            <i data-lucide="pie-chart" class="text-violet-500 mb-2"></i>
+                            <h3 class="font-bold">Fractions</h3>
+                        </button>
+                        <button class="p-4 border-2 border-violet-100 rounded-xl hover:bg-violet-50 text-left transition-colors">
+                            <i data-lucide="hash" class="text-violet-500 mb-2"></i>
+                            <h3 class="font-bold">Place Value</h3>
+                        </button>
+                    </div>
+
+                    <div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <i data-lucide="construction" class="mx-auto h-16 w-16 text-slate-300"></i>
+                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Math logic engine is being initialized...</h3>
+                        <p class="mt-1 text-slate-500">Phase 1 is starting. Python backend connectivity coming next.</p>
+                    </div>
+                </div>
+            </div>`;
 
         function profilePickerTemplate(profiles) {
             let profileButtons = profiles.map(profile => `
@@ -583,6 +613,10 @@
                 case 'testBuilder':
                     contentHTML = testBuilderTemplate;
                     break;
+                case 'mathHub':
+                    // NEW MATH HUB ROUTE
+                    contentHTML = mathHubTemplate;
+                    break;
                 case 'myActivity':
                     contentHTML = myActivityTemplate();
                     break;
@@ -603,6 +637,36 @@
                 loadMyActivity();
             }
         }
+
+        // MATH HUB UI SKELETON
+        const mathHubTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2>
+                    <p class="text-gray-500 mb-8">Master school-age math with step-by-step logic powered by Python.</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                        <button class="p-4 border-2 border-violet-100 rounded-xl hover:bg-violet-50 text-left transition-colors">
+                            <i data-lucide="list-ordered" class="text-violet-500 mb-2"></i>
+                            <h3 class="font-bold text-gray-800">BODMAS</h3>
+                        </button>
+                        <button class="p-4 border-2 border-violet-100 rounded-xl hover:bg-violet-50 text-left transition-colors">
+                            <i data-lucide="pie-chart" class="text-violet-500 mb-2"></i>
+                            <h3 class="font-bold text-gray-800">Fractions</h3>
+                        </button>
+                        <button class="p-4 border-2 border-violet-100 rounded-xl hover:bg-violet-50 text-left transition-colors">
+                            <i data-lucide="hash" class="text-violet-500 mb-2"></i>
+                            <h3 class="font-bold text-gray-800">Place Value</h3>
+                        </button>
+                    </div>
+
+                    <div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <i data-lucide="construction" class="mx-auto h-16 w-16 text-slate-300"></i>
+                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Math logic engine is being initialized...</h3>
+                        <p class="mt-1 text-slate-500">Phase 1 infrastructure is in place. Python connectivity coming next.</p>
+                    </div>
+                </div>
+            </div>`;
 
         function attachToolEventListeners() {
             const hhButton = document.getElementById('generate-homework-help-btn');
@@ -672,13 +736,14 @@
                 homeworkHelper: { icon: 'life-buoy', label: 'Homework Helper' },
                 learningHub: { icon: 'book-marked', label: 'Learning Hub' },
                 explainSimply: { icon: 'baby', label: 'Explain It Simply' },
+                mathHub: { icon: 'calculator', label: 'Math Hub' }, // NEW MATH HUB LINK
                 testBuilder: { icon: 'clipboard-check', label: 'Test Builder' },
                 myActivity: { icon: 'history', label: 'My Activity' },
                 upgrade: { icon: 'zap', label: 'Upgrade Now' }
             };
             
             let navHtml = '';
-            ['home', 'homeworkHelper', 'learningHub', 'explainSimply', 'testBuilder'].forEach(tab => {
+            ['home', 'homeworkHelper', 'learningHub', 'explainSimply', 'mathHub', 'testBuilder'].forEach(tab => {
                 const item = navItems[tab];
                 navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
             });
@@ -1505,7 +1570,6 @@
             }
         }
 
-        // --- NEW: DISPLAY SAVED WORK (Tests and Notes) ---
         async function displaySavedWork(work) {
             const mainContent = document.getElementById('main-content');
             const data = work.output_content;
