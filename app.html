@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Learning Genie - Learner Hub</title>
     <link rel="icon" href="/logo.svg" type="image/svg+xml">
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -12,220 +13,501 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
+    
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://js.paystack.co/v1/inline.js"></script> 
+
     <style>
-        body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); min-height: 100vh; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
+            min-height: 100vh;
+        }
         .prose { max-width: 65ch; }
         .prose-sm { font-size: 0.875rem; line-height: 1.5; }
         .genie-logo { width: 5rem; height: 5rem; }
         @media (min-width: 768px) { .genie-logo { width: 12rem; height: 12rem; } }
-        .quiz-question-wrapper.correct { border-left: 4px solid #22c55e; background-color: #f0fdf4; }
-        .quiz-question-wrapper.incorrect { border-left: 4px solid #ef4444; background-color: #fef2f2; }
-        .quiz-feedback-explanation { font-size: 0.75rem; font-style: italic; margin-top: 0.5rem; color: #4f46e5; }
+        .quiz-question-wrapper.correct { border-left-color: #22c55e; background-color: #f0fdf4; }
+        .quiz-question-wrapper.incorrect { border-left-color: #ef4444; background-color: #fef2f2; }
+        .quiz-feedback { display: none; font-size: 0.875rem; font-weight: 500; margin-top: 0.75rem; }
+        .quiz-question-wrapper.correct .quiz-feedback.correct { display: block; color: #166534; }
+        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect { display: block; color: #991b1b; }
         .modal-backdrop { background-color: rgba(0, 0, 0, 0.7); }
     </style>
 </head>
 <body>
-    <div id="app-container" class="min-h-screen"></div>
+    <div id="app-container" class="min-h-screen">
+        <div id="loading-spinner" class="flex items-center justify-center min-h-screen">
+             <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600"></div>
+        </div>
+    </div>
+
+    <div id="paywall-modal" class="fixed inset-0 z-50 hidden items-center justify-center modal-backdrop transition-opacity">
+        <div id="paywall-content" class="bg-white p-8 rounded-xl shadow-2xl max-w-sm w-full text-center transform transition-transform scale-90"></div>
+    </div>
 
     <script>
+        // --- GLOBAL CONSTANTS & CONFIGURATION ---
         const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
+        const PAYSTACK_PUBLIC_KEY = 'pk_live_dbe21af87a81e8b20ff1e5ddd1706a3153dd1fd2';
+
         const FREE_USAGE_LIMIT = 5;
-        const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const FREE_PROFILE_LIMIT = 1;
+        const PAID_PROFILE_LIMITS = { 'paid_single': 1, 'paid_family': 2, 'paid_ultra': 4 };
+        
+        const { createClient } = supabase;
+        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const state = {
-            session: null, accountData: null, usageData: { count: 0 },
+            session: null, accountData: null, usageData: { count: 0, resetDate: null },
             activeProfile: null, activeTab: 'home', uploadedImageBase64: null,
-            currentTest: null, myActivityData: [] 
+            currentTest: null, workToView: null, myActivityData: [] 
         };
 
-        // --- DASHBOARD TEMPLATE ---
+        // --- CORE UI TEMPLATES ---
+
         function homePageTemplate() {
             return `
             <div class="max-w-6xl mx-auto space-y-12">
-                <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
+                 <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
                     <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1>
-                    <p class="mt-2 text-gray-600">What would you like to achieve today?</p>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. What would you like to achieve today?</p>
                 </div>
+
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
                     <div class="space-y-4 flex flex-col">
                         <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="graduation-cap" class="mr-2 text-teal-500"></i> Need help studying?</h2>
-                        <div data-nav-link="learningHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-teal-400 flex-1">
-                            <h3 class="font-bold text-gray-800 text-lg">Learning Hub</h3>
-                            <p class="text-sm text-gray-500 mt-1">Get full revision notes and practice tests on any topic.</p>
+                        <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all cursor-pointer border-t-4 border-teal-400 flex-1">
+                            <h3 class="text-2xl font-bold text-gray-800">Learning Hub</h3>
+                            <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
                         </div>
-                        <div data-nav-link="testBuilder" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-teal-400 flex-1">
-                            <h3 class="font-bold text-gray-800 text-lg">Test Builder</h3>
-                            <p class="text-sm text-gray-500 mt-1">Create a custom quiz with specific question types.</p>
+                        <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all cursor-pointer border-t-4 border-teal-400 flex-1">
+                            <h3 class="text-2xl font-bold text-gray-800">Test Builder</h3>
+                            <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
                         </div>
                     </div>
+
                     <div class="space-y-4 flex flex-col">
                         <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="help-circle" class="mr-2 text-rose-500"></i> Help with homework?</h2>
-                        <div data-nav-link="homeworkHelper" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-rose-400 flex-1">
-                            <h3 class="font-bold text-gray-800 text-lg">Homework Helper</h3>
-                            <p class="text-sm text-gray-500 mt-1">Upload a photo for hints and step-by-step guidance.</p>
+                        <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all cursor-pointer border-t-4 border-rose-400 flex-1">
+                            <h3 class="text-2xl font-bold text-gray-800">Homework Helper</h3>
+                            <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
                         </div>
-                        <div data-nav-link="explainSimply" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-rose-400 flex-1">
-                            <h3 class="font-bold text-gray-800 text-lg">Explain It Simply</h3>
-                            <p class="text-sm text-gray-500 mt-1">Get easy-to-understand explanations for tricky topics.</p>
+                        <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all cursor-pointer border-t-4 border-rose-400 flex-1">
+                            <h3 class="text-2xl font-bold text-gray-800">Explain It Simply</h3>
+                            <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
                         </div>
                     </div>
-                    <div class="space-y-4 flex flex-col">
-                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="plus-circle" class="mr-2 text-violet-500"></i> Math support?</h2>
-                        <div data-nav-link="mathHub" class="bg-white p-6 rounded-xl shadow hover:shadow-lg cursor-pointer border-l-4 border-violet-400 flex-1 flex flex-col justify-between">
+
+                    <div class="space-y-4 flex flex-col h-full">
+                        <h2 class="text-xl font-bold text-gray-700 flex items-center px-2"><i data-lucide="plus-circle" class="mr-2 text-violet-500"></i> Math Support?</h2>
+                        <div data-nav-link="mathHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-all cursor-pointer border-t-4 border-violet-500 flex-1 flex flex-col justify-between">
                             <div>
-                                <h3 class="font-bold text-gray-800 text-lg">Math Hub</h3>
-                                <p class="text-sm text-gray-500 mt-1">Master calculations with Python-powered accuracy.</p>
+                                <h3 class="text-2xl font-bold text-gray-800">Math Hub</h3>
+                                <p class="mt-2 text-gray-600">Master calculations with Python-powered accuracy.</p>
                             </div>
-                            <div class="mt-4 text-xs font-bold text-violet-600 flex items-center"><i data-lucide="zap" class="w-3 h-3 mr-1"></i> LOGIC READY</div>
+                            <div class="mt-4 text-xs font-bold text-violet-600 flex items-center"><i data-lucide="zap" class="w-3 h-3 mr-1"></i> HIGH ACCURACY ENGINE</div>
                         </div>
                     </div>
                 </div>
             </div>`;
         }
 
-        // --- RESTORED UNABRIDGED TOOL TEMPLATES ---
-        const learningHubTemplate = `<div class="max-w-4xl mx-auto"><div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500"><h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2><p class="text-gray-500 mb-8">Enter a topic to get revision notes and a practice test.</p><textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4 focus:ring-indigo-500" placeholder="e.g., The planets in our solar system"></textarea><button id="generate-learning-btn" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 flex items-center justify-center"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn</button></div><div id="lh-output" class="mt-8"></div></div>`;
+        function profilePickerTemplate(profiles) {
+            let profileButtons = profiles.map(profile => `
+                <button data-profile-id="${profile.id}" class="profile-select-btn group flex flex-col items-center p-4 rounded-lg hover:bg-indigo-100">
+                    <div class="h-24 w-24 rounded-full bg-indigo-300 flex items-center justify-center mb-2">
+                        <i data-lucide="user" class="h-12 w-12 text-indigo-700"></i>
+                    </div>
+                    <span class="text-lg font-semibold text-gray-700 group-hover:text-indigo-800">${profile.name}</span>
+                </button>
+            `).join('');
+
+            return `
+                <div class="min-h-screen flex items-center justify-center bg-gradient-to-b from-indigo-50 to-white p-4">
+                    <div class="max-w-2xl w-full bg-white p-8 rounded-xl shadow-2xl text-center">
+                        <h1 class="text-3xl font-bold text-gray-800 mb-8">Who's learning today?</h1>
+                        <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                            ${profileButtons}
+                            <button id="show-add-profile-btn" class="group flex flex-col items-center p-4 rounded-lg hover:bg-gray-100">
+                                <div class="h-24 w-24 rounded-full bg-gray-200 flex items-center justify-center mb-2">
+                                    <i data-lucide="plus" class="h-12 w-12 text-gray-600"></i>
+                                </div>
+                                <span class="text-lg font-semibold text-gray-700 group-hover:text-gray-900">Add Profile</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        const homeworkHelperTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
+                    <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started.</p>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
+                            <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
+                        </div>
+                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                    </div>
+                                    <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
+                                </div>
+                            </div>
+                            <div id="image-preview-wrapper" class="hidden mt-4">
+                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
+                    <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                </div>
+                <div id="hh-output" class="mt-8"></div>
+            </div>`;
+
+        const learningHubTemplate = `
+             <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2>
+                    <p class="text-gray-500 mb-8">Describe a topic or upload a photo to get revision notes and a practice test.</p>
+                     <div class="space-y-6">
+                        <div>
+                            <label for="learn-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want to learn about?</label>
+                            <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., The planets in our solar system"></textarea>
+                        </div>
+                        <div class="text-center text-sm font-medium text-gray-500">OR</div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Upload a Photo (optional)</label>
+                            <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+                                <div class="space-y-1 text-center">
+                                    <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
+                                    <div class="flex text-sm text-gray-600">
+                                        <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div id="image-preview-wrapper" class="hidden mt-4">
+                                <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
+                                <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-learning-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn</button>
+                    <div id="lh-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                </div>
+                <div id="lh-output" class="mt-8"></div>
+            </div>`;
+
+        const explainSimplyTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2>
+                    <p class="text-gray-500 mb-8">Enter a complex topic or question to get a simple explanation.</p>
+                    <div>
+                        <label for="explain-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want explained?</label>
+                        <textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What is photosynthesis? or Explain black holes"></textarea>
+                    </div>
+                    <button id="generate-explanation-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain</button>
+                    <div id="es-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                </div>
+                <div id="es-output" class="mt-8"></div>
+            </div>`;
+            
+        const testBuilderTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
+                    <p class="text-gray-500 mb-8">Create a custom practice test on any topic.</p>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div class="md:col-span-2">
+                            <label for="tb-topic" class="block text-sm font-medium text-gray-700 mb-1">Topic</label>
+                            <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., World War 2 Key Battles"></textarea>
+                        </div>
+                        <div>
+                            <label for="tb-num-questions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
+                            <select id="tb-num-questions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="30">30</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Question Types</label>
+                            <div class="space-y-2 mt-2">
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-mcq" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Multiple Choice</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-tf" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">True/False</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="tb-qt-short" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Short Answer</span></label>
+                            </div>
+                        </div>
+                    </div>
+                    <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all duration-300 flex items-center justify-center disabled:bg-teal-300 mb-8"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button>
+                    <div id="tb-error" class="text-red-500 text-sm mt-2 mb-6 hidden"></div>
+                </div>
+                <div id="tb-output" class="mt-8"></div>
+            </div>`;
+
+        const mathHubTemplate = `
+            <div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2>
+                    <p class="text-gray-500 mb-8">Specialist calculations powered by Python for guaranteed accuracy.</p>
+                    <div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200">
+                        <i data-lucide="brain-circuit" class="mx-auto h-16 w-16 text-violet-300"></i>
+                        <h3 class="mt-4 text-lg font-semibold text-slate-700">Math Engine initializing...</h3>
+                        <p class="mt-1 text-slate-500 font-mono text-sm">awaiting phase_2_backend_implementation.py</p>
+                    </div>
+                </div>
+            </div>`;
+
+        const myActivityTemplate = () => { 
+            const isFreeTier = state.accountData?.active_tier === 'free';
+            if (isFreeTier) {
+                return `<div class="max-w-4xl mx-auto p-8 bg-white rounded-xl shadow-xl border-t-4 border-rose-500 text-center">
+                        <i data-lucide="archive-x" class="mx-auto h-16 w-16 text-rose-500 mb-4"></i>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-2">Unlock Full Activity History</h2>
+                        <p class="text-gray-600 mb-6">Upgrade your plan to view, save, and export all past sessions.</p>
+                        <button data-nav-link="upgrade" class="mt-4 bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700">Upgrade Now</button>
+                    </div>`;
+            }
+            return `<div class="max-w-4xl mx-auto">
+                <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500">
+                    <h2 class="text-3xl font-bold text-gray-800 mb-2">My Activity</h2>
+                    <p class="text-gray-500 mb-8">Here's a list of your past work for ${state.activeProfile.name}.</p>
+                </div>
+                <div id="my-activity-output" class="mt-8 space-y-6"></div>
+            </div>`;
+        }
         
-        const testBuilderTemplate = `<div class="max-w-4xl mx-auto"><div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500"><h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2><p class="text-gray-500 mb-8">Create a custom practice test on any topic.</p><div class="space-y-6 mb-8"><textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border rounded-lg" placeholder="e.g., World War 2 Key Battles"></textarea><div class="grid grid-cols-2 gap-4"><div><label class="block text-sm font-medium text-gray-700">Number of Questions</label><select id="tb-num" class="w-full mt-1 border rounded-lg px-3 py-2"><option value="5">5</option><option value="10" selected>10</option><option value="20">20</option></select></div><div><label class="block text-sm font-medium text-gray-700">Question Types</label><div class="mt-2 space-y-1"><label class="flex items-center text-sm"><input type="checkbox" id="tb-mcq" checked class="mr-2"> MCQ</label><label class="flex items-center text-sm"><input type="checkbox" id="tb-tf" checked class="mr-2"> True/False</label><label class="flex items-center text-sm"><input type="checkbox" id="tb-short" checked class="mr-2"> Short Answer</label></div></div></div></div><button id="generate-tb-btn" class="w-full bg-teal-600 text-white font-bold py-3 rounded-lg hover:bg-teal-700 flex items-center justify-center"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button></div><div id="tb-output" class="mt-8"></div></div>`;
+        function upgradeTemplate() {
+            return `
+                <div class="max-w-4xl mx-auto p-4 md:p-8">
+                    <div class="bg-white p-6 rounded-xl shadow-xl border-t-4 border-indigo-500 text-center">
+                        <i data-lucide="zap" class="mx-auto h-16 w-16 text-indigo-500 mb-4"></i>
+                        <h1 class="text-3xl font-bold text-gray-800 mb-2">Upgrade Your Learning Genie</h1>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-8">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Single Learner</h3>
+                            <div class="text-4xl font-extrabold mb-6 text-indigo-600">R69<span class="text-lg font-normal">/month</span></div>
+                            <button data-plan="paid_single" class="upgrade-btn w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700">Subscribe for R69</button>
+                        </div>
+                        <div class="bg-indigo-600 p-6 rounded-xl shadow-2xl border-4 border-indigo-500 text-white flex flex-col transform scale-105">
+                            <h3 class="text-2xl font-bold mb-2">Family Two</h3>
+                            <div class="text-4xl font-extrabold mb-6">R99<span class="text-lg font-normal">/month</span></div>
+                            <button data-plan="paid_family" class="upgrade-btn w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-indigo-50 shadow-lg">Subscribe for R99</button>
+                        </div>
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-4 border-gray-100 flex flex-col">
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Family Ultra</h3>
+                            <div class="text-4xl font-extrabold mb-6 text-indigo-600">R149<span class="text-lg font-normal">/month</span></div>
+                            <button data-plan="paid_ultra" class="upgrade-btn w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700">Subscribe for R149</button>
+                        </div>
+                    </div>
+                </div>`;
+        }
 
-        const homeworkHelperTemplate = `<div class="max-w-4xl mx-auto"><div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-rose-400"><h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2><textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg mb-4" placeholder="Type your question here..."></textarea><div class="border-2 border-dashed border-gray-300 p-6 text-center rounded-lg mb-4 relative"><input type="file" id="image-upload" class="hidden" accept="image/*"><label for="image-upload" class="cursor-pointer text-indigo-600 font-bold hover:text-indigo-800">Click to upload worksheet photo</label><div id="image-preview-wrapper" class="hidden mt-4"><img id="image-preview" class="max-h-64 mx-auto rounded shadow-lg"><button id="remove-img" class="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1"><i data-lucide="x" class="w-4 h-4"></i></button></div></div><button id="generate-hh-btn" class="w-full bg-rose-500 text-white font-bold py-3 rounded-lg hover:bg-rose-600 flex items-center justify-center"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button></div><div id="hh-output" class="mt-8"></div></div>`;
-
-        const explainSimplyTemplate = `<div class="max-w-4xl mx-auto"><div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-amber-400"><h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2><textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border rounded-lg mb-6" placeholder="What should I explain in simple terms?"></textarea><button id="generate-es-btn" class="w-full bg-amber-500 text-white font-bold py-3 rounded-lg hover:bg-amber-600 flex items-center justify-center"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain</button></div><div id="es-output" class="mt-8"></div></div>`;
-
-        const mathHubTemplate = `<div class="max-w-4xl mx-auto"><div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-violet-500"><h2 class="text-3xl font-bold text-gray-800 mb-2">Math Hub</h2><p class="text-gray-500 mb-8">Computational accuracy powered by Python logic.</p><div class="text-center p-12 bg-slate-50 rounded-xl border-2 border-dashed border-slate-200"><i data-lucide="brain-circuit" class="mx-auto h-16 w-16 text-violet-300"></i><h3 class="mt-4 text-lg font-semibold text-slate-700">Math logic engine initializing...</h3><p class="mt-1 text-slate-500">Phase 2 Backend connection in progress.</p></div></div></div>`;
-
-        // --- UTILS & CORE ENGINE ---
-        function shuffleArray(array) { for (let i = array.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [array[i], array[j]] = [array[j], array[i]]; } }
-
-        async function fetchWithRetry(prompt, isJson, imageData = null) {
-            const res = await fetch('/api/generate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt, isJson, imageData }) });
-            const data = await res.json();
-            return data.candidates[0].content.parts[0].text;
+        // --- UTILITY FUNCTIONS ---
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        function renderPracticeTest(testData) {
+            if (!testData || testData.length === 0) return "<p>No test data.</p>";
+            let html = '<form id="quiz-form" class="space-y-6">';
+            testData.forEach((question, index) => {
+                html += `<div id="question-block-${index}" class="quiz-question-wrapper border-l-4 border-gray-200 p-4 rounded-r-lg bg-white shadow-sm mb-4">`;
+                html += `<p class="font-semibold text-gray-800 mb-3">${index + 1}. ${question.question}</p>`;
+                html += `<div class="space-y-2">`;
+                if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+                    if(question.options) shuffleArray(question.options);
+                    question.options.forEach((option) => {
+                        html += `<label class="flex items-center p-2 rounded-lg hover:bg-gray-50 cursor-pointer transition"><input type="radio" name="question_${index}" value="${option}" class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><span class="ml-3 text-sm text-gray-700">${option}</span></label>`;
+                    });
+                } else if (question.type === 'ShortAnswer') {
+                    html += `<input type="text" name="question_${index}" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500" placeholder="Type your answer here...">`;
+                }
+                html += `</div><div class="quiz-feedback-explanation text-xs italic mt-2 text-indigo-600 hidden"></div></div>`;
+            });
+            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700 flex items-center justify-center disabled:bg-green-300">Check My Answers</button></form>`;
+            return html;
         }
 
         function createSectionHTML(icon, color, title, content) {
-            const cleanMarkdown = (text) => String(text).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-4"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500 mr-2"></i>${title}</h3><div class="prose-sm text-gray-600">${cleanMarkdown(content)}</div></div>`;
+            const clean = (text) => String(text).replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+            return `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-4"><h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="${icon}" class="text-${color}-500 mr-2"></i>${title}</h3><div class="prose prose-sm max-w-none text-gray-600">${clean(content)}</div></div>`;
         }
 
-        function renderPracticeTest(testData) {
-            if (!testData || !testData.length) return "";
-            let html = '<form id="quiz-form" class="space-y-6 mt-8">';
-            testData.forEach((q, i) => {
-                html += `<div id="question-block-${i}" class="quiz-question-wrapper border-l-4 border-gray-200 p-6 rounded-r-lg bg-white shadow-sm">`;
-                html += `<p class="font-semibold text-gray-800 mb-4">${i + 1}. ${q.question}</p>`;
-                if (q.type === 'MCQ' || q.type === 'TrueFalse') {
-                    if(q.options) shuffleArray(q.options);
-                    q.options?.forEach(opt => { html += `<label class="flex items-center p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition"><input type="radio" name="q_${i}" value="${opt}" class="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"><span class="ml-3 text-gray-700">${opt}</span></label>`; });
-                } else {
-                    html += `<input type="text" name="q_${i}" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-indigo-500" placeholder="Type your answer here...">`;
-                }
-                html += `<div class="quiz-feedback-explanation hidden p-3 mt-4 bg-indigo-50 rounded-lg text-sm italic text-indigo-700 border-l-4 border-indigo-300"></div></div>`;
-            });
-            html += `<button id="submit-quiz-btn" type="submit" class="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition shadow-lg">Check My Answers</button></form>`;
-            return html;
+        // --- CORE APP RENDER FUNCTION ---
+        function showMainApp() {
+            const appContainer = document.getElementById('app-container');
+            appContainer.innerHTML = `
+                <div class="min-h-screen md:flex">
+                    <aside id="sidebar" class="w-64 bg-white border-r p-4 hidden md:flex flex-col h-screen sticky top-0">
+                        <div data-nav-link="home" class="mb-8 text-center cursor-pointer group"><img src="/logo.svg" class="h-16 mx-auto group-hover:scale-110 transition"><h1 class="font-bold text-gray-800 mt-2 text-xl text-center">Learning Genie</h1></div>
+                        <nav id="sidebar-nav" class="space-y-2 flex-1"></nav>
+                        <div id="usage-prompt-wrapper" class="mt-auto border-t pt-4"></div>
+                        <div class="pt-2 border-t mt-4">
+                            <button id="logout-btn" class="w-full flex items-center px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg"><i data-lucide="log-out" class="w-4 h-4 mr-2"></i>Logout</button>
+                        </div>
+                    </aside>
+                    <div class="flex-1 flex flex-col min-w-0">
+                        <header class="md:hidden bg-white border-b border-gray-200 p-4 flex justify-between items-center sticky top-0 z-40">
+                            <div class="flex items-center cursor-pointer" data-nav-link="home"><img src="/logo.svg" alt="Logo" class="h-8 w-8 mr-2"><span class="font-bold text-lg text-gray-800">Learning Genie</span></div>
+                            <button id="menu-toggle-btn" class="p-2 text-gray-600 rounded-lg hover:bg-gray-100"><i data-lucide="menu" class="h-6 w-6"></i></button>
+                        </header>
+                        <main id="main-content" class="flex-1 p-4 md:p-8 bg-slate-50 overflow-y-auto"></main>
+                    </div>
+                </div>`;
+            renderToolContent();
+        }
+
+        function renderToolContent() {
+            const mainContent = document.getElementById('main-content');
+            if (!mainContent) return;
+            switch (state.activeTab) {
+                case 'home': mainContent.innerHTML = homePageTemplate(); break;
+                case 'homeworkHelper': mainContent.innerHTML = homeworkHelperTemplate; break;
+                case 'learningHub': mainContent.innerHTML = learningHubTemplate; break;
+                case 'explainSimply': mainContent.innerHTML = explainSimplyTemplate; break;
+                case 'testBuilder': mainContent.innerHTML = testBuilderTemplate; break;
+                case 'mathHub': mainContent.innerHTML = mathHubTemplate; break;
+                case 'myActivity': mainContent.innerHTML = myActivityTemplate(); break;
+                case 'upgrade': mainContent.innerHTML = upgradeTemplate(); break;
+                default: mainContent.innerHTML = homePageTemplate();
+            }
+            updateSidebar();
+            lucide.createIcons();
+            attachToolEventListeners();
+            if (state.activeTab === 'myActivity') loadMyActivity();
+        }
+
+        function updateSidebar() {
+            const nav = document.getElementById('sidebar-nav');
+            const usage = document.getElementById('usage-prompt-wrapper');
+            if (!nav || !usage) return;
+            const tabs = [
+                { id: 'home', icon: 'home', label: 'Home' },
+                { id: 'learningHub', icon: 'book-marked', label: 'Learning Hub' },
+                { id: 'homeworkHelper', icon: 'life-buoy', label: 'Homework Help' },
+                { id: 'explainSimply', icon: 'baby', label: 'Explain Simply' },
+                { id: 'mathHub', icon: 'calculator', label: 'Math Hub' },
+                { id: 'testBuilder', icon: 'clipboard-check', label: 'Test Builder' },
+                { id: 'myActivity', icon: 'history', label: 'My Activity' }
+            ];
+            nav.innerHTML = tabs.map(t => `<button data-nav-link="${t.id}" class="flex items-center w-full px-4 py-2 rounded-lg ${state.activeTab === t.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'} capitalize mb-1 transition-all"><i data-lucide="${t.icon}" class="w-5 h-5 mr-3"></i>${t.label}</button>`).join('');
+            const isFree = state.accountData?.active_tier === 'free';
+            if (isFree) {
+                const remaining = FREE_USAGE_LIMIT - state.usageData.count;
+                usage.innerHTML = `<div class="p-3 bg-indigo-50 rounded-lg text-center border border-indigo-100"><p class="text-xs font-bold text-indigo-700">Trial: ${remaining}/${FREE_USAGE_LIMIT} Left</p></div>`;
+            } else {
+                usage.innerHTML = `<div class="p-3 bg-green-50 rounded-lg text-center font-bold text-green-700 text-xs border border-green-100 italic">UNLIMITED ACTIVE</div>`;
+            }
+        }
+
+        // --- CORE LOGIC FUNCTIONS ---
+
+        async function fetchWithRetry(prompt, isJson, retries = 1, requestType = 'text', imageData = null) {
+            try {
+                const response = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt, isJson, requestType, imageData })
+                });
+                const result = await response.json();
+                return result.candidates[0].content.parts[0].text;
+            } catch (error) {
+                if (retries > 0) return fetchWithRetry(prompt, isJson, retries - 1, requestType, imageData);
+                throw error;
+            }
         }
 
         async function handleQuizSubmit(e) {
             e.preventDefault();
             const btn = document.getElementById('submit-quiz-btn');
-            const original = btn.innerHTML;
-            btn.disabled = true; btn.innerHTML = "AI is marking your work...";
+            btn.disabled = true; btn.innerHTML = "Marking with AI...";
             let score = 0;
-
             for (let i = 0; i < state.currentTest.length; i++) {
                 const q = state.currentTest[i];
                 const block = document.getElementById(`question-block-${i}`);
                 const fb = block.querySelector('.quiz-feedback-explanation');
-                const userVal = q.type === 'ShortAnswer' ? document.querySelector(`[name="q_${i}"]`).value.trim() : document.querySelector(`[name="q_${i}"]:checked`)?.value;
-
+                const userVal = q.type === 'ShortAnswer' ? document.querySelector(`[name="question_${i}"]`).value.trim() : document.querySelector(`[name="question_${i}"]:checked`)?.value;
                 let isCorrect = false;
-                if (q.type !== 'ShortAnswer') {
-                    isCorrect = userVal?.toLowerCase() === q.correct_answer?.toLowerCase();
-                } else if (userVal) {
-                    const prompt = `Pedagogical Evaluator: Question: "${q.question}". Expected Concept: "${q.correct_answer}". Student Answer: "${userVal}". Is it conceptually correct? Allow minor typos. Reply ONLY JSON: {"isCorrect":true/false, "explanation":"1 sentence why."}`;
+                if (q.type !== 'ShortAnswer') { isCorrect = userVal === q.correct_answer; }
+                else if (userVal) {
+                    const prompt = `Grade: Q:"${q.question}" Ans:"${q.correct_answer}" Student:"${userVal}". JSON:{"isCorrect":true,"explanation":""}`;
                     try {
                         const res = JSON.parse(await fetchWithRetry(prompt, true));
                         isCorrect = res.isCorrect;
                         if(fb) { fb.innerText = res.explanation || ""; fb.classList.remove('hidden'); }
                     } catch (e) { isCorrect = userVal.toLowerCase() === q.correct_answer.toLowerCase(); }
                 }
-
-                block.className = `quiz-question-wrapper border-l-4 p-6 rounded-r-lg mb-4 shadow-sm ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`;
+                block.className = `quiz-question-wrapper border-l-4 p-6 rounded-r-lg mb-4 ${isCorrect ? 'border-green-500 bg-green-50' : 'border-red-500 bg-red-50'}`;
                 if(isCorrect) score++;
             }
-            btn.innerHTML = `Quiz Finished! Your Score: ${score}/${state.currentTest.length}`;
+            btn.innerHTML = `Finished! Score: ${score}/${state.currentTest.length}`;
             lucide.createIcons();
         }
 
-        // --- RESTORED TOOL LOGIC HANDLERS ---
-        async function runLearningHub() {
+        async function handleGenerateLearningHelp() {
             const topic = document.getElementById('learn-topic').value;
             const out = document.getElementById('lh-output');
             if(!topic) return;
-            out.innerHTML = `<div class="text-center p-8"><div class="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div><p class="mt-4 text-gray-500">Building your learning guide...</p></div>`;
-            const prompt = `You are an AI teacher. Create a JSON object for the topic "${topic}" with keys: "learning_objectives" (bullet list), "revision_notes" (detailed notes), and "practice_test" (array of 5 questions with "question", "type" (MCQ/TrueFalse/ShortAnswer), "options" (if MCQ/TF), and "correct_answer").`;
+            out.innerHTML = `<div class="text-center p-8"><div class="animate-spin h-12 w-12 border-b-2 border-indigo-600 mx-auto rounded-full"></div></div>`;
             try {
+                const prompt = `Topic: "${topic}". JSON keys: "learning_objectives", "revision_notes", "practice_test" (5 items with question, type, options, correct_answer).`;
                 const data = JSON.parse(await fetchWithRetry(prompt, true));
                 state.currentTest = data.practice_test;
-                out.innerHTML = `
-                    ${createSectionHTML('check-circle', 'green', 'Learning Objectives', data.learning_objectives)}
-                    ${createSectionHTML('book-open', 'indigo', 'Revision Notes', data.revision_notes)}
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
-                        <h3 class="text-xl font-bold text-gray-800 mb-2">Practice Test</h3>
-                        ${renderPracticeTest(data.practice_test)}
-                    </div>`;
+                out.innerHTML = createSectionHTML('check', 'green', 'Objectives', data.learning_objectives) + createSectionHTML('book', 'indigo', 'Notes', data.revision_notes) + renderPracticeTest(data.practice_test);
                 lucide.createIcons();
-                document.getElementById('quiz-form')?.addEventListener('submit', handleQuizSubmit);
-            } catch(e) { out.innerHTML = `<p class="text-red-500">Failed to generate guide. Please try again.</p>`; }
+                document.getElementById('quiz-form').addEventListener('submit', handleQuizSubmit);
+            } catch(e) { out.innerHTML = "Error."; }
         }
 
-        async function runTestBuilder() {
-            const topic = document.getElementById('tb-topic').value;
-            const num = document.getElementById('tb-num').value;
-            const out = document.getElementById('tb-output');
-            if(!topic) return;
-            out.innerHTML = `<div class="text-center p-8"><p class="text-gray-500 animate-pulse">Generating your custom exam...</p></div>`;
-            const types = [];
-            if(document.getElementById('tb-mcq').checked) types.push('MCQ');
-            if(document.getElementById('tb-tf').checked) types.push('TrueFalse');
-            if(document.getElementById('tb-short').checked) types.push('ShortAnswer');
-            const prompt = `Create a ${num}-question test on "${topic}". Use types: ${types.join(',')}. JSON: {"practice_test":[{"question":"", "type":"", "options":[], "correct_answer":""}]}`;
-            try {
-                const data = JSON.parse(await fetchWithRetry(prompt, true));
-                state.currentTest = data.practice_test;
-                out.innerHTML = renderPracticeTest(data.practice_test);
-                lucide.createIcons();
-                document.getElementById('quiz-form')?.addEventListener('submit', handleQuizSubmit);
-            } catch(e) { out.innerHTML = `<p class="text-red-500">Error.</p>`; }
-        }
-
-        async function runHomeworkHelper() {
+        async function handleGenerateHomeworkHelp() {
             const q = document.getElementById('hh-question').value;
             const out = document.getElementById('hh-output');
-            out.innerHTML = `<div class="animate-pulse text-rose-500 font-bold">Analyzing worksheet...</div>`;
-            const prompt = `Analyze: "${q}". If image provided, extract text first. Respond ONLY JSON: {"hints": ["hint 1", "hint 2"], "answer": "final answer"}`;
+            out.innerHTML = "Analyzing...";
             try {
-                const data = JSON.parse(await fetchWithRetry(prompt, true, state.uploadedImageBase64));
-                out.innerHTML = createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', data.hints.join('<br>')) + createSectionHTML('key-round', 'green', 'Final Answer', data.answer);
+                const prompt = `HW Help: "${q}". JSON: {"hints": [], "answer": ""}`;
+                const data = JSON.parse(await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64));
+                out.innerHTML = createSectionHTML('lightbulb', 'yellow', 'Hints', data.hints.join('<br>')) + createSectionHTML('key', 'green', 'Answer', data.answer);
                 lucide.createIcons();
-            } catch(e) { out.innerHTML = `<p class="text-red-500">Error analyzing homework.</p>`; }
+            } catch(e) { out.innerHTML = "Error."; }
         }
 
         function attachToolEventListeners() {
-            document.getElementById('generate-learning-btn')?.addEventListener('click', runLearningHub);
-            document.getElementById('generate-tb-btn')?.addEventListener('click', runTestBuilder);
-            document.getElementById('generate-hh-btn')?.addEventListener('click', runHomeworkHelper);
-            document.getElementById('generate-es-btn')?.addEventListener('click', async () => {
+            document.getElementById('generate-learning-help-btn')?.addEventListener('click', handleGenerateLearningHelp);
+            document.getElementById('generate-homework-help-btn')?.addEventListener('click', handleGenerateHomeworkHelp);
+            document.getElementById('generate-explanation-btn')?.addEventListener('click', async () => {
                 const topic = document.getElementById('explain-topic').value;
-                document.getElementById('es-output').innerHTML = "Simplifying concept...";
-                const res = await fetchWithRetry(`Explain "${topic}" to a 10 year old using simple language and analogies.`, false);
+                document.getElementById('es-output').innerHTML = "Thinking...";
+                const res = await fetchWithRetry(`Explain ${topic} simply.`, false);
                 document.getElementById('es-output').innerHTML = createSectionHTML('baby', 'amber', 'Simple Explanation', res);
                 lucide.createIcons();
+            });
+            document.getElementById('generate-test-builder-btn')?.addEventListener('click', async () => {
+                const topic = document.getElementById('tb-topic').value;
+                const num = document.getElementById('tb-num-questions').value;
+                const prompt = `Create ${num}-question test on ${topic}. JSON: {"practice_test": []}`;
+                const res = JSON.parse(await fetchWithRetry(prompt, true));
+                state.currentTest = res.practice_test;
+                document.getElementById('tb-output').innerHTML = renderPracticeTest(res.practice_test);
+                lucide.createIcons();
+                document.getElementById('quiz-form').addEventListener('submit', handleQuizSubmit);
             });
             document.getElementById('image-upload')?.addEventListener('change', (e) => {
                 const reader = new FileReader();
@@ -236,32 +518,7 @@
                 };
                 reader.readAsDataURL(e.target.files[0]);
             });
-            document.getElementById('remove-img')?.addEventListener('click', () => { state.uploadedImageBase64 = null; document.getElementById('image-preview-wrapper').classList.add('hidden'); });
             document.getElementById('logout-btn')?.addEventListener('click', () => supabaseClient.auth.signOut());
-        }
-
-        // --- NAVIGATION & SHELL ---
-        function renderToolContent() {
-            const main = document.getElementById('main-content');
-            switch (state.activeTab) {
-                case 'home': main.innerHTML = homePageTemplate(); break;
-                case 'learningHub': main.innerHTML = learningHubTemplate; break;
-                case 'testBuilder': main.innerHTML = testBuilderTemplate; break;
-                case 'homeworkHelper': main.innerHTML = homeworkHelperTemplate; break;
-                case 'explainSimply': main.innerHTML = explainSimplyTemplate; break;
-                case 'mathHub': main.innerHTML = mathHubTemplate; break;
-                case 'myActivity': main.innerHTML = `<div class="max-w-4xl mx-auto bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500"><h2 class="text-3xl font-bold mb-4">Activity History</h2><div id="my-activity-output" class="space-y-4"></div></div>`; break;
-            }
-            const nav = document.getElementById('sidebar-nav');
-            const usage = document.getElementById('usage-prompt-wrapper');
-            const tabs = [{id:'home', icon:'home', label:'Home'}, {id:'learningHub', icon:'book-marked', label:'Learning Hub'}, {id:'homeworkHelper', icon:'life-buoy', label:'Homework Help'}, {id:'explainSimply', icon:'baby', label:'Explain Simply'}, {id:'mathHub', icon:'calculator', label:'Math Hub'}, {id:'testBuilder', icon:'clipboard-check', label:'Test Builder'}, {id:'myActivity', icon:'history', label:'My Activity'}];
-            nav.innerHTML = tabs.map(t => `<button data-nav-link="${t.id}" class="flex items-center w-full px-4 py-2 rounded-lg ${state.activeTab === t.id ? 'bg-indigo-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-100'} capitalize mb-1 transition-all"><i data-lucide="${t.icon}" class="w-5 h-5 mr-3"></i>${t.label}</button>`).join('');
-            
-            const isFree = state.accountData?.active_tier === 'free';
-            usage.innerHTML = isFree ? `<div class="p-3 bg-indigo-50 rounded-lg text-center border border-indigo-100"><p class="text-xs font-bold text-indigo-700">Trial: ${FREE_USAGE_LIMIT - state.usageData.count}/${FREE_USAGE_LIMIT} Left</p></div>` : `<div class="p-3 bg-green-50 rounded-lg text-center font-bold text-green-700 text-xs border border-green-100 italic">UNLIMITED PLAN ACTIVE</div>`;
-            
-            lucide.createIcons();
-            attachToolEventListeners();
         }
 
         async function handleAuth() {
@@ -269,14 +526,13 @@
             if (!session) window.location.href = '/login.html';
             else { 
                 state.session = session;
-                const { data: acc } = await supabaseClient.from('accounts').select('*').eq('id', session.user.id).single();
-                state.accountData = acc || { active_tier: 'free' };
-                const { data: usg } = await supabaseClient.from('monthly_usage').select('*').eq('account_id', session.user.id).single();
-                state.usageData = { count: usg?.usage_count || 0 };
-                const { data: profs } = await supabaseClient.from('profiles').select('*').eq('account_id', session.user.id);
-                state.activeProfile = profs?.[0];
-                document.getElementById('app-container').innerHTML = `<div class="min-h-screen md:flex"><aside id="sidebar" class="w-64 bg-white border-r p-4 hidden md:flex flex-col h-screen sticky top-0"><div data-nav-link="home" class="mb-8 text-center cursor-pointer group"><img src="/logo.svg" class="h-16 mx-auto group-hover:scale-110 transition"><h1 class="font-bold text-gray-800 mt-2 text-xl">Learning Genie</h1></div><nav id="sidebar-nav" class="flex-1"></nav><div id="usage-prompt-wrapper" class="mt-auto border-t pt-4"></div><button id="logout-btn" class="mt-4 flex items-center px-4 py-2 text-gray-400 hover:text-indigo-600 transition"><i data-lucide="log-out" class="w-4 h-4 mr-2"></i>Sign Out</button></aside><main id="main-content" class="flex-1 p-4 md:p-8 bg-slate-50 overflow-y-auto"></main></div>`;
-                renderToolContent();
+                const { data: account } = await supabaseClient.from('accounts').select('*').eq('id', session.user.id).single();
+                state.accountData = account || { active_tier: 'free' };
+                const { data: usage } = await supabaseClient.from('monthly_usage').select('*').eq('account_id', session.user.id).single();
+                state.usageData = { count: usage?.usage_count || 0 };
+                const { data: profiles } = await supabaseClient.from('profiles').select('*').eq('account_id', session.user.id);
+                state.activeProfile = profiles?.[0];
+                showMainApp();
             }
         }
 
