@@ -110,32 +110,56 @@
 
         function homePageTemplate() {
             return `
-            <div class="max-w-4xl mx-auto text-center">
-                 <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
+            <div class="max-w-5xl mx-auto text-center">
+                <div class="bg-white p-8 md:p-12 rounded-xl shadow-xl border-t-4 border-indigo-500">
                     <i data-lucide="sparkles" class="mx-auto h-16 w-16 text-amber-400"></i>
-                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Welcome, ${state.activeProfile.name}!</h1>
-                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">Your AI-powered assistant for learning. Get help with homework, revise topics, and practice for tests.</p>
+                    <h1 class="mt-4 text-4xl md:text-5xl font-bold text-gray-800">Hi, ${state.activeProfile.name}!</h1>
+                    <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">What are we working on today? Choose a goal to find the right tool.</p>
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mt-10">
-                    <div data-nav-link="homeworkHelper" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-rose-400">
+        
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mt-10">
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-rose-400 flex flex-col">
                         <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Homework Helper</h2>
-                        <p class="mt-2 text-gray-600">Upload a photo of a worksheet to get hints and explanations.</p>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">I need help with Homework</h2>
+                        <div class="space-y-3 mt-auto">
+                            <button data-nav-link="homeworkHelper" class="w-full py-3 px-4 bg-rose-50 text-rose-700 rounded-lg font-semibold hover:bg-rose-100 transition-colors flex items-center justify-between">
+                                <span>Scan a Worksheet</span>
+                                <i data-lucide="camera" class="h-4 w-4"></i>
+                            </button>
+                            <button data-nav-link="explainSimply" class="w-full py-3 px-4 bg-rose-50 text-rose-700 rounded-lg font-semibold hover:bg-rose-100 transition-colors flex items-center justify-between">
+                                <span>Explain a Concept</span>
+                                <i data-lucide="baby" class="h-4 w-4"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div data-nav-link="learningHub" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-indigo-500">
+        
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-indigo-500 flex flex-col">
                         <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Learning Hub</h2>
-                        <p class="mt-2 text-gray-600">Enter a topic to get revision notes and a practice test.</p>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">I want to Study for a Test</h2>
+                        <div class="space-y-3 mt-auto">
+                            <button data-nav-link="learningHub" class="w-full py-3 px-4 bg-indigo-50 text-indigo-700 rounded-lg font-semibold hover:bg-indigo-100 transition-colors flex items-center justify-between">
+                                <span>Create Revision Notes</span>
+                                <i data-lucide="file-text" class="h-4 w-4"></i>
+                            </button>
+                            <button data-nav-link="testBuilder" class="w-full py-3 px-4 bg-indigo-50 text-indigo-700 rounded-lg font-semibold hover:bg-indigo-100 transition-colors flex items-center justify-between">
+                                <span>Build a Practice Test</span>
+                                <i data-lucide="clipboard-check" class="h-4 w-4"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div data-nav-link="explainSimply" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-amber-400">
-                        <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Explain It Simply</h2>
-                        <p class="mt-2 text-gray-600">Get a simple, easy-to-understand explanation of any topic.</p>
-                    </div>
-                    <div data-nav-link="testBuilder" class="group bg-white p-8 rounded-xl shadow-lg hover:shadow-2xl transition-shadow duration-300 cursor-pointer border-t-4 border-teal-400">
-                        <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
-                        <h2 class="text-2xl font-bold text-gray-800">Test Builder</h2>
-                        <p class="mt-2 text-gray-600">Create a custom practice test on any topic.</p>
+        
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-amber-400 flex flex-col">
+                        <i data-lucide="calculator" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
+                        <h2 class="text-2xl font-bold text-gray-800 mb-4">I'm solving Mathematics</h2>
+                        <div class="space-y-3 mt-auto">
+                            <button data-nav-link="mathHub" class="w-full py-3 px-4 bg-amber-50 text-amber-700 rounded-lg font-semibold hover:bg-amber-100 transition-colors flex items-center justify-between">
+                                <span>Solve with BODMAS</span>
+                                <i data-lucide="arrow-right-circle" class="h-4 w-4"></i>
+                            </button>
+                            <div class="p-3 border border-dashed border-gray-200 rounded-lg text-xs text-gray-400 italic">
+                                More subjects coming soon...
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>`;
