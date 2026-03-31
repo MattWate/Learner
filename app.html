@@ -1254,7 +1254,21 @@
                             ${createSectionHTML('info', 'blue', "Understanding the Concept", result.explanation)}
                             ${createSectionHTML('list', 'indigo', "Step-by-Step Solution", result.steps)}
                             ${createSectionHTML('check-circle', 'green', "Final Answer", result.final_answer)}
-                            ${createSectionHTML('edit-3', 'amber', "Now You Try!", result.practice_problems)}
+                            `<div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                                <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                                    <i data-lucide="edit-3" class="text-amber-500"></i>
+                                    <span class="ml-2">Now You Try!</span>
+                                </h3>
+                                <div class="space-y-2">
+                                    ${result.practice_problems.map(prob => `
+                                        <button onclick="document.getElementById('math-input').value = '${prob.replace(/'/g, "\\'")}'; window.scrollTo({top: 0, behavior: 'smooth'});" 
+                                                class="w-full text-left p-3 rounded-lg border border-dashed border-amber-200 hover:bg-amber-50 text-amber-900 transition-colors flex justify-between items-center group">
+                                            <span>${prob}</span>
+                                            <span class="text-xs font-medium text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">Click to solve this one →</span>
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>`
                         </div>
                     `;
             
