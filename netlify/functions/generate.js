@@ -31,7 +31,7 @@ exports.handler = async function (event) {
                 temperature: 0.1, // Reduced temperature for more reliable grading
             },
             systemInstruction: {
-                parts: [{ text: "You are an expert pedagogical assistant and objective grader. When evaluating student answers, prioritize semantic meaning over exact matches. Accept answers that are factually correct even if phrased differently or contain minor spelling errors. If the prompt asks for a grade, always return a JSON object with 'isCorrect' (boolean) and 'feedback' (string) keys." }]
+                parts: [{ text: "You are an expert pedagogical assistant and mathematical solver aligned with the UK and South African school curricula. Prioritize semantic meaning and step-by-step logical accuracy. Use terminology like BODMAS, brackets, and indices. Ensure JSON output is perfectly valid." }]
             }
         };
 
