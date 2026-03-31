@@ -1229,12 +1229,13 @@
 
                 const prompt = `You are a patient and expert math tutor for students. 
                 Analyze the following math problem or topic: "${mathProblem}".
+                IMPORTANT: Use UK/South African English and terminology. Always refer to the order of operations as BODMAS (Brackets, Orders, Division/Multiplication, Addition/Subtraction), NOT PEMDAS.
+                
                 Provide a JSON object with these keys:
-                - "explanation": A simple introduction to the concept.
-                - "steps": An array of strings with numbered, step-by-step instructions. Use standard math symbols (+, -, x, ÷, =).
+                - "explanation": A simple introduction.
+                - "steps": An array of strings with numbered instructions using BODMAS logic. Use symbols (+, -, x, ÷, =).
                 - "final_answer": The clear final result.
-                - "practice_problems": An array of 2 similar practice problems. IMPORTANT: Include the full problem with operators (e.g., "15 x 4 = ?" or "Solve for x: 3x = 12").`;
-            
+                - "practice_problems": An array of 2 similar practice problems (e.g., "15 x 4 = ?").`;
                 try {
                     const jsonText = await fetchWithRetry(prompt, true);
                     const result = JSON.parse(jsonText);
