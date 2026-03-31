@@ -646,6 +646,11 @@
             if (lhButton) {
                 lhButton.addEventListener('click', handleGenerateLearningHelp);
             }
+
+            const mathButton = document.getElementById('generate-math-help-btn');
+            if (mathButton) {
+                mathButton.addEventListener('click', handleGenerateMathHelp);
+            }
             
             const esButton = document.getElementById('generate-explanation-btn');
             if (esButton) {
@@ -1194,6 +1199,69 @@
                 lucide.createIcons();
             }
         }
+
+        async function handleGenerateMathHelp() {
+                if (!await checkAndIncrementUsage()) return;
+                const mathProblem = document.getElementById('math-input').value.trim();
+                const errorEl = document.getElementById('math-error');
+                const outputEl = document.getElementById('math-output');
+                const button = document.getElementById('generate-math-help-btn');
+            
+                errorEl.classList.add('hidden');
+                if (!mathProblem) {
+                    errorEl.textContent = 'Please enter a math problem or topic.';
+                    errorEl.classList.remove('hidden');
+                    return;
+                }
+            
+                button.disabled = true;
+                button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Solving...`;
+                outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Calculating steps...</p></div>`;
+            
+                const prompt = `You are a patient and expert math tutor for students. 
+                Analyze the following math problem or topic: "${mathProblem}".
+                Provide a JSON object with these keys:
+                - "explanation": A simple introduction to the concept involved.
+                - "steps": An array of strings, where each string is a clear, numbered step to solve the problem.
+                - "final_answer": The clear final result.
+                - "practice_problems": An array of 2 similar practice problems (strings only) for the student to try.
+                
+                Ensure you use clear formatting and explain 'why' a step is taken, not just 'what' the step is.`;
+            
+                try {
+                    const jsonText = await fetchWithRetry(prompt, true);
+                    const result = JSON.parse(jsonText);
+            
+                    // Save work to history
+                    supabaseClient.from('saved_work').insert({
+                        profile_id: state.activeProfile.id,
+                        work_type: 'mathHub',
+                        input_prompt: { "prompt": mathProblem },
+                        output_content: result
+                    }).then(({ error }) => {
+                        if (error) console.error("Error saving work:", error.message);
+                    });
+            
+                    outputEl.innerHTML = `
+                        <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
+                            ${createSectionHTML('info', 'blue', "Understanding the Concept", result.explanation)}
+                            ${createSectionHTML('list', 'indigo', "Step-by-Step Solution", result.steps)}
+                            ${createSectionHTML('check-circle', 'green', "Final Answer", result.final_answer)}
+                            ${createSectionHTML('edit-3', 'amber', "Now You Try!", result.practice_problems)}
+                        </div>
+                    `;
+            
+                    lucide.createIcons();
+                } catch (e) {
+                    errorEl.textContent = `An error occurred: ${e.message}`;
+                    errorEl.classList.remove('hidden');
+                    outputEl.innerHTML = '';
+                } finally {
+                    button.disabled = false;
+                    button.innerHTML = `<i data-lucide="calculator" class="w-5 h-5 mr-2"></i> Solve & Explain`;
+                    lucide.createIcons();
+                }
+            }
 
         async function handleGenerateLearningHelp() {
             if (!await checkAndIncrementUsage()) return;
