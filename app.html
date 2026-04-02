@@ -874,12 +874,18 @@
                 if (profiles && profiles.length > 0) {
                     document.getElementById('app-container').innerHTML = profilePickerTemplate(profiles);
                     lucide.createIcons();
+
                 } else {
                     document.getElementById('app-container').innerHTML = createProfileTemplate('Welcome! Create your first learner profile to start using the tools.');
                     lucide.createIcons();
-                    document.getElementById('create-profile-form').addEventListener('submit', handleCreateProfile);
+                    
+                    // Safety Check: Only add the listener if the form was successfully injected
+                    const profileForm = document.getElementById('create-profile-form');
+                    if (profileForm) {
+                        profileForm.addEventListener('submit', handleCreateProfile);
+                    }
                 }
-
+                
             } catch (error) {
                 console.error('Error in checkAccountStatus:', error);
                 document.getElementById('app-container').innerHTML = `<div class="min-h-screen flex items-center justify-center p-4">
