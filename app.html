@@ -872,14 +872,14 @@
                 if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`);
 
                 if (profiles && profiles.length > 0) {
+                    // Show the picker so they can choose a profile
                     document.getElementById('app-container').innerHTML = profilePickerTemplate(profiles);
                     lucide.createIcons();
-
                 } else {
-                    document.getElementById('app-container').innerHTML = createProfileTemplate('Welcome! Create your first learner profile to start using the tools.');
+                    // New account: Force them to create their first profile
+                    document.getElementById('app-container').innerHTML = createProfileTemplate(1);
                     lucide.createIcons();
                     
-                    // Safety Check: Only add the listener if the form was successfully injected
                     const profileForm = document.getElementById('create-profile-form');
                     if (profileForm) {
                         profileForm.addEventListener('submit', handleCreateProfile);
