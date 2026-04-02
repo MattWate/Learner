@@ -938,6 +938,11 @@
                     const appContainer = document.getElementById('app-container');
                     appContainer.innerHTML = createProfileTemplate('Add a new learner profile.');
                     lucide.createIcons();
+
+                    const profileForm = document.getElementById('create-profile-form');
+                    if (profileForm) {
+                        profileForm.addEventListener('submit', handleCreateProfile);
+                    }
                     
                     document.getElementById('create-profile-form').addEventListener('submit', handleCreateProfile);
                 });
