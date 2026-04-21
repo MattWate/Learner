@@ -1671,7 +1671,6 @@ Provide a JSON object with these keys:
             }
         }
 
-        // --- NEW: DISPLAY SAVED WORK (Tests and Notes) ---
         async function displaySavedWork(work) {
             const mainContent = document.getElementById('main-content');
             const data = work.output_content;
@@ -1687,7 +1686,7 @@ Provide a JSON object with these keys:
                         <i data-lucide="download" class="w-4 h-4 mr-2"></i> Save as Word
                     </button>
                 </div>`;
-
+        
             if (work.work_type === 'testBuilder' || (work.work_type === 'learningHub' && data.practice_test)) {
                 state.currentTest = data.practice_test;
                 contentHTML += `
@@ -1706,16 +1705,26 @@ Provide a JSON object with these keys:
                 if (data.hints) contentHTML += createSectionHTML('lightbulb', 'yellow', 'Hints', data.hints);
                 if (data.answer || data.answers) contentHTML += createSectionHTML('key-round', 'green', 'Check Work', data.answer || data.answers);
             }
-
+        
             contentHTML += `</div>`;
             mainContent.innerHTML = contentHTML;
+            
+            // 1. Re-render icons
             lucide.createIcons();
+            
+            // 2. Re-attach listeners for the quiz if it exists
             attachToolEventListeners();
             
-            document.getElementById('download-work-btn').onclick = async () => {
-                const docx = await window.htmlToDocx.default(mainContent.innerHTML);
-                saveAs(docx, `LearningGenie_${work.work_type}.docx`);
-            };
+            // 3. SENSITIVE FIX: Attach the download listener directly here
+            const downloadBtn = document.getElementById('download-work-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', async () => {
+                    // Note: We use the content wrapper to capture the HTML for Word
+                    const contentToSave = document.querySelector('.max-w-4xl'); 
+                    const docx = await window.htmlToDocx.default(contentToSave.innerHTML);
+                    saveAs(docx, `LearningGenie_${work.work_type}.docx`);
+                });
+            }
         }
 
         // --- EVENT DELEGATION FOR NAVIGATION ---
