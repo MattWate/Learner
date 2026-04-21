@@ -12,7 +12,7 @@ exports.handler = async function (event) {
     try {
         const { requestType, prompt, isJson, imageData } = JSON.parse(event.body);
 
-        const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GOOGLE_API_KEY}`;
+        const textUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
         
         const parts = [{ text: prompt }];
         if (imageData) {
