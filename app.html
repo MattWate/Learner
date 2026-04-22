@@ -1715,14 +1715,68 @@ Provide a JSON object with these keys:
             // 2. Re-attach listeners for the quiz if it exists
             attachToolEventListeners();
             
-            // 3. SENSITIVE FIX: Attach the download listener directly here
+            // 3. Attach the download listener — exports as Word-compatible HTML (.doc)
             const downloadBtn = document.getElementById('download-work-btn');
             if (downloadBtn) {
-                downloadBtn.addEventListener('click', async () => {
-                    // Note: We use the content wrapper to capture the HTML for Word
-                    const contentToSave = document.querySelector('.max-w-4xl'); 
-                    const docx = await window.htmlToDocx.default(contentToSave.innerHTML);
-                    saveAs(docx, `LearningGenie_${work.work_type}.docx`);
+                downloadBtn.addEventListener('click', () => {
+                    const workTypeLabel = work.work_type.replace(/([A-Z])/g, ' $1').trim();
+                    const topicLabel = (work.input_prompt?.prompt || 'Saved Work').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    const dateLabel = new Date(work.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+            
+                    // Collect visible text sections from the rendered content
+                    const sections = document.querySelectorAll('.max-w-4xl .bg-white');
+                    let bodyContent = '';
+                    sections.forEach(section => {
+                        const headings = section.querySelectorAll('h3');
+                        headings.forEach(h => {
+                            bodyContent += `<h2>${h.innerText}</h2>`;
+                        });
+                        const prose = section.querySelectorAll('.prose');
+                        prose.forEach(p => {
+                            bodyContent += `<div>${p.innerHTML}</div><br>`;
+                        });
+                        // Capture quiz questions if present
+                        const questions = section.querySelectorAll('.quiz-question-wrapper p');
+                        if (questions.length) {
+                            bodyContent += '<h2>Practice Questions</h2><ol>';
+                            questions.forEach(q => { bodyContent += `<li>${q.innerText}</li>`; });
+                            bodyContent += '</ol>';
+                        }
+                    });
+            
+                    const htmlContent = `
+            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+            <head>
+            <meta charset="UTF-8">
+            <title>${workTypeLabel} - ${topicLabel}</title>
+            <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+            <style>
+              body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 2cm; color: #1f2937; }
+              h1 { font-size: 18pt; color: #4338ca; border-bottom: 2px solid #4338ca; padding-bottom: 4pt; margin-bottom: 6pt; }
+              h2 { font-size: 13pt; color: #374151; margin-top: 14pt; margin-bottom: 4pt; }
+              p, div { margin-bottom: 6pt; }
+              li { margin-bottom: 3pt; }
+              strong { font-weight: bold; }
+            </style>
+            </head>
+            <body>
+            <h1>${workTypeLabel}</h1>
+            <p><strong>Topic:</strong> ${topicLabel}</p>
+            <p><strong>Date:</strong> ${dateLabel}</p>
+            <hr>
+            ${bodyContent}
+            </body>
+            </html>`;
+            
+                    const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `LearningGenie_${work.work_type}_${Date.now()}.doc`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
                 });
             }
         }
