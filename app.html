@@ -11,8 +11,6 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-    <script src="https://unpkg.com/html-to-docx@1.8.0/dist/html-to-docx.js"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://js.paystack.co/v1/inline.js"></script> 
@@ -471,7 +469,6 @@
                         </div>
                     </div>`;
             }
-            // Step 2 can include Grade/Level for better AI tuning later
         };
 
         // --- UTILITY FUNCTIONS ---
@@ -745,7 +742,6 @@
             };
             
             let navHtml = '';
-            // Update this line to include 'mathHub'
             ['home', 'homeworkHelper', 'learningHub', 'mathHub', 'explainSimply', 'testBuilder'].forEach(tab => {
                 const item = navItems[tab];
                 navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
@@ -872,11 +868,9 @@
                 if (profileError) throw new Error(`Failed to fetch profiles: ${profileError.message}`);
 
                 if (profiles && profiles.length > 0) {
-                    // Show the picker so they can choose a profile
                     document.getElementById('app-container').innerHTML = profilePickerTemplate(profiles);
                     lucide.createIcons();
                 } else {
-                    // New account: Force them to create their first profile
                     document.getElementById('app-container').innerHTML = createProfileTemplate(1);
                     lucide.createIcons();
                     
@@ -1251,25 +1245,24 @@
         }
 
         async function handleGenerateMathHelp() {
-    if (!await checkAndIncrementUsage()) return;
-    const mathProblem = document.getElementById('math-input').value.trim();
-    const errorEl = document.getElementById('math-error');
-    const outputEl = document.getElementById('math-output');
-    const button = document.getElementById('generate-math-help-btn');
+            if (!await checkAndIncrementUsage()) return;
+            const mathProblem = document.getElementById('math-input').value.trim();
+            const errorEl = document.getElementById('math-error');
+            const outputEl = document.getElementById('math-output');
+            const button = document.getElementById('generate-math-help-btn');
 
-    errorEl.classList.add('hidden');
-    if (!mathProblem) {
-        errorEl.textContent = 'Please enter a math problem or topic.';
-        errorEl.classList.remove('hidden');
-        return;
-    }
+            errorEl.classList.add('hidden');
+            if (!mathProblem) {
+                errorEl.textContent = 'Please enter a math problem or topic.';
+                errorEl.classList.remove('hidden');
+                return;
+            }
 
-    button.disabled = true;
-    button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Verifying Accuracy...`;
-    outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Calculating precisely...</p></div>`;
+            button.disabled = true;
+            button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Verifying Accuracy...`;
+            outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Calculating precisely...</p></div>`;
 
-    // The prompt now forces the AI to solve it internally with logic before formatting
-    const prompt = `You are an expert math tutor for students in South Africa and the UK. 
+            const prompt = `You are an expert math tutor for students in South Africa and the UK. 
 Analyze the following math problem or topic: "${mathProblem}".
 
 IMPORTANT RULES:
@@ -1285,58 +1278,55 @@ Provide a JSON object with these keys:
 - "final_answer": The definitive result.
 - "practice_problems": An array of 2 similar practice problems for the student to solve next.`;
 
-    try {
-        // We still use fetchWithRetry, but the system instruction in generate.js 
-        // now guides the model to be an objective grader/solver.
-        const jsonText = await fetchWithRetry(prompt, true);
-        const result = JSON.parse(jsonText);
+            try {
+                const jsonText = await fetchWithRetry(prompt, true);
+                const result = JSON.parse(jsonText);
 
-        // Save to Supabase (unchanged)
-        supabaseClient.from('saved_work').insert({
-            profile_id: state.activeProfile.id,
-            work_type: 'mathHub',
-            input_prompt: { "prompt": mathProblem },
-            output_content: result
-        }).then(({ error }) => {
-            if (error) console.error("Error saving work:", error.message);
-        });
+                supabaseClient.from('saved_work').insert({
+                    profile_id: state.activeProfile.id,
+                    work_type: 'mathHub',
+                    input_prompt: { "prompt": mathProblem },
+                    output_content: result
+                }).then(({ error }) => {
+                    if (error) console.error("Error saving work:", error.message);
+                });
 
-        // Keep your exact layout style
-        outputEl.innerHTML = `
-            <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                ${createSectionHTML('info', 'blue', "Understanding the Concept", result.explanation)}
-                ${createSectionHTML('list', 'indigo', "Step-by-Step Solution", result.steps)}
-                ${createSectionHTML('check-circle', 'green', "Final Answer", result.final_answer)}
-                
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
-                        <i data-lucide="edit-3" class="text-amber-500"></i>
-                        <span class="ml-2">Now You Try!</span>
-                    </h3>
-                    <div class="space-y-2">
-                        ${result.practice_problems.map(prob => `
-                            <button onclick="document.getElementById('math-input').value = '${prob.replace(/'/g, "\\'")}'; window.scrollTo({top: 0, behavior: 'smooth'});" 
-                                    class="w-full text-left p-3 rounded-lg border border-dashed border-amber-200 hover:bg-amber-50 text-amber-900 transition-colors flex justify-between items-center group">
-                                <span>${prob}</span>
-                                <span class="text-xs font-medium text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">Solve this one →</span>
-                            </button>
-                        `).join('')}
+                outputEl.innerHTML = `
+                    <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
+                        ${createSectionHTML('info', 'blue', "Understanding the Concept", result.explanation)}
+                        ${createSectionHTML('list', 'indigo', "Step-by-Step Solution", result.steps)}
+                        ${createSectionHTML('check-circle', 'green', "Final Answer", result.final_answer)}
+                        
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                                <i data-lucide="edit-3" class="text-amber-500"></i>
+                                <span class="ml-2">Now You Try!</span>
+                            </h3>
+                            <div class="space-y-2">
+                                ${result.practice_problems.map(prob => `
+                                    <button onclick="document.getElementById('math-input').value = '${prob.replace(/'/g, "\\'")}'; window.scrollTo({top: 0, behavior: 'smooth'});" 
+                                            class="w-full text-left p-3 rounded-lg border border-dashed border-amber-200 hover:bg-amber-50 text-amber-900 transition-colors flex justify-between items-center group">
+                                        <span>${prob}</span>
+                                        <span class="text-xs font-medium text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">Solve this one →</span>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>
-        `;
+                `;
 
-        lucide.createIcons();
-    } catch (e) {
-        errorEl.textContent = `An error occurred: ${e.message}`;
-        errorEl.classList.remove('hidden');
-        outputEl.innerHTML = '';
-    } finally {
-        button.disabled = false;
-        button.innerHTML = `<i data-lucide="calculator" class="w-5 h-5 mr-2"></i> Solve & Explain`;
-        lucide.createIcons();
-    }
-}
+                lucide.createIcons();
+            } catch (e) {
+                errorEl.textContent = `An error occurred: ${e.message}`;
+                errorEl.classList.remove('hidden');
+                outputEl.innerHTML = '';
+            } finally {
+                button.disabled = false;
+                button.innerHTML = `<i data-lucide="calculator" class="w-5 h-5 mr-2"></i> Solve & Explain`;
+                lucide.createIcons();
+            }
+        }
+
         async function handleGenerateLearningHelp() {
             if (!await checkAndIncrementUsage()) return;
             const topic = document.getElementById('learn-topic').value;
@@ -1372,11 +1362,16 @@ Provide a JSON object with these keys:
                 const jsonText = await fetchWithRetry(prompt, true, 1, 'text', state.uploadedImageBase64);
                 const result = JSON.parse(jsonText);
                 
+                // Save the COMPLETE result including all three sections
                 supabaseClient.from('saved_work').insert({
                     profile_id: state.activeProfile.id,
                     work_type: 'learningHub',
                     input_prompt: { "prompt": inputPromptForDb },
-                    output_content: result
+                    output_content: {
+                        learning_objectives: result.learning_objectives,
+                        revision_notes: result.revision_notes,
+                        practice_test: result.practice_test
+                    }
                 }).then(({ error }) => {
                     if (error) console.error("Error saving work:", error.message);
                 });
@@ -1531,7 +1526,7 @@ Provide a JSON object with these keys:
             }
         }
 
-        // --- SURGICAL FIX: AI-POWERED SEMANTIC MARKING ---
+        // --- AI-POWERED SEMANTIC MARKING ---
         async function handleQuizSubmit() {
             if (!state.currentTest || state.currentTest.length === 0) return;
             
@@ -1634,12 +1629,22 @@ Provide a JSON object with these keys:
                     homeworkHelper: 'life-buoy',
                     learningHub: 'book-marked',
                     explainSimply: 'baby',
-                    testBuilder: 'clipboard-check'
+                    testBuilder: 'clipboard-check',
+                    mathHub: 'calculator'
+                };
+
+                const toolLabels = {
+                    homeworkHelper: 'Homework Helper',
+                    learningHub: 'Learning Hub',
+                    explainSimply: 'Explain It Simply',
+                    testBuilder: 'Test Builder',
+                    mathHub: 'Mathematics Hub'
                 };
 
                 outputEl.innerHTML = data.map((item, index) => {
                     const icon = toolIcons[item.work_type] || 'help-circle';
-                    const title = item.input_prompt?.prompt || `Saved ${item.work_type} (Image)`;
+                    const label = toolLabels[item.work_type] || item.work_type;
+                    const title = item.input_prompt?.prompt || `Saved ${label} (Image)`;
                     const date = new Date(item.created_at).toLocaleDateString(undefined, {
                         day: 'numeric',
                         month: 'long',
@@ -1649,13 +1654,14 @@ Provide a JSON object with these keys:
                     return `
                         <div class="bg-white p-4 rounded-lg shadow-sm border flex justify-between items-center">
                             <div class="flex items-center">
-                                <i data-lucide="${icon}" class="h-6 w-6 text-indigo-500 mr-4"></i>
+                                <i data-lucide="${icon}" class="h-6 w-6 text-indigo-500 mr-4 flex-shrink-0"></i>
                                 <div>
+                                    <p class="text-xs font-semibold text-indigo-500 uppercase tracking-wide mb-0.5">${label}</p>
                                     <h3 class="font-semibold text-gray-800 truncate max-w-xs">${title}</h3>
                                     <p class="text-sm text-gray-500">${date}</p>
                                 </div>
                             </div>
-                            <button class="view-work-btn bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200" data-work-index="${index}">
+                            <button class="view-work-btn bg-indigo-100 text-indigo-700 font-semibold py-2 px-4 rounded-lg hover:bg-indigo-200 flex-shrink-0" data-work-index="${index}">
                                 View
                             </button>
                         </div>
@@ -1674,68 +1680,125 @@ Provide a JSON object with these keys:
         async function displaySavedWork(work) {
             const mainContent = document.getElementById('main-content');
             const data = work.output_content;
+            const workTypeLabel = work.work_type.replace(/([A-Z])/g, ' $1').trim();
+            const topicLabel = (work.input_prompt?.prompt || 'Saved Work');
             
             let contentHTML = `
-            <div class="max-w-4xl mx-auto space-y-8">
+            <div class="max-w-4xl mx-auto space-y-6">
                 <div class="flex justify-between items-center bg-white p-6 rounded-xl shadow border-l-4 border-indigo-500">
                     <div>
-                        <h2 class="text-2xl font-bold text-gray-800 capitalize">${work.work_type.replace(/([A-Z])/g, ' $1')}</h2>
-                        <p class="text-sm text-gray-500">Completed on ${new Date(work.created_at).toLocaleDateString()}</p>
+                        <h2 class="text-2xl font-bold text-gray-800 capitalize">${workTypeLabel}</h2>
+                        <p class="text-gray-500 font-medium mt-1">${topicLabel}</p>
+                        <p class="text-sm text-gray-400">Completed on ${new Date(work.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}</p>
                     </div>
-                    <button id="download-work-btn" class="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold">
+                    <button id="download-work-btn" class="flex items-center bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-semibold flex-shrink-0 ml-4">
                         <i data-lucide="download" class="w-4 h-4 mr-2"></i> Save as Word
                     </button>
                 </div>`;
-        
-            if (work.work_type === 'testBuilder' || (work.work_type === 'learningHub' && data.practice_test)) {
-                state.currentTest = data.practice_test;
-                contentHTML += `
-                <div class="bg-white p-8 rounded-xl shadow">
-                    <h3 class="text-xl font-bold mb-4">Practice Test: ${work.input_prompt.prompt}</h3>
-                    <div id="quiz-results" class="mb-6"></div>
-                    ${renderPracticeTest(data.practice_test)}
-                </div>`;
-            } else if (work.work_type === 'learningHub') {
-                contentHTML += createSectionHTML('check-circle', 'green', "Key Learning Objectives", data.learning_objectives);
-                contentHTML += createSectionHTML('book-open', 'indigo', "Revision Notes", data.revision_notes);
+
+            // ---------------------------------------------------------------
+            // DISPLAY LOGIC: each work_type renders ALL of its saved sections
+            // ---------------------------------------------------------------
+
+            if (work.work_type === 'learningHub') {
+                // Render all three sections: objectives, notes, AND practice test
+                if (data.learning_objectives) {
+                    contentHTML += `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">`;
+                    contentHTML += createSectionHTML('check-circle', 'green', "Key Learning Objectives", data.learning_objectives);
+                    contentHTML += `</div>`;
+                }
+                if (data.revision_notes) {
+                    contentHTML += `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">`;
+                    contentHTML += createSectionHTML('book-open', 'indigo', "Revision Notes", data.revision_notes);
+                    contentHTML += `</div>`;
+                }
+                if (data.practice_test && data.practice_test.length > 0) {
+                    state.currentTest = data.practice_test;
+                    contentHTML += `
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                                <i data-lucide="file-check-2" class="text-blue-500"></i>
+                                <span class="ml-2">Practice Test</span>
+                            </h3>
+                            <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                            <div id="quiz-results" class="mb-6"></div>
+                            ${renderPracticeTest(data.practice_test)}
+                        </div>`;
+                }
+
+            } else if (work.work_type === 'testBuilder') {
+                if (data.practice_test && data.practice_test.length > 0) {
+                    state.currentTest = data.practice_test;
+                    contentHTML += `
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                                <i data-lucide="clipboard-check" class="text-teal-500"></i>
+                                <span class="ml-2">Your Custom Test: ${topicLabel}</span>
+                            </h3>
+                            <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                            <div id="quiz-results" class="mb-6"></div>
+                            ${renderPracticeTest(data.practice_test)}
+                        </div>`;
+                }
+
             } else if (work.work_type === 'explainSimply') {
+                contentHTML += `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">`;
                 contentHTML += createSectionHTML('baby', 'amber', 'Simple Explanation', data.explanation);
+                contentHTML += `</div>`;
+
             } else if (work.work_type === 'homeworkHelper') {
-                if (data.breakdown) contentHTML += createSectionHTML('list-checks', 'blue', "Instructions", data.breakdown);
-                if (data.hints) contentHTML += createSectionHTML('lightbulb', 'yellow', 'Hints', data.hints);
-                if (data.answer || data.answers) contentHTML += createSectionHTML('key-round', 'green', 'Check Work', data.answer || data.answers);
+                contentHTML += `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">`;
+                if (data.breakdown) contentHTML += createSectionHTML('list-checks', 'blue', "Let's Break It Down", data.breakdown);
+                if (data.hints) contentHTML += createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', data.hints);
+                if (data.answer || data.answers) contentHTML += createSectionHTML('key-round', 'green', 'Check Your Work', data.answer || data.answers);
+                contentHTML += `</div>`;
+
+            } else if (work.work_type === 'mathHub') {
+                contentHTML += `<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">`;
+                if (data.explanation) contentHTML += createSectionHTML('info', 'blue', "Understanding the Concept", data.explanation);
+                if (data.steps) contentHTML += createSectionHTML('list', 'indigo', "Step-by-Step Solution", data.steps);
+                if (data.final_answer) contentHTML += createSectionHTML('check-circle', 'green', "Final Answer", data.final_answer);
+                if (data.practice_problems && data.practice_problems.length > 0) {
+                    contentHTML += `
+                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                            <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                                <i data-lucide="edit-3" class="text-amber-500"></i>
+                                <span class="ml-2">Practice Problems</span>
+                            </h3>
+                            <div class="space-y-2">
+                                ${data.practice_problems.map(prob => `
+                                    <div class="p-3 rounded-lg border border-dashed border-amber-200 bg-amber-50 text-amber-900 text-sm">${prob}</div>
+                                `).join('')}
+                            </div>
+                        </div>`;
+                }
+                contentHTML += `</div>`;
             }
-        
+
             contentHTML += `</div>`;
             mainContent.innerHTML = contentHTML;
             
-            // 1. Re-render icons
             lucide.createIcons();
-            
-            // 2. Re-attach listeners for the quiz if it exists
             attachToolEventListeners();
             
-            // 3. Attach the download listener — exports as Word-compatible HTML (.doc)
+            // Attach download handler
             const downloadBtn = document.getElementById('download-work-btn');
             if (downloadBtn) {
                 downloadBtn.addEventListener('click', () => {
-                    const workTypeLabel = work.work_type.replace(/([A-Z])/g, ' $1').trim();
-                    const topicLabel = (work.input_prompt?.prompt || 'Saved Work').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                     const dateLabel = new Date(work.created_at).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
-            
-                    // Collect visible text sections from the rendered content
-                    const sections = document.querySelectorAll('.max-w-4xl .bg-white');
+                    const safeTopicLabel = topicLabel.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                    // Collect all rendered prose sections for the Word doc
+                    const sections = document.querySelectorAll('.max-w-4xl .bg-white, .max-w-4xl .bg-gray-50\\/50');
                     let bodyContent = '';
                     sections.forEach(section => {
-                        const headings = section.querySelectorAll('h3');
-                        headings.forEach(h => {
+                        section.querySelectorAll('h3').forEach(h => {
                             bodyContent += `<h2>${h.innerText}</h2>`;
                         });
-                        const prose = section.querySelectorAll('.prose');
-                        prose.forEach(p => {
+                        section.querySelectorAll('.prose').forEach(p => {
                             bodyContent += `<div>${p.innerHTML}</div><br>`;
                         });
-                        // Capture quiz questions if present
+                        // Include quiz questions in the export
                         const questions = section.querySelectorAll('.quiz-question-wrapper p');
                         if (questions.length) {
                             bodyContent += '<h2>Practice Questions</h2><ol>';
@@ -1743,31 +1806,31 @@ Provide a JSON object with these keys:
                             bodyContent += '</ol>';
                         }
                     });
-            
+
                     const htmlContent = `
-            <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
-            <head>
-            <meta charset="UTF-8">
-            <title>${workTypeLabel} - ${topicLabel}</title>
-            <!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
-            <style>
-              body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 2cm; color: #1f2937; }
-              h1 { font-size: 18pt; color: #4338ca; border-bottom: 2px solid #4338ca; padding-bottom: 4pt; margin-bottom: 6pt; }
-              h2 { font-size: 13pt; color: #374151; margin-top: 14pt; margin-bottom: 4pt; }
-              p, div { margin-bottom: 6pt; }
-              li { margin-bottom: 3pt; }
-              strong { font-weight: bold; }
-            </style>
-            </head>
-            <body>
-            <h1>${workTypeLabel}</h1>
-            <p><strong>Topic:</strong> ${topicLabel}</p>
-            <p><strong>Date:</strong> ${dateLabel}</p>
-            <hr>
-            ${bodyContent}
-            </body>
-            </html>`;
-            
+<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+<meta charset="UTF-8">
+<title>${workTypeLabel} - ${safeTopicLabel}</title>
+<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]-->
+<style>
+  body { font-family: Calibri, Arial, sans-serif; font-size: 11pt; line-height: 1.6; margin: 2cm; color: #1f2937; }
+  h1 { font-size: 18pt; color: #4338ca; border-bottom: 2px solid #4338ca; padding-bottom: 4pt; margin-bottom: 6pt; }
+  h2 { font-size: 13pt; color: #374151; margin-top: 14pt; margin-bottom: 4pt; }
+  p, div { margin-bottom: 6pt; }
+  li { margin-bottom: 3pt; }
+  strong { font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>${workTypeLabel}</h1>
+<p><strong>Topic:</strong> ${safeTopicLabel}</p>
+<p><strong>Date:</strong> ${dateLabel}</p>
+<hr>
+${bodyContent}
+</body>
+</html>`;
+
                     const blob = new Blob(['\ufeff', htmlContent], { type: 'application/msword' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
