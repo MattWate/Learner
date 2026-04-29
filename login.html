@@ -5,32 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login / Register - Learning Genie</title>
     <link rel="icon" href="/logo.svg" type="image/svg+xml">
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
-        }
-        .genie-logo-sm {
-            width: 5rem;
-            height: 5rem;
-        }
+        body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); }
+        .genie-logo-sm { width: 5rem; height: 5rem; }
     </style>
 </head>
 <body class="antialiased">
 
-    <!-- Simple header -->
     <header class="absolute top-0 left-0 w-full p-4">
         <a href="/index.html" class="flex items-center group w-fit">
             <img src="/logo.svg" alt="Learning Genie Logo" class="h-12 w-12">
@@ -38,50 +25,86 @@
         </a>
     </header>
 
-    <!-- Login Form -->
     <div class="min-h-screen flex items-center justify-center p-4">
         <div class="max-w-md w-full bg-white p-8 md:p-10 rounded-xl shadow-2xl text-center">
             
             <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo-sm mx-auto mb-4">
-            
             <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome!</h1>
             <p class="text-gray-600 mb-6">Log in or register to get started.</p>
-            
-            <!-- MODIFIED: Form now has password and two buttons -->
-            
-            
-            <form id="auth-form" class="text-left space-y-4">
-                <div>
-                    <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                    <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
-                </div>
-                <div>
-                    <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
-                    <input type="password" id="password-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
-                </div>
-                
-                <div class="pt-2 space-y-3">
-                    <button type="submit" id="login-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">
-                        Log In
-                    </button>
-                    <button type="button" id="register-btn" class="w-full bg-white text-indigo-600 border border-indigo-600 font-semibold py-3 px-4 rounded-lg hover:bg-indigo-50 disabled:bg-gray-100 flex items-center justify-center">
-                        Register
-                    </button>
-                </div>
-            </form>
 
+            <!-- LOGIN / REGISTER PANEL -->
+            <div id="auth-panel">
+                <form id="auth-form" class="text-left space-y-4">
+                    <div>
+                        <label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com">
+                    </div>
+                    <div>
+                        <label for="password-input" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                        <input type="password" id="password-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="&bull;&bull;&bull;&bull;&bull;&bull;">
+                    </div>
+                    
+                    <div class="pt-2 space-y-3">
+                        <button type="submit" id="login-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">
+                            Log In
+                        </button>
+                        <button type="button" id="register-btn" class="w-full bg-white text-indigo-600 border border-indigo-600 font-semibold py-3 px-4 rounded-lg hover:bg-indigo-50 disabled:bg-gray-100 flex items-center justify-center">
+                            Register
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Forgot Password link -->
+                <button id="show-forgot-btn" class="mt-5 text-sm text-indigo-600 hover:text-indigo-800 font-medium w-full text-center">
+                    Forgot your password?
+                </button>
+
+                <div id="auth-message" class="text-sm mt-4 hidden"></div>
+            </div>
+
+            <!-- VERIFY EMAIL STATE -->
             <div id="verify-email-state" class="hidden text-center py-4">
                 <div class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
                     <i data-lucide="mail" class="h-10 w-10 text-indigo-600"></i>
                 </div>
                 <h2 class="text-2xl font-bold text-gray-800 mb-2">Check your inbox!</h2>
-                <p class="text-gray-600 mb-6">We've sent a magic link to <span id="display-email" class="font-semibold text-indigo-600"></span>. Click the link in the email to set up your child's profile.</p>
-                <button onclick="window.location.reload()" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                <p class="text-gray-600 mb-6">We've sent a confirmation link to <span id="display-email" class="font-semibold text-indigo-600"></span>. Click the link in the email to finish setting up your account.</p>
+                <button onclick="showPanel('auth-panel')" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
                     <i data-lucide="arrow-left" class="inline-block h-4 w-4 mr-1"></i> Back to Login
                 </button>
             </div>
 
-            <div id="auth-message" class="text-sm mt-4 hidden"></div>
+            <!-- FORGOT PASSWORD PANEL -->
+            <div id="forgot-panel" class="hidden text-left">
+                <button onclick="showPanel('auth-panel')" class="flex items-center text-sm text-gray-500 hover:text-gray-800 mb-6">
+                    <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i> Back to Login
+                </button>
+                <h2 class="text-xl font-bold text-gray-800 mb-1">Reset your password</h2>
+                <p class="text-gray-500 text-sm mb-6">Enter your email and we'll send you a link to reset your password.</p>
+                <div class="space-y-4">
+                    <div>
+                        <label for="reset-email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                        <input type="email" id="reset-email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="you@example.com">
+                    </div>
+                    <button id="send-reset-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">
+                        Send Reset Link
+                    </button>
+                    <div id="reset-message" class="text-sm mt-2 hidden"></div>
+                </div>
+            </div>
+
+            <!-- RESET EMAIL SENT STATE -->
+            <div id="reset-sent-state" class="hidden text-center py-4">
+                <div class="bg-green-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i data-lucide="check-circle" class="h-10 w-10 text-green-600"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2">Reset link sent!</h2>
+                <p class="text-gray-600 mb-6">Check your inbox for a password reset link. It may take a minute to arrive.</p>
+                <button onclick="showPanel('auth-panel')" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">
+                    <i data-lucide="arrow-left" class="inline-block h-4 w-4 mr-1"></i> Back to Login
+                </button>
+            </div>
+
         </div>
     </div>
 
@@ -90,24 +113,33 @@
 
         const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
-        
         const { createClient } = supabase;
         const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-        const authForm = document.getElementById('auth-form');
+        const panels = ['auth-panel', 'verify-email-state', 'forgot-panel', 'reset-sent-state'];
+
+        function showPanel(id) {
+            panels.forEach(p => {
+                const el = document.getElementById(p);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(id);
+            if (target) target.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // --- Login / Register ---
         const loginButton = document.getElementById('login-btn');
         const registerButton = document.getElementById('register-btn');
         const emailInput = document.getElementById('email-input');
         const passwordInput = document.getElementById('password-input');
         const messageEl = document.getElementById('auth-message');
 
-        // --- Handle Login ---
         loginButton.addEventListener('click', async (e) => {
             e.preventDefault();
             await handleAuth(e, 'login');
         });
 
-        // --- Handle Register ---
         registerButton.addEventListener('click', async (e) => {
             e.preventDefault();
             await handleAuth(e, 'register');
@@ -118,108 +150,106 @@
             const password = passwordInput.value.trim();
             const button = (mode === 'login') ? loginButton : registerButton;
 
-            // Simple validation
             if (!email || !password) {
-                showMessage('Please enter both email and password.', 'error');
+                showMessage(messageEl, 'Please enter both email and password.', 'error');
                 return;
             }
             if (password.length < 6) {
-                showMessage('Password must be at least 6 characters.', 'error');
+                showMessage(messageEl, 'Password must be at least 6 characters.', 'error');
                 return;
             }
 
-            // Disable buttons and show loading state
             setLoading(true);
-
             let error;
+
             if (mode === 'login') {
-                // --- SIGN IN ---
-                const { data, error: signInError } = await supabaseClient.auth.signInWithPassword({
-                    email: email,
-                    password: password,
-                });
+                const { error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
                 error = signInError;
-                
                 if (!error) {
-                    // Successful login, redirect to the app
                     window.location.href = '/app.html';
                     return;
                 }
-
             } else {
-                // --- SIGN UP (REGISTER) ---
                 const { data, error: signUpError } = await supabaseClient.auth.signUp({
-                    email: email,
-                    password: password,
-                    options: {
-                        // This is where Supabase will send the user *after* they
-                        // click the confirmation link in their email.
-                        emailRedirectTo: window.location.origin + '/app.html'
-                    }
+                    email,
+                    password,
+                    options: { emailRedirectTo: window.location.origin + '/app.html' }
                 });
                 error = signUpError;
-                
                 if (!error && data.user) {
-                    // *** CRITICAL FIX: Check for immediate session ***
                     if (data.session) {
-                        // If a session exists, the user is logged in (Optimistic Login). Redirect immediately.
                         window.location.href = '/app.html';
                         return;
-                    } else if (data.user.identities && data.user.identities.length === 0) {
-                        // User exists but identities array is empty (rare edge case for existing users)
-                         window.location.href = '/app.html';
-                         return;
                     } else {
-                        // Session is null, meaning "Confirm email" is likely ON. 
-                        // Transition to the professional "Check Inbox" UI.
-                        document.getElementById('auth-form').classList.add('hidden'); //
-                        document.getElementById('verify-email-state').classList.remove('hidden'); //
-                        document.getElementById('display-email').textContent = email; //
-                        
-                        // Refresh icons to ensure the Lucide mail icon renders correctly
-                        lucide.createIcons(); //
+                        document.getElementById('display-email').textContent = email;
+                        showPanel('verify-email-state');
                     }
                 }
             }
 
-            // --- Handle Errors ---
             if (error) {
-                console.error(error.message);
                 if (error.message.includes("Invalid login credentials")) {
-                     showMessage('Invalid email or password.', 'error');
+                    showMessage(messageEl, 'Invalid email or password.', 'error');
                 } else if (error.message.includes("User already registered")) {
-                    showMessage('This email is already registered. Try logging in.', 'error');
+                    showMessage(messageEl, 'This email is already registered. Try logging in.', 'error');
                 } else if (error.message.includes("Email rate limit exceeded")) {
-                     showMessage('You are trying too often. Please wait a moment.', 'error');
+                    showMessage(messageEl, 'Too many attempts. Please wait a moment.', 'error');
                 } else {
-                    showMessage(error.message, 'error');
+                    showMessage(messageEl, error.message, 'error');
                 }
             }
 
             setLoading(false);
         }
 
+        // --- Forgot Password ---
+        document.getElementById('show-forgot-btn').addEventListener('click', () => {
+            showPanel('forgot-panel');
+        });
+
+        document.getElementById('send-reset-btn').addEventListener('click', async () => {
+            const email = document.getElementById('reset-email-input').value.trim();
+            const resetMsg = document.getElementById('reset-message');
+            const btn = document.getElementById('send-reset-btn');
+
+            if (!email) {
+                showMessage(resetMsg, 'Please enter your email address.', 'error');
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Sending...';
+
+            const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                redirectTo: window.location.origin + '/reset-password.html'
+            });
+
+            btn.disabled = false;
+            btn.innerHTML = 'Send Reset Link';
+
+            if (error) {
+                showMessage(resetMsg, error.message, 'error');
+            } else {
+                showPanel('reset-sent-state');
+            }
+        });
+
+        // --- Helpers ---
         function setLoading(isLoading) {
             loginButton.disabled = isLoading;
             registerButton.disabled = isLoading;
-            if (isLoading) {
-                loginButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Loading...`;
-                registerButton.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mr-3"></div> Loading...`;
-            } else {
-                loginButton.innerHTML = 'Log In';
-                registerButton.innerHTML = 'Register';
-            }
+            loginButton.innerHTML = isLoading
+                ? '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Loading...'
+                : 'Log In';
+            registerButton.innerHTML = isLoading
+                ? '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mr-3"></div> Loading...'
+                : 'Register';
         }
 
-        function showMessage(message, type) {
-            messageEl.textContent = message;
-            if (type === 'error') {
-                messageEl.classList.add('text-red-600');
-                messageEl.classList.remove('hidden', 'text-green-600');
-            } else {
-                messageEl.classList.add('text-green-600');
-                messageEl.classList.remove('hidden', 'text-red-600');
-            }
+        function showMessage(el, message, type) {
+            el.textContent = message;
+            el.className = `text-sm mt-4 ${type === 'error' ? 'text-red-600' : 'text-green-600'}`;
+            el.classList.remove('hidden');
         }
     </script>
 </body>
