@@ -929,23 +929,27 @@
                     state.accountData = account;
                 }
 
+                // Guarantee the row exists via upsert, then read the authoritative values back
+                const nowIso = new Date().toISOString();
+                await supabaseClient
+                    .from('monthly_usage')
+                    .upsert(
+                        { account_id: user.id, usage_count: 0, last_reset_date: nowIso },
+                        { onConflict: 'account_id', ignoreDuplicates: true } // only inserts if row missing; leaves existing row untouched
+                    );
+
                 const { data: usage, error: usageError } = await supabaseClient
                     .from('monthly_usage')
                     .select('usage_count, last_reset_date')
                     .eq('account_id', user.id)
                     .single();
-                    
-                if (usageError && usageError.code !== 'PGRST116') {
-                     throw new Error(`Failed to fetch usage: ${usageError.message}`);
-                }
-                
-                if (!usage) {
-                    const initialUsage = { account_id: user.id, usage_count: 0, last_reset_date: new Date().toISOString() };
-                    await supabaseClient.from('monthly_usage').upsert(initialUsage, { onConflict: 'account_id' }); 
-                    state.usageData = { count: 0, resetDate: new Date().toISOString() };
-                } else {
-                    state.usageData = { count: usage.usage_count, resetDate: usage.last_reset_date };
-                }
+
+                if (usageError) throw new Error(`Failed to fetch usage: ${usageError.message}`);
+
+                state.usageData = {
+                    count: usage.usage_count ?? 0,
+                    resetDate: usage.last_reset_date ?? nowIso
+                };
                 
                 const { data: profiles, error: profileError } = await supabaseClient
                     .from('profiles')
@@ -1130,41 +1134,77 @@
             if (state.accountData?.active_tier !== 'free') {
                 return true;
             }
-            
+
+            const userId = state.session.user.id;
             const now = new Date();
-            const resetDate = new Date(state.usageData.resetDate);
             const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-            
-            let currentCount = state.usageData.count;
 
-            if (now > new Date(resetDate.getTime() + oneWeekMs)) {
-                currentCount = 0;
-                const newResetDate = now.toISOString();
+            // --- Always fetch fresh data from DB first ---
+            // This prevents stale in-memory state from masking the real count,
+            // which was the root cause of the reset never triggering correctly.
+            const { data: freshUsage, error: fetchError } = await supabaseClient
+                .from('monthly_usage')
+                .select('usage_count, last_reset_date')
+                .eq('account_id', userId)
+                .single();
 
-                const { error } = await supabaseClient
-                    .from('monthly_usage')
-                    .update({ usage_count: 0, last_reset_date: newResetDate })
-                    .eq('account_id', state.session.user.id);
-                    
-                if (error) console.error("Error resetting usage:", error);
-                
-                state.usageData.count = 0;
-                state.usageData.resetDate = newResetDate;
+            if (fetchError && fetchError.code !== 'PGRST116') {
+                console.error('Error fetching usage:', fetchError);
+                return true; // fail open so the user isn't blocked by a DB error
             }
 
+            let currentCount = 0;
+            let periodStart = now.toISOString();
+
+            if (freshUsage) {
+                currentCount = freshUsage.usage_count ?? 0;
+                periodStart = freshUsage.last_reset_date ?? now.toISOString();
+            }
+
+            // --- Check whether 7 days have elapsed since the period started ---
+            const periodStartDate = new Date(periodStart);
+            const windowExpired = now.getTime() > (periodStartDate.getTime() + oneWeekMs);
+
+            if (windowExpired) {
+                // Reset the counter and start a new 7-day window from now
+                currentCount = 0;
+                periodStart = now.toISOString();
+
+                const { error: resetError } = await supabaseClient
+                    .from('monthly_usage')
+                    .upsert(
+                        { account_id: userId, usage_count: 0, last_reset_date: periodStart },
+                        { onConflict: 'account_id' }
+                    );
+
+                if (resetError) console.error('Error resetting usage window:', resetError);
+
+                state.usageData.count = 0;
+                state.usageData.resetDate = periodStart;
+                updateSidebar();
+            } else {
+                // Sync in-memory state with the real DB value
+                state.usageData.count = currentCount;
+                state.usageData.resetDate = periodStart;
+            }
+
+            // --- Block if limit reached ---
             if (currentCount >= FREE_USAGE_LIMIT) {
                 showPaywallModal('usage');
                 return false;
             }
 
+            // --- Increment using upsert so row is guaranteed to exist ---
             const newCount = currentCount + 1;
             const { error: updateError } = await supabaseClient
                 .from('monthly_usage')
-                .update({ usage_count: newCount })
-                .eq('account_id', state.session.user.id);
-            
+                .upsert(
+                    { account_id: userId, usage_count: newCount, last_reset_date: periodStart },
+                    { onConflict: 'account_id' }
+                );
+
             if (updateError) {
-                console.error("Error incrementing usage:", updateError);
+                console.error('Error incrementing usage:', updateError);
             } else {
                 state.usageData.count = newCount;
                 updateSidebar();
