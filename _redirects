@@ -1,1 +1,2 @@
 /api/*  /.netlify/functions/:splat  200
+/tutor.html /tutor-dashboard-v2.html 200
