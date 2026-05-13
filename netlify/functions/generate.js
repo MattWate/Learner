@@ -24,14 +24,18 @@ exports.handler = async function (event) {
             });
         }
 
+        const jsonInstruction = "You are an expert pedagogical assistant and mathematical solver aligned with the UK and South African school curricula. Prioritize semantic meaning and step-by-step logical accuracy. Use terminology like BODMAS, brackets, and indices where relevant. This request requires structured JSON. Return valid JSON only, with no markdown fences, no prose before or after the JSON, and no comments.";
+
+        const proseInstruction = "You are an expert pedagogical assistant and mathematical solver aligned with the UK and South African school curricula. Prioritize semantic meaning and step-by-step logical accuracy. Use terminology like BODMAS, brackets, and indices where relevant. This request is for learner-facing content. Return clear, human-readable text or simple HTML as requested by the prompt. Do not return raw JSON, do not wrap your answer in a JSON object, and do not include markdown code fences unless the user explicitly asks for code.";
+
         const textPayload = {
             contents: [{ role: 'user', parts: parts }],
             generationConfig: {
                 ...(isJson && { responseMimeType: 'application/json' }),
-                temperature: 0.1, // Reduced temperature for more reliable grading
+                temperature: 0.1,
             },
             systemInstruction: {
-                parts: [{ text: "You are an expert pedagogical assistant and mathematical solver aligned with the UK and South African school curricula. Prioritize semantic meaning and step-by-step logical accuracy. Use terminology like BODMAS, brackets, and indices. Ensure JSON output is perfectly valid." }]
+                parts: [{ text: isJson ? jsonInstruction : proseInstruction }]
             }
         };
 
