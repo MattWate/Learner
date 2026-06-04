@@ -1130,88 +1130,52 @@
             }
         }
 
-        async function checkAndIncrementUsage() {
-            if (state.accountData?.active_tier !== 'free') {
-                return true;
-            }
+async function checkAndIncrementUsage() {
+    try {
+        const { data, error } = await supabaseClient.rpc('consume_free_usage', {
+            p_free_limit: FREE_USAGE_LIMIT,
+            p_window_days: 7
+        });
 
-            const userId = state.session.user.id;
-            const now = new Date();
-            const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
-
-            // --- Always fetch fresh data from DB first ---
-            // This prevents stale in-memory state from masking the real count,
-            // which was the root cause of the reset never triggering correctly.
-            const { data: freshUsage, error: fetchError } = await supabaseClient
-                .from('monthly_usage')
-                .select('usage_count, last_reset_date')
-                .eq('account_id', userId)
-                .single();
-
-            if (fetchError && fetchError.code !== 'PGRST116') {
-                console.error('Error fetching usage:', fetchError);
-                return true; // fail open so the user isn't blocked by a DB error
-            }
-
-            let currentCount = 0;
-            let periodStart = now.toISOString();
-
-            if (freshUsage) {
-                currentCount = freshUsage.usage_count ?? 0;
-                periodStart = freshUsage.last_reset_date ?? now.toISOString();
-            }
-
-            // --- Check whether 7 days have elapsed since the period started ---
-            const periodStartDate = new Date(periodStart);
-            const windowExpired = now.getTime() > (periodStartDate.getTime() + oneWeekMs);
-
-            if (windowExpired) {
-                // Reset the counter and start a new 7-day window from now
-                currentCount = 0;
-                periodStart = now.toISOString();
-
-                const { error: resetError } = await supabaseClient
-                    .from('monthly_usage')
-                    .upsert(
-                        { account_id: userId, usage_count: 0, last_reset_date: periodStart },
-                        { onConflict: 'account_id' }
-                    );
-
-                if (resetError) console.error('Error resetting usage window:', resetError);
-
-                state.usageData.count = 0;
-                state.usageData.resetDate = periodStart;
-                updateSidebar();
-            } else {
-                // Sync in-memory state with the real DB value
-                state.usageData.count = currentCount;
-                state.usageData.resetDate = periodStart;
-            }
-
-            // --- Block if limit reached ---
-            if (currentCount >= FREE_USAGE_LIMIT) {
-                showPaywallModal('usage');
-                return false;
-            }
-
-            // --- Increment using upsert so row is guaranteed to exist ---
-            const newCount = currentCount + 1;
-            const { error: updateError } = await supabaseClient
-                .from('monthly_usage')
-                .upsert(
-                    { account_id: userId, usage_count: newCount, last_reset_date: periodStart },
-                    { onConflict: 'account_id' }
-                );
-
-            if (updateError) {
-                console.error('Error incrementing usage:', updateError);
-            } else {
-                state.usageData.count = newCount;
-                updateSidebar();
-            }
-
-            return true;
+        if (error) {
+            console.error('Usage limit check failed:', error);
+            showPaywallModal('usage');
+            return false;
         }
+
+        const result = Array.isArray(data) ? data[0] : data;
+
+        if (!result || result.allowed !== true) {
+            if (result?.usage_count !== undefined) {
+                state.usageData.count = result.usage_count;
+            }
+
+            if (result?.reset_date) {
+                state.usageData.resetDate = result.reset_date;
+            }
+
+            updateSidebar();
+            showPaywallModal('usage');
+            return false;
+        }
+
+        if (result.usage_count !== undefined) {
+            state.usageData.count = result.usage_count;
+        }
+
+        if (result.reset_date) {
+            state.usageData.resetDate = result.reset_date;
+        }
+
+        updateSidebar();
+        return true;
+
+    } catch (error) {
+        console.error('Unexpected usage limit check error:', error);
+        showPaywallModal('usage');
+        return false;
+    }
+}
 
         function showPaywallModal(reason) {
             const modal = document.getElementById('paywall-modal');
