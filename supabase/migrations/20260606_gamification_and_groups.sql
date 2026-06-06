@@ -2,11 +2,15 @@
 -- Philosophy: reward consistency and study habits, never academic performance.
 -- XP is tied only to platform engagement: asking/generating work and completing tests.
 
--- Required for gen_random_uuid(). Supabase usually has this enabled, but this is safe.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 -- -----------------------------------------------------------------------------
 -- Helper functions
 -- -----------------------------------------------------------------------------
 
--- Lear
+CREATE OR REPLACE FUNCTION public.is_premium_account(p_account_id uuid)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path =
