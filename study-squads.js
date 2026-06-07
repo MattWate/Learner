@@ -11,6 +11,8 @@ const state = {
   engagementStats: null,
   groups: [],
   activeGroupId: null,
+  activeSquadTab: 'details',
+  leaderboardMode: 'week',
   leaderboard: [],
   feed: [],
   loading: true,
@@ -213,6 +215,7 @@ async function createSquad(event) {
 
     input.value = '';
     state.activeGroupId = created?.id || null;
+    state.activeSquadTab = 'details';
 
     await loadGroups();
     await loadEngagementStats();
@@ -254,6 +257,7 @@ async function joinSquad(event) {
 
     input.value = '';
     state.activeGroupId = joined?.id || null;
+    state.activeSquadTab = 'details';
 
     await loadGroups();
     await loadEngagementStats();
@@ -273,6 +277,7 @@ function selectGroup(groupId) {
   if (!groupId || groupId === state.activeGroupId) return;
 
   state.activeGroupId = groupId;
+  state.activeSquadTab = 'details';
 
   loadActiveGroupDetails(true).catch(error => {
     console.error(error);
@@ -280,6 +285,37 @@ function selectGroup(groupId) {
     state.loadingGroup = false;
     render();
   });
+}
+
+function setSquadTab(tab) {
+  state.activeSquadTab = tab;
+  render();
+}
+
+function setLeaderboardMode(mode) {
+  state.leaderboardMode = mode;
+  render();
+}
+
+function getSortedLeaderboard() {
+  const rows = [...state.leaderboard];
+
+  const primaryKey = state.leaderboardMode === 'all' ? 'total_xp' : 'weekly_xp';
+
+  return rows
+    .sort((a, b) => {
+      const primaryDiff = (b[primaryKey] || 0) - (a[primaryKey] || 0);
+      if (primaryDiff !== 0) return primaryDiff;
+
+      const streakDiff = (b.current_streak || 0) - (a.current_streak || 0);
+      if (streakDiff !== 0) return streakDiff;
+
+      return String(a.display_name || '').localeCompare(String(b.display_name || ''));
+    })
+    .map((row, index) => ({
+      ...row,
+      display_rank: index + 1
+    }));
 }
 
 function render() {
@@ -305,6 +341,7 @@ function render() {
   lucide.createIcons();
   bindCommonEvents();
   bindPremiumEvents();
+  renderQrIfNeeded();
 }
 
 function loadingTemplate() {
@@ -466,8 +503,8 @@ function premiumDashboardTemplate() {
           ${squadActionPanelsTemplate()}
         </section>
 
-        <section class="mt-6 space-y-6">
-          ${group ? activeGroupTemplate(group) : emptyGroupTemplate()}
+        <section class="mt-6">
+          ${group ? activeSquadTabbedTemplate(group) : emptyGroupTemplate()}
         </section>
       ` : `
         <section class="mt-6">
@@ -555,66 +592,115 @@ function squadActionPanelsTemplate() {
   `;
 }
 
-function activeGroupTemplate(group) {
+function activeSquadTabbedTemplate(group) {
   return `
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <div class="xl:col-span-2 card p-6 border-t-4 border-indigo-500">
-        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+    <section class="card border-t-4 border-indigo-500 overflow-hidden">
+      <div class="p-5 md:p-6 border-b border-gray-100">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
           <div>
             <p class="text-sm font-bold uppercase tracking-wide text-indigo-600">Active Squad</p>
             <h2 class="mt-1 text-3xl font-bold text-gray-800">${esc(group.group_name)}</h2>
             <p class="mt-2 text-gray-500">${group.member_count || 0} members · Weekly XP resets every Monday UTC</p>
+          </div>
 
-            <div class="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div class="p-3 rounded-xl bg-indigo-50">
-                <p class="text-xs font-bold uppercase text-indigo-600">Squad code</p>
-                <p class="mt-1 text-xl font-bold tracking-wider text-gray-800">${esc(group.invite_code)}</p>
-              </div>
+          <div class="flex flex-wrap gap-2">
+            ${squadTabButton('details', 'Squad Details', 'info')}
+            ${squadTabButton('leaderboard', 'Leaderboard', 'trophy')}
+            ${squadTabButton('activity', 'Squad Activity', 'activity')}
+          </div>
+        </div>
+      </div>
 
-              <div class="p-3 rounded-xl bg-amber-50">
-                <p class="text-xs font-bold uppercase text-amber-600">Members</p>
-                <p class="mt-1 text-xl font-bold text-gray-800">${group.member_count || 0}</p>
-              </div>
+      <div class="p-5 md:p-6">
+        ${state.activeSquadTab === 'leaderboard'
+          ? leaderboardTabTemplate()
+          : state.activeSquadTab === 'activity'
+            ? activityTabTemplate()
+            : squadDetailsTabTemplate(group)}
+      </div>
+    </section>
+  `;
+}
 
-              <div class="p-3 rounded-xl bg-emerald-50">
-                <p class="text-xs font-bold uppercase text-emerald-600">Focus</p>
-                <p class="mt-1 text-xl font-bold text-gray-800">Consistency</p>
-              </div>
-            </div>
+function squadTabButton(tab, label, icon) {
+  const active = state.activeSquadTab === tab;
 
-            <div class="mt-5 flex flex-wrap gap-2">
+  return `
+    <button
+      data-squad-tab="${esc(tab)}"
+      class="squad-tab-btn px-4 py-2 rounded-lg font-bold transition flex items-center gap-2 ${active ? 'bg-indigo-600 text-white shadow-lg' : 'bg-gray-100 text-gray-700 hover:bg-indigo-50'}">
+      <i data-lucide="${icon}" class="h-4 w-4"></i>
+      ${esc(label)}
+    </button>
+  `;
+}
+
+function squadDetailsTabTemplate(group) {
+  return `
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div class="xl:col-span-2 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="p-4 rounded-xl bg-indigo-50">
+            <p class="text-xs font-bold uppercase text-indigo-600">Squad code</p>
+            <p class="mt-1 text-2xl font-bold tracking-wider text-gray-800">${esc(group.invite_code)}</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-amber-50">
+            <p class="text-xs font-bold uppercase text-amber-600">Members</p>
+            <p class="mt-1 text-2xl font-bold text-gray-800">${group.member_count || 0}</p>
+          </div>
+
+          <div class="p-4 rounded-xl bg-emerald-50">
+            <p class="text-xs font-bold uppercase text-emerald-600">Focus</p>
+            <p class="mt-1 text-2xl font-bold text-gray-800">Consistency</p>
+          </div>
+        </div>
+
+        <div class="p-5 rounded-xl bg-gray-50">
+          <h3 class="text-xl font-bold text-gray-800">Invite people to this Squad</h3>
+          <p class="mt-2 text-sm text-gray-600">
+            Share the squad code or invite link with friends, classmates or family. Only premium users can join Study Squads.
+          </p>
+
+          <div class="mt-4 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-3">
+            <input
+              id="invite-link"
+              readonly
+              class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700"
+              value="${esc(`${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`)}"
+            />
+            <div class="flex flex-wrap gap-2">
               <button
                 id="copy-code-btn"
                 data-code="${esc(group.invite_code)}"
                 class="px-4 py-2 rounded-lg bg-indigo-600 text-white font-bold hover:bg-indigo-700">
-                Copy Squad Code
+                Copy Code
               </button>
               <button
-                id="show-qr-btn"
-                class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-bold hover:bg-gray-200">
-                Show QR
+                id="copy-link-btn"
+                data-link="${esc(`${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`)}"
+                class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-gray-800">
+                Copy Link
               </button>
             </div>
           </div>
 
-          <div id="qr-wrap" class="hidden bg-indigo-50 p-4 rounded-xl min-w-[180px]">
-            <p class="text-xs font-bold uppercase tracking-wide text-indigo-600 text-center">Invite QR</p>
-            <div id="qr-code" class="mt-3 bg-white p-3 rounded-lg flex items-center justify-center min-h-[128px]"></div>
+          <div class="mt-5 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-5 items-center">
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-center min-h-[160px]">
+              <div id="qr-code" class="flex items-center justify-center min-h-[128px]"></div>
+            </div>
+            <div>
+              <p class="font-bold text-gray-800">Scannable invite QR</p>
+              <p class="mt-1 text-sm text-gray-600">
+                This QR opens the Study Squads page with the invite code included. If the QR library fails to load,
+                learners can still use the squad code above.
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
       ${milestonePanelTemplate()}
-    </div>
-
-    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
-      <div class="xl:col-span-1">
-        ${leaderboardTemplate()}
-      </div>
-
-      <div class="xl:col-span-2">
-        ${feedTemplate()}
-      </div>
     </div>
   `;
 }
@@ -623,7 +709,7 @@ function milestonePanelTemplate() {
   const stats = state.engagementStats || {};
 
   return `
-    <div class="card p-6 border-t-4 border-amber-400">
+    <div class="card p-6 border-t-4 border-amber-400 shadow-none border border-gray-100">
       <div class="flex items-center justify-between gap-4">
         <div>
           <p class="text-sm font-bold uppercase tracking-wide text-amber-600">Streak Milestones</p>
@@ -644,6 +730,167 @@ function milestonePanelTemplate() {
       </div>
     </div>
   `;
+}
+
+function leaderboardTabTemplate() {
+  return `
+    <div>
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h3 class="text-2xl font-bold text-gray-800">Leaderboard</h3>
+          <p class="text-sm text-gray-500 mt-1">Ranked by study engagement and consistency, not academic scores.</p>
+        </div>
+
+        <div class="flex bg-gray-100 p-1 rounded-xl w-fit">
+          <button
+            data-leaderboard-mode="week"
+            class="leaderboard-mode-btn px-4 py-2 rounded-lg font-bold text-sm transition ${state.leaderboardMode === 'week' ? 'bg-indigo-600 text-white shadow' : 'text-gray-700 hover:bg-white'}">
+            This Week
+          </button>
+          <button
+            data-leaderboard-mode="all"
+            class="leaderboard-mode-btn px-4 py-2 rounded-lg font-bold text-sm transition ${state.leaderboardMode === 'all' ? 'bg-indigo-600 text-white shadow' : 'text-gray-700 hover:bg-white'}">
+            All Time
+          </button>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        ${leaderboardTemplate()}
+      </div>
+    </div>
+  `;
+}
+
+function leaderboardTemplate() {
+  if (state.loadingGroup) {
+    return panelLoadingTemplate('Loading leaderboard...');
+  }
+
+  const rows = getSortedLeaderboard();
+
+  if (!rows.length) {
+    return `
+      <div class="p-8 rounded-xl bg-gray-50 text-center">
+        <i data-lucide="trophy" class="h-12 w-12 text-amber-500 mx-auto"></i>
+        <h4 class="mt-3 text-xl font-bold text-gray-800">No leaderboard data yet</h4>
+        <p class="mt-2 text-gray-500">Generate learning work to start earning XP.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="space-y-3">
+      ${rows.map(row => leaderboardRow(row)).join('')}
+    </div>
+  `;
+}
+
+function leaderboardRow(row) {
+  const xpValue = state.leaderboardMode === 'all' ? row.total_xp || 0 : row.weekly_xp || 0;
+  const xpLabel = state.leaderboardMode === 'all' ? 'all time' : 'this week';
+
+  return `
+    <div class="flex items-center gap-4 p-4 rounded-xl bg-gray-50 border border-gray-100">
+      <div class="h-11 w-11 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+        ${row.display_rank || '-'}
+      </div>
+
+      <div class="flex-1 min-w-0">
+        <div class="font-bold text-gray-800 truncate">${esc(row.display_name || 'Learner')}</div>
+        <div class="text-xs text-gray-500">
+          🔥 ${row.current_streak || 0} day streak · ${row.total_active_days || 0} active days · ${row.three_day_streaks_earned || 0} three-day milestones
+        </div>
+      </div>
+
+      <div class="text-right">
+        <div class="font-bold text-indigo-600">${xpValue} XP</div>
+        <div class="text-xs text-gray-500">${xpLabel}</div>
+      </div>
+    </div>
+  `;
+}
+
+function activityTabTemplate() {
+  return `
+    <div>
+      <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <h3 class="text-2xl font-bold text-gray-800">Squad Activity</h3>
+          <p class="text-sm text-gray-500 mt-1">Recent study actions shared by your squad members.</p>
+        </div>
+        <i data-lucide="activity" class="h-8 w-8 text-indigo-500"></i>
+      </div>
+
+      <div class="mt-6">
+        ${feedTemplate()}
+      </div>
+    </div>
+  `;
+}
+
+function feedTemplate() {
+  if (state.loadingGroup) {
+    return panelLoadingTemplate('Loading squad feed...');
+  }
+
+  if (!state.feed.length) {
+    return `
+      <div class="p-8 rounded-xl bg-gray-50 text-center">
+        <i data-lucide="activity" class="h-12 w-12 text-indigo-500 mx-auto"></i>
+        <h4 class="mt-3 text-xl font-bold text-gray-800">No shared activity yet</h4>
+        <p class="mt-2 text-gray-500">Generate learning work to get the feed moving.</p>
+      </div>
+    `;
+  }
+
+  return `
+    <div class="space-y-4">
+      ${state.feed.map(item => feedItemTemplate(item)).join('')}
+    </div>
+  `;
+}
+
+function feedItemTemplate(item) {
+  const canTryTest = item.event_type === 'test_generated';
+  const topic = item.activity_payload?.input_prompt?.prompt || item.event_summary || '';
+
+  return `
+    <div class="feed-line pl-10 relative">
+      <div class="absolute left-0 top-0 h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center z-10">
+        <i data-lucide="${feedIcon(item.event_type)}" class="h-4 w-4 text-indigo-600"></i>
+      </div>
+
+      <div class="p-4 rounded-xl bg-gray-50 border border-gray-100">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <div>
+            <p class="font-bold text-gray-800">${esc(item.event_title)}</p>
+            <p class="text-sm text-gray-600 mt-1 clamp-2">${esc(item.event_summary || 'Learning activity')}</p>
+          </div>
+          <span class="text-xs text-gray-400 shrink-0">${esc(formatDateTime(item.created_at))}</span>
+        </div>
+
+        ${canTryTest ? `
+          <button
+            class="copy-test-topic-btn mt-3 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700"
+            data-topic="${esc(topic)}">
+            Copy test topic
+          </button>
+        ` : ''}
+      </div>
+    </div>
+  `;
+}
+
+function feedIcon(type) {
+  switch (type) {
+    case 'test_generated': return 'clipboard-check';
+    case 'test_completed': return 'check-circle';
+    case 'math_help': return 'calculator';
+    case 'homework_help': return 'life-buoy';
+    case 'explanation_generated': return 'baby';
+    default: return 'sparkles';
+  }
 }
 
 function emptyGroupTemplate() {
@@ -700,132 +947,6 @@ function emptyGroupTemplate() {
   `;
 }
 
-function leaderboardTemplate() {
-  if (state.loadingGroup) {
-    return panelLoadingTemplate('Loading leaderboard...');
-  }
-
-  if (!state.leaderboard.length) {
-    return `
-      <div class="card p-6">
-        <h3 class="text-2xl font-bold text-gray-800">Weekly XP Leaderboard</h3>
-        <p class="mt-4 text-gray-500">No leaderboard data yet.</p>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="card p-6">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h3 class="text-2xl font-bold text-gray-800">Weekly XP Leaderboard</h3>
-          <p class="text-sm text-gray-500 mt-1">Consistency and engagement, not test scores.</p>
-        </div>
-        <i data-lucide="trophy" class="h-8 w-8 text-amber-500"></i>
-      </div>
-
-      <div class="mt-5 space-y-3">
-        ${state.leaderboard.map(row => leaderboardRow(row)).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function leaderboardRow(row) {
-  return `
-    <div class="flex items-center gap-4 p-3 rounded-xl bg-gray-50">
-      <div class="h-10 w-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
-        ${row.rank_position || '-'}
-      </div>
-
-      <div class="flex-1 min-w-0">
-        <div class="font-bold text-gray-800 truncate">${esc(row.display_name || 'Learner')}</div>
-        <div class="text-xs text-gray-500">
-          🔥 ${row.current_streak || 0} day streak · ${row.total_active_days || 0} active days
-        </div>
-      </div>
-
-      <div class="text-right">
-        <div class="font-bold text-indigo-600">${row.weekly_xp || 0} XP</div>
-        <div class="text-xs text-gray-500">this week</div>
-      </div>
-    </div>
-  `;
-}
-
-function feedTemplate() {
-  if (state.loadingGroup) {
-    return panelLoadingTemplate('Loading squad feed...');
-  }
-
-  if (!state.feed.length) {
-    return `
-      <div class="card p-6">
-        <h3 class="text-2xl font-bold text-gray-800">Squad Feed</h3>
-        <p class="mt-4 text-gray-500">No shared activity yet. Generate learning work to get the feed moving.</p>
-      </div>
-    `;
-  }
-
-  return `
-    <div class="card p-6">
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <h3 class="text-2xl font-bold text-gray-800">Squad Feed</h3>
-          <p class="text-sm text-gray-500 mt-1">Recent learning activity from your squad.</p>
-        </div>
-        <i data-lucide="activity" class="h-8 w-8 text-indigo-500"></i>
-      </div>
-
-      <div class="mt-5 space-y-4">
-        ${state.feed.map(item => feedItemTemplate(item)).join('')}
-      </div>
-    </div>
-  `;
-}
-
-function feedItemTemplate(item) {
-  const canTryTest = item.event_type === 'test_generated';
-  const topic = item.activity_payload?.input_prompt?.prompt || item.event_summary || '';
-
-  return `
-    <div class="feed-line pl-10 relative">
-      <div class="absolute left-0 top-0 h-7 w-7 rounded-full bg-indigo-100 flex items-center justify-center z-10">
-        <i data-lucide="${feedIcon(item.event_type)}" class="h-4 w-4 text-indigo-600"></i>
-      </div>
-
-      <div class="p-4 rounded-xl bg-gray-50">
-        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-          <div>
-            <p class="font-bold text-gray-800">${esc(item.event_title)}</p>
-            <p class="text-sm text-gray-600 mt-1 clamp-2">${esc(item.event_summary || 'Learning activity')}</p>
-          </div>
-          <span class="text-xs text-gray-400 shrink-0">${esc(formatDateTime(item.created_at))}</span>
-        </div>
-
-        ${canTryTest ? `
-          <button
-            class="copy-test-topic-btn mt-3 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-bold hover:bg-indigo-700"
-            data-topic="${esc(topic)}">
-            Copy test topic
-          </button>
-        ` : ''}
-      </div>
-    </div>
-  `;
-}
-
-function feedIcon(type) {
-  switch (type) {
-    case 'test_generated': return 'clipboard-check';
-    case 'test_completed': return 'check-circle';
-    case 'math_help': return 'calculator';
-    case 'homework_help': return 'life-buoy';
-    case 'explanation_generated': return 'baby';
-    default: return 'sparkles';
-  }
-}
-
 function metricCard(label, value, icon, subtext) {
   return `
     <div class="card p-5">
@@ -869,7 +990,7 @@ function statRow(label, value, icon) {
 
 function panelLoadingTemplate(text) {
   return `
-    <div class="card p-6 flex items-center justify-center min-h-[300px]">
+    <div class="p-8 rounded-xl bg-gray-50 flex items-center justify-center min-h-[300px]">
       <div class="text-center">
         <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
         <p class="mt-3 text-gray-500 font-medium">${esc(text)}</p>
@@ -924,6 +1045,14 @@ function bindPremiumEvents() {
     button.addEventListener('click', () => selectGroup(button.dataset.groupId));
   });
 
+  document.querySelectorAll('.squad-tab-btn').forEach(button => {
+    button.addEventListener('click', () => setSquadTab(button.dataset.squadTab));
+  });
+
+  document.querySelectorAll('.leaderboard-mode-btn').forEach(button => {
+    button.addEventListener('click', () => setLeaderboardMode(button.dataset.leaderboardMode));
+  });
+
   const copyCodeBtn = document.getElementById('copy-code-btn');
 
   if (copyCodeBtn) {
@@ -932,13 +1061,11 @@ function bindPremiumEvents() {
     });
   }
 
-  const showQrBtn = document.getElementById('show-qr-btn');
-  const qrWrap = document.getElementById('qr-wrap');
+  const copyLinkBtn = document.getElementById('copy-link-btn');
 
-  if (showQrBtn && qrWrap) {
-    showQrBtn.addEventListener('click', () => {
-      qrWrap.classList.toggle('hidden');
-      renderQrIfNeeded();
+  if (copyLinkBtn) {
+    copyLinkBtn.addEventListener('click', () => {
+      copyText(copyLinkBtn.dataset.link, 'Invite link copied');
     });
   }
 
@@ -952,21 +1079,34 @@ function bindPremiumEvents() {
 function renderQrIfNeeded() {
   const group = activeGroup();
   const qrEl = document.getElementById('qr-code');
-  const qrWrap = document.getElementById('qr-wrap');
 
-  if (!group || !qrEl || !window.QRCode) return;
-  if (qrWrap && qrWrap.classList.contains('hidden')) return;
+  if (!group || !qrEl) return;
 
   const joinUrl = `${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`;
   qrEl.innerHTML = '';
 
-  QRCode.toCanvas(joinUrl, {
+  if (!window.QRCode || typeof window.QRCode.toCanvas !== 'function') {
+    qrEl.innerHTML = `
+      <div class="text-center text-xs text-gray-500">
+        <p class="font-semibold">QR unavailable</p>
+        <p class="mt-1">${esc(group.invite_code)}</p>
+      </div>
+    `;
+    return;
+  }
+
+  window.QRCode.toCanvas(joinUrl, {
     width: 128,
     margin: 1
   }, (error, canvas) => {
     if (error) {
       console.warn('QR generation failed:', error);
-      qrEl.innerHTML = `<p class="text-xs text-gray-500 text-center">QR unavailable<br>${esc(group.invite_code)}</p>`;
+      qrEl.innerHTML = `
+        <div class="text-center text-xs text-gray-500">
+          <p class="font-semibold">QR unavailable</p>
+          <p class="mt-1">${esc(group.invite_code)}</p>
+        </div>
+      `;
       return;
     }
 
@@ -989,6 +1129,7 @@ async function autoJoinFromUrl() {
 
     const joined = Array.isArray(data) ? data[0] : data;
     state.activeGroupId = joined?.id || state.activeGroupId;
+    state.activeSquadTab = 'details';
 
     window.history.replaceState({}, document.title, '/study-squads.html');
 
