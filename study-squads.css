@@ -1,0 +1,57 @@
+body {
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
+  min-height: 100vh;
+}
+
+.card {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+}
+
+.clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.squad-tab-active {
+  background: #4f46e5;
+  color: white;
+  box-shadow: 0 10px 25px rgba(79, 70, 229, 0.25);
+}
+
+.squad-tab {
+  background: white;
+  color: #374151;
+}
+
+.squad-tab:hover {
+  background: #eef2ff;
+}
+
+.feed-line {
+  position: relative;
+}
+
+.feed-line::before {
+  content: "";
+  position: absolute;
+  left: 0.8rem;
+  top: 2rem;
+  bottom: -1rem;
+  width: 2px;
+  background: #e0e7ff;
+}
+
+.feed-line:last-child::before {
+  display: none;
+}
