@@ -40,6 +40,10 @@ function activeGroup() {
   return state.groups.find(group => group.id === state.activeGroupId) || null;
 }
 
+function inviteLinkFor(group) {
+  return `${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`;
+}
+
 function formatDateTime(value) {
   if (!value) return '';
 
@@ -299,7 +303,6 @@ function setLeaderboardMode(mode) {
 
 function getSortedLeaderboard() {
   const rows = [...state.leaderboard];
-
   const primaryKey = state.leaderboardMode === 'all' ? 'total_xp' : 'weekly_xp';
 
   return rows
@@ -636,6 +639,8 @@ function squadTabButton(tab, label, icon) {
 }
 
 function squadDetailsTabTemplate(group) {
+  const inviteLink = inviteLinkFor(group);
+
   return `
     <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
       <div class="xl:col-span-2 space-y-5">
@@ -667,7 +672,7 @@ function squadDetailsTabTemplate(group) {
               id="invite-link"
               readonly
               class="w-full px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm text-gray-700"
-              value="${esc(`${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`)}"
+              value="${esc(inviteLink)}"
             />
             <div class="flex flex-wrap gap-2">
               <button
@@ -678,7 +683,7 @@ function squadDetailsTabTemplate(group) {
               </button>
               <button
                 id="copy-link-btn"
-                data-link="${esc(`${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`)}"
+                data-link="${esc(inviteLink)}"
                 class="px-4 py-2 rounded-lg bg-gray-900 text-white font-bold hover:bg-gray-800">
                 Copy Link
               </button>
@@ -686,14 +691,17 @@ function squadDetailsTabTemplate(group) {
           </div>
 
           <div class="mt-5 grid grid-cols-1 md:grid-cols-[180px_1fr] gap-5 items-center">
-            <div class="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-center min-h-[160px]">
-              <div id="qr-code" class="flex items-center justify-center min-h-[128px]"></div>
+            <div class="bg-white p-4 rounded-xl border border-gray-100 flex items-center justify-center min-h-[170px]">
+              <div id="qr-code" class="flex items-center justify-center min-h-[140px] w-full"></div>
             </div>
             <div>
-              <p class="font-bold text-gray-800">Scannable invite QR</p>
+              <p class="font-bold text-gray-800">Scan to join this Squad</p>
               <p class="mt-1 text-sm text-gray-600">
-                This QR opens the Study Squads page with the invite code included. If the QR library fails to load,
-                learners can still use the squad code above.
+                Share this QR code with another premium LearnerGenie user. They can scan it to open the invite link and join the Squad.
+              </p>
+              <p class="mt-3 text-sm text-gray-500">
+                They can also join manually using the Squad Code:
+                <span class="font-bold text-gray-800">${esc(group.invite_code)}</span>
               </p>
             </div>
           </div>
@@ -1082,36 +1090,18 @@ function renderQrIfNeeded() {
 
   if (!group || !qrEl) return;
 
-  const joinUrl = `${window.location.origin}/study-squads.html?code=${encodeURIComponent(group.invite_code)}`;
-  qrEl.innerHTML = '';
+  const joinUrl = inviteLinkFor(group);
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=8&data=${encodeURIComponent(joinUrl)}`;
 
-  if (!window.QRCode || typeof window.QRCode.toCanvas !== 'function') {
-    qrEl.innerHTML = `
-      <div class="text-center text-xs text-gray-500">
-        <p class="font-semibold">QR unavailable</p>
-        <p class="mt-1">${esc(group.invite_code)}</p>
-      </div>
-    `;
-    return;
-  }
-
-  window.QRCode.toCanvas(joinUrl, {
-    width: 128,
-    margin: 1
-  }, (error, canvas) => {
-    if (error) {
-      console.warn('QR generation failed:', error);
-      qrEl.innerHTML = `
-        <div class="text-center text-xs text-gray-500">
-          <p class="font-semibold">QR unavailable</p>
-          <p class="mt-1">${esc(group.invite_code)}</p>
-        </div>
-      `;
-      return;
-    }
-
-    qrEl.appendChild(canvas);
-  });
+  qrEl.innerHTML = `
+    <img
+      src="${esc(qrSrc)}"
+      alt="QR code to join ${esc(group.group_name)}"
+      class="w-[140px] h-[140px] rounded-lg"
+      loading="lazy"
+      onerror="this.outerHTML='<div class=&quot;text-center text-xs text-gray-500&quot;><p class=&quot;font-semibold&quot;>QR code could not load</p><p class=&quot;mt-1&quot;>Use the Squad Code instead</p></div>'"
+    />
+  `;
 }
 
 async function autoJoinFromUrl() {
