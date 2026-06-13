@@ -881,22 +881,33 @@
             };
             
             let navHtml = '';
+
             ['home', 'homeworkHelper', 'learningHub', 'mathHub', 'explainSimply', 'testBuilder'].forEach(tab => {
                 const item = navItems[tab];
+
+                navHtml += `
+                    <button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg">
+                        <i data-lucide="${item.icon}" class="h-5 w-5"></i>
+                        <span class="ml-3">${item.label}</span>
+                    </button>
+                `;
+            });
+
             navHtml += `
                 <div class="border-t mt-3 pt-3 border-gray-100">
                     <p class="px-4 pb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">Progress & Community</p>
+
                     <button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg">
                         <i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i>
                         <span class="ml-3">${navItems.myActivity.label}</span>
                     </button>
+
                     <a href="${getStudySquadsUrl()}" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
                         <i data-lucide="${navItems.studySquads.icon}" class="h-5 w-5"></i>
                         <span class="ml-3">${navItems.studySquads.label}</span>
                     </a>
                 </div>
-            `;            });
-            navHtml += `<button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg border-t mt-2 pt-2 border-gray-100"><i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i><span class="ml-3">${navItems.myActivity.label}</span></button>`;
+            `;
 
             sidebarNav.innerHTML = navHtml; 
 
@@ -942,7 +953,7 @@
             
             lucide.createIcons();
         }
-
+        
         // --- CORE LOGIC FUNCTIONS ---
 
         async function handleAuth() {
