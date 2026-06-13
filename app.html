@@ -104,6 +104,16 @@
             myActivityData: [] 
         };
 
+        function getStudySquadsUrl() {
+            const profileId = state.activeProfile?.id;
+        
+            if (!profileId) {
+                return '/study-squads.html';
+            }
+        
+            return `/study-squads.html?profile_id=${encodeURIComponent(profileId)}`;
+        }
+        
         // --- CORE UI TEMPLATES ---
 
         function homePageTemplate() {
@@ -154,6 +164,47 @@
                                 <span>Help with Mathematics</span>
                                 <i data-lucide="arrow-right-circle" class="h-4 w-4"></i>
                             </button>
+                        </div>
+                    </div>
+                               </div>
+
+                <div class="mt-12 text-left">
+                    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3">
+                        <div>
+                            <p class="text-sm font-bold uppercase tracking-wide text-indigo-600">Progress & Community</p>
+                            <h2 class="text-2xl md:text-3xl font-bold text-gray-800 mt-1">Keep track and stay consistent</h2>
+                            <p class="text-gray-600 mt-2 max-w-2xl">
+                                Review your learning activity, build study habits and connect with private Study Squads.
+                            </p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 w-fit">
+                            Premium value
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-emerald-400 flex flex-col">
+                            <i data-lucide="history" class="h-12 w-12 text-emerald-500 mb-4"></i>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">My Activity</h3>
+                            <p class="text-gray-600 mb-5">
+                                Revisit recent explanations, practice tests, notes and homework help for this learner.
+                            </p>
+                            <button data-nav-link="myActivity" class="mt-auto w-full py-3 px-4 bg-emerald-50 text-emerald-700 rounded-lg font-semibold hover:bg-emerald-100 transition-colors flex items-center justify-between">
+                                <span>View Activity History</span>
+                                <i data-lucide="arrow-right-circle" class="h-4 w-4"></i>
+                            </button>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-violet-500 flex flex-col">
+                            <i data-lucide="users-round" class="h-12 w-12 text-violet-600 mb-4"></i>
+                            <h3 class="text-2xl font-bold text-gray-800 mb-2">Study Squads</h3>
+                            <p class="text-gray-600 mb-5">
+                                Join private squads, build streaks and compete on consistency, not test scores.
+                            </p>
+                            <a href="${getStudySquadsUrl()}" class="mt-auto w-full py-3 px-4 bg-violet-50 text-violet-700 rounded-lg font-semibold hover:bg-violet-100 transition-colors flex items-center justify-between">
+                                <span>Open Study Squads</span>
+                                <i data-lucide="arrow-right-circle" class="h-4 w-4"></i>
+                            </a>
                         </div>
                     </div>
                 </div>
@@ -825,14 +876,26 @@
                 testBuilder: { icon: 'clipboard-check', label: 'Test Builder' },
                 mathHub: { icon: 'calculator', label: 'Mathematics Hub' },
                 myActivity: { icon: 'history', label: 'My Activity' },
+                studySquads: { icon: 'users-round', label: 'Study Squads' },
                 upgrade: { icon: 'zap', label: 'Upgrade Now' }
             };
             
             let navHtml = '';
             ['home', 'homeworkHelper', 'learningHub', 'mathHub', 'explainSimply', 'testBuilder'].forEach(tab => {
                 const item = navItems[tab];
-                navHtml += `<button data-nav-link="${tab}" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg"><i data-lucide="${item.icon}" class="h-5 w-5"></i><span class="ml-3">${item.label}</span></button>`;
-            });
+            navHtml += `
+                <div class="border-t mt-3 pt-3 border-gray-100">
+                    <p class="px-4 pb-2 text-[11px] font-bold uppercase tracking-wide text-gray-400">Progress & Community</p>
+                    <button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg">
+                        <i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i>
+                        <span class="ml-3">${navItems.myActivity.label}</span>
+                    </button>
+                    <a href="${getStudySquadsUrl()}" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                        <i data-lucide="${navItems.studySquads.icon}" class="h-5 w-5"></i>
+                        <span class="ml-3">${navItems.studySquads.label}</span>
+                    </a>
+                </div>
+            `;            });
             navHtml += `<button data-nav-link="myActivity" class="nav-link flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg border-t mt-2 pt-2 border-gray-100"><i data-lucide="${navItems.myActivity.icon}" class="h-5 w-5"></i><span class="ml-3">${navItems.myActivity.label}</span></button>`;
 
             sidebarNav.innerHTML = navHtml; 
