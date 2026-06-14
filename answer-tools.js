@@ -12,7 +12,7 @@
  * before wiring them into the main learner app.
  */
 (function () {
-    const DEFAULT_TRANSLATION_ENDPOINT = '/.netlify/functions/translate-answer';
+    const DEFAULT_TRANSLATION_ENDPOINT = '/api/translate-answer';
 
     const DEFAULT_LANGUAGES = [
         { code: 'af', label: 'Afrikaans', speechLang: 'af-ZA' },
@@ -68,7 +68,7 @@
 
     function getFriendlyTranslationError(response, rawBody) {
         const trimmedBody = String(rawBody || '').trim();
-        const endpointHint = 'Translation service did not return JSON. Check that /.netlify/functions/translate-answer is deployed and accessible.';
+        const endpointHint = 'Translation service did not return JSON. Check that /api/translate-answer is deployed and accessible.';
 
         if (trimmedBody.startsWith('<')) {
             if (response.status === 404) {
@@ -518,93 +518,35 @@
 
     function createAnswerTools(options) {
         const config = {
-            mount: null,
-            answerHtml: '',
-            answerText: '',
-            answerContent: null,
-            title: 'Answer Tools',
-            subject: '',
-            topic: '',
-            grade: '',
-            sourceTool: '',
-            defaultLanguage: 'af',
-            languages: DEFAULT_LANGUAGES,
-            translationEndpoint: DEFAULT_TRANSLATION_ENDPOINT,
-            translationMode: 'text',
-            structureInstructions: '',
-            showCopy: false,
-            showReadAloud: true,
-            showTranslate: true,
-            onSave: null,
-            onTranslated: null,
-            onRenderOriginal: null,
-            onRenderTranslated: null,
+            toolbarMount: null,
+            contentElement: null,
+            sections: [],
             ...options
         };
 
-        const mount = getElement(config.mount);
-        if (!mount) throw new Error('Answer Tools mount element was not found.');
-
-        mount.innerHTML = `
-            <section class="answer-tools-shell grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-5">
-                <article class="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-slate-100 px-5 py-4">
-                        <div>
-                            <p class="text-xs font-bold uppercase tracking-wide text-indigo-600">LearnerGenie Answer</p>
-                            <h2 class="text-xl font-bold text-slate-900">${escapeHtml(config.title)}</h2>
-                        </div>
-                    </div>
-                    <div data-answer-tools-content class="prose prose-slate max-w-none px-5 py-5 text-slate-800 leading-relaxed"></div>
-                </article>
-                <aside data-answer-tools-toolbar></aside>
-            </section>
-        `;
-
-        const toolbarMount = mount.querySelector('[data-answer-tools-toolbar]');
-        const contentElement = mount.querySelector('[data-answer-tools-content]');
-
         const toolbar = createOutputToolbar({
-            mount: toolbarMount,
-            contentElement,
-            originalHtml: config.answerHtml,
-            originalText: config.answerText,
-            originalContent: config.answerContent,
-            subject: config.subject,
-            topic: config.topic,
-            grade: config.grade,
-            sourceTool: config.sourceTool,
-            defaultLanguage: config.defaultLanguage,
-            languages: config.languages,
-            translationEndpoint: config.translationEndpoint,
-            translationMode: config.translationMode,
-            structureInstructions: config.structureInstructions,
-            showCopy: config.showCopy,
-            showTranslate: config.showTranslate,
-            onTranslated: config.onTranslated,
-            onRenderOriginal: config.onRenderOriginal,
-            onRenderTranslated: config.onRenderTranslated
+            mount: config.toolbarMount,
+            contentElement: config.contentElement,
+            ...config
         });
 
+        const sectionTools = config.sections.map(section => attachSectionReadAloud(section));
+
         return {
-            translate: toolbar.translate,
-            copy: toolbar.copy,
-            setView: toolbar.setView,
-            getState: toolbar.getState,
+            toolbar,
+            sectionTools,
             destroy() {
-                if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-                mount.innerHTML = '';
+                toolbar.destroy();
+                sectionTools.forEach(tool => tool.destroy());
             }
         };
     }
 
     window.LearnerGenieAnswerTools = {
-        create: createAnswerTools,
         createOutputToolbar,
         attachSectionReadAloud,
+        createAnswerTools,
         speakText,
-        translateContent,
-        escapeHtml,
-        stripHtml,
-        languages: DEFAULT_LANGUAGES
+        translateContent
     };
 })();
