@@ -194,19 +194,62 @@
         return blocks.join('\n');
     }
 
-    function extractBlocksFromHtml(html, selector = '.prose') {
+    function splitTextIntoTranslationBlocks(value) {
+        const text = cleanMarkdownText(value)
+            .replace(/\n{3,}/g, '\n\n')
+            .trim();
+
+        if (!text) return [];
+
+        const paragraphBlocks = text
+            .split(/\n{2,}/)
+            .map(block => block.trim())
+            .filter(Boolean);
+
+        if (paragraphBlocks.length > 1) {
+            return paragraphBlocks;
+        }
+
+        const singleLineBlocks = text
+            .split('\n')
+            .map(block => block.trim())
+            .filter(Boolean);
+
+        return singleLineBlocks.length > 1 ? singleLineBlocks : [text];
+    }
+
+    function extractBlockGroupsFromHtml(html, selector = '.prose') {
         const temp = document.createElement('div');
         temp.innerHTML = html || '';
         const blockElements = Array.from(temp.querySelectorAll(selector));
 
-        if (!blockElements.length) return [];
+        if (!blockElements.length) {
+            const fallbackBlocks = splitTextIntoTranslationBlocks(stripHtml(html));
+            return {
+                flatBlocks: fallbackBlocks,
+                groups: fallbackBlocks.length ? [{ index: 0, count: fallbackBlocks.length }] : []
+            };
+        }
 
-        return blockElements
-            .map(element => cleanMarkdownText(element.innerText || element.textContent || ''))
-            .filter(Boolean);
+        const groups = [];
+        const flatBlocks = [];
+
+        blockElements.forEach((element, index) => {
+            const elementText = element.innerText || element.textContent || '';
+            const blocks = splitTextIntoTranslationBlocks(elementText);
+
+            groups.push({ index, count: blocks.length });
+            flatBlocks.push(...blocks);
+        });
+
+        return { flatBlocks, groups };
     }
 
-    function applyTranslatedBlocksToHtmlShell(originalHtml, translatedBlocks = [], selector = '.prose') {
+    function extractBlocksFromHtml(html, selector = '.prose') {
+        return extractBlockGroupsFromHtml(html, selector).flatBlocks;
+    }
+
+    function applyTranslatedBlocksToHtmlShell(originalHtml, translatedBlocks = [], selector = '.prose', blockGroups = []) {
         const temp = document.createElement('div');
         temp.innerHTML = originalHtml || '';
         const blockElements = Array.from(temp.querySelectorAll(selector));
@@ -215,10 +258,23 @@
             return plainTextToHtml(translatedBlocks.join('\n\n'));
         }
 
+        let cursor = 0;
+
         blockElements.forEach((element, index) => {
-            const translatedBlock = translatedBlocks[index];
-            if (typeof translatedBlock !== 'string') return;
-            element.innerHTML = plainTextToHtml(translatedBlock);
+            const group = blockGroups.find(item => item.index === index);
+            const count = group?.count || 1;
+            const translatedChunks = translatedBlocks
+                .slice(cursor, cursor + count)
+                .map(block => String(block || '').trim())
+                .filter(Boolean);
+
+            cursor += count;
+
+            if (!translatedChunks.length) return;
+
+            element.innerHTML = translatedChunks
+                .map(chunk => plainTextToHtml(chunk))
+                .join('\n');
         });
 
         return temp.innerHTML;
@@ -308,13 +364,18 @@
 
         const isStructuredMode = config.translationMode === 'structured';
         const originalHtml = config.originalHtml || escapeHtml(config.originalText || '').replace(/\n/g, '<br>');
-        const originalBlocks = !isStructuredMode ? extractBlocksFromHtml(originalHtml, config.contentBlockSelector) : [];
+        const originalBlockData = !isStructuredMode
+            ? extractBlockGroupsFromHtml(originalHtml, config.contentBlockSelector)
+            : { flatBlocks: [], groups: [] };
+        const originalBlocks = originalBlockData.flatBlocks;
+        const originalBlockGroups = originalBlockData.groups;
         const originalText = config.originalText || (originalBlocks.length ? originalBlocks.join('\n\n') : stripHtml(originalHtml));
 
         const state = {
             originalHtml,
             originalText,
             originalBlocks,
+            originalBlockGroups,
             originalContent: config.originalContent || null,
             translatedHtml: '',
             translatedText: '',
@@ -471,7 +532,8 @@
                     state.translatedHtml = applyTranslatedBlocksToHtmlShell(
                         state.originalHtml,
                         state.translatedBlocks,
-                        config.contentBlockSelector
+                        config.contentBlockSelector,
+                        state.originalBlockGroups
                     );
                 } else {
                     state.translatedHtml = result.translatedHtml;
