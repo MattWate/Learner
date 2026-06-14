@@ -5,7 +5,7 @@
  * Design direction:
  * - Output-level tools act on the whole generated answer: translate, copy, view original/translated.
  * - Section-level tools act on one block of content: read aloud.
- * - Simple outputs are translated as content blocks and then rehydrated into the original HTML shell.
+ * - Simple outputs are translated as learner-facing content blocks and then rehydrated into the original HTML shell.
  * - Structured outputs, such as Learning Hub and Test Builder, can be translated at data level
  *   and re-rendered by the host activity so quiz logic is not broken.
  */
@@ -140,60 +140,6 @@
             .trim();
     }
 
-    function plainTextToHtml(value) {
-        const text = cleanMarkdownText(value);
-        if (!text) return '';
-
-        const lines = text.split('\n');
-        const blocks = [];
-        let currentList = [];
-        let currentParagraph = [];
-
-        function flushParagraph() {
-            if (!currentParagraph.length) return;
-            blocks.push(`<p>${escapeHtml(currentParagraph.join(' '))}</p>`);
-            currentParagraph = [];
-        }
-
-        function flushList() {
-            if (!currentList.length) return;
-            blocks.push(`<ul>${currentList.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`);
-            currentList = [];
-        }
-
-        lines.forEach(rawLine => {
-            const line = rawLine.trim();
-
-            if (!line) {
-                flushParagraph();
-                flushList();
-                return;
-            }
-
-            const listMatch = line.match(/^(?:•|-|\*)\s+(.+)$/);
-            if (listMatch) {
-                flushParagraph();
-                currentList.push(listMatch[1].trim());
-                return;
-            }
-
-            const numberedMatch = line.match(/^\d+[.)]\s+(.+)$/);
-            if (numberedMatch) {
-                flushParagraph();
-                currentList.push(line);
-                return;
-            }
-
-            flushList();
-            currentParagraph.push(line);
-        });
-
-        flushParagraph();
-        flushList();
-
-        return blocks.join('\n');
-    }
-
     function splitTextIntoTranslationBlocks(value) {
         const text = cleanMarkdownText(value)
             .replace(/\n{3,}/g, '\n\n')
@@ -206,16 +152,55 @@
             .map(block => block.trim())
             .filter(Boolean);
 
-        if (paragraphBlocks.length > 1) {
-            return paragraphBlocks;
-        }
+        if (paragraphBlocks.length > 1) return paragraphBlocks;
 
-        const singleLineBlocks = text
+        const lineBlocks = text
             .split('\n')
             .map(block => block.trim())
             .filter(Boolean);
 
-        return singleLineBlocks.length > 1 ? singleLineBlocks : [text];
+        if (lineBlocks.length > 1) return lineBlocks;
+
+        // Add gentle breaks before common lesson-style headings if the text came back as one long block.
+        const headingSplit = text
+            .replace(/\s+(Hier is|Hoe werk|Waarom is|Wat gebeur|Voorbeeld|Onthou|Kortliks|In kort|Now you try|Quick check|Why does|How does|What is)\b/g, '\n\n$1')
+            .split(/\n{2,}/)
+            .map(block => block.trim())
+            .filter(Boolean);
+
+        return headingSplit.length > 1 ? headingSplit : [text];
+    }
+
+    function isMeaningfulElement(element) {
+        if (!element || !element.tagName) return false;
+        const tag = element.tagName.toLowerCase();
+        if (['script', 'style', 'svg', 'button', 'select', 'label', 'input', 'textarea'].includes(tag)) return false;
+        const text = cleanMarkdownText(element.innerText || element.textContent || '');
+        return Boolean(text);
+    }
+
+    function collectSemanticBlocks(element) {
+        const clone = element.cloneNode(true);
+        clone.querySelectorAll('script, style, svg, button, select, label, input, textarea').forEach(node => node.remove());
+
+        const semanticSelector = 'h1,h2,h3,h4,h5,h6,p,li,blockquote,pre';
+        const semanticNodes = Array.from(clone.querySelectorAll(semanticSelector))
+            .filter(isMeaningfulElement);
+
+        if (semanticNodes.length > 1) {
+            return semanticNodes
+                .map(node => cleanMarkdownText(node.innerText || node.textContent || ''))
+                .filter(Boolean);
+        }
+
+        const directChildren = Array.from(clone.children).filter(isMeaningfulElement);
+        if (directChildren.length > 1) {
+            return directChildren
+                .map(child => cleanMarkdownText(child.innerText || child.textContent || ''))
+                .filter(Boolean);
+        }
+
+        return splitTextIntoTranslationBlocks(clone.innerText || clone.textContent || '');
     }
 
     function extractBlockGroupsFromHtml(html, selector = '.prose') {
@@ -235,9 +220,7 @@
         const flatBlocks = [];
 
         blockElements.forEach((element, index) => {
-            const elementText = element.innerText || element.textContent || '';
-            const blocks = splitTextIntoTranslationBlocks(elementText);
-
+            const blocks = collectSemanticBlocks(element);
             groups.push({ index, count: blocks.length });
             flatBlocks.push(...blocks);
         });
@@ -247,6 +230,37 @@
 
     function extractBlocksFromHtml(html, selector = '.prose') {
         return extractBlockGroupsFromHtml(html, selector).flatBlocks;
+    }
+
+    function renderTranslatedChunk(chunk) {
+        const lines = cleanMarkdownText(chunk)
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean);
+
+        if (!lines.length) return '';
+
+        // Keep numbered or bullet lines visually separate, but do not try to turn them into interactive markup.
+        if (lines.length > 1) {
+            return `<div class="space-y-2">${lines.map(line => `<p class="m-0">${escapeHtml(line)}</p>`).join('')}</div>`;
+        }
+
+        return `<p class="m-0 leading-relaxed">${escapeHtml(lines[0])}</p>`;
+    }
+
+    function renderTranslatedChunks(chunks = []) {
+        const html = chunks
+            .map(chunk => String(chunk || '').trim())
+            .filter(Boolean)
+            .map(chunk => `<div class="mb-4 last:mb-0">${renderTranslatedChunk(chunk)}</div>`)
+            .join('');
+
+        return `<div class="space-y-4">${html}</div>`;
+    }
+
+    function plainTextToHtml(value) {
+        const chunks = splitTextIntoTranslationBlocks(value);
+        return renderTranslatedChunks(chunks);
     }
 
     function applyTranslatedBlocksToHtmlShell(originalHtml, translatedBlocks = [], selector = '.prose', blockGroups = []) {
@@ -263,7 +277,7 @@
         blockElements.forEach((element, index) => {
             const group = blockGroups.find(item => item.index === index);
             const count = group?.count || 1;
-            const translatedChunks = translatedBlocks
+            let translatedChunks = translatedBlocks
                 .slice(cursor, cursor + count)
                 .map(block => String(block || '').trim())
                 .filter(Boolean);
@@ -272,9 +286,12 @@
 
             if (!translatedChunks.length) return;
 
-            element.innerHTML = translatedChunks
-                .map(chunk => plainTextToHtml(chunk))
-                .join('\n');
+            // If the model merged the translated response into one item, split it again for readability.
+            if (translatedChunks.length === 1 && count > 1) {
+                translatedChunks = splitTextIntoTranslationBlocks(translatedChunks[0]);
+            }
+
+            element.innerHTML = renderTranslatedChunks(translatedChunks);
         });
 
         return temp.innerHTML;
