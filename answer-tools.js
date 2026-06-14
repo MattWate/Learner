@@ -5,6 +5,8 @@
  * Design direction:
  * - Output-level tools act on the whole generated answer: translate, copy, view original/translated.
  * - Section-level tools act on one block of content: read aloud.
+ * - Structured outputs, such as Learning Hub and Test Builder, can be translated at data level
+ *   and re-rendered by the host activity so quiz logic is not broken.
  *
  * This file remains independent from app.html so we can test new activity modules safely
  * before wiring them into the main learner app.
@@ -109,13 +111,26 @@
         return true;
     }
 
+    function stringifyStructuredContent(content) {
+        try {
+            return JSON.stringify(content || {}, null, 2);
+        } catch (error) {
+            return String(content || '');
+        }
+    }
+
     async function translateContent(options) {
+        const isStructured = options.mode === 'structured' || options.translationMode === 'structured' || Boolean(options.structuredContent);
+
         const response = await fetch(options.translationEndpoint || DEFAULT_TRANSLATION_ENDPOINT, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+                mode: isStructured ? 'structured' : 'text',
                 text: options.text || '',
                 html: options.html || '',
+                structuredContent: isStructured ? (options.structuredContent || {}) : undefined,
+                structureInstructions: options.structureInstructions || '',
                 targetLanguage: options.targetLanguage || 'Afrikaans',
                 targetLanguageCode: options.targetLanguageCode || 'af',
                 subject: options.subject || '',
@@ -132,8 +147,10 @@
         }
 
         return {
+            mode: data.mode || (isStructured ? 'structured' : 'text'),
             translatedText: data.translatedText || stripHtml(data.translatedHtml || ''),
             translatedHtml: data.translatedHtml || escapeHtml(data.translatedText || '').replace(/\n/g, '<br>'),
+            translatedContent: data.translatedContent || null,
             targetLanguage: data.targetLanguage || options.targetLanguage,
             targetLanguageCode: data.targetLanguageCode || options.targetLanguageCode
         };
@@ -145,6 +162,8 @@
             contentElement: null,
             originalHtml: '',
             originalText: '',
+            originalContent: null,
+            getOriginalContent: null,
             subject: '',
             topic: '',
             grade: '',
@@ -152,11 +171,16 @@
             defaultLanguage: 'af',
             languages: DEFAULT_LANGUAGES,
             translationEndpoint: DEFAULT_TRANSLATION_ENDPOINT,
+            translationMode: 'text',
+            structureInstructions: '',
             showCopy: true,
             showTranslate: true,
             onViewChanged: null,
             onTranslated: null,
             onStatus: null,
+            onRenderOriginal: null,
+            onRenderTranslated: null,
+            onBeforeViewChange: null,
             ...options
         };
 
@@ -166,14 +190,19 @@
         if (!mount) throw new Error('Output toolbar mount element was not found.');
         if (!contentElement) throw new Error('Output toolbar content element was not found.');
 
+        const isStructuredMode = config.translationMode === 'structured';
+
         const state = {
             originalHtml: config.originalHtml || escapeHtml(config.originalText || '').replace(/\n/g, '<br>'),
             originalText: config.originalText || stripHtml(config.originalHtml || ''),
+            originalContent: config.originalContent || null,
             translatedHtml: '',
             translatedText: '',
+            translatedContent: null,
             currentView: 'original',
             selectedLanguage: config.defaultLanguage,
-            isTranslating: false
+            isTranslating: false,
+            translationMode: config.translationMode
         };
 
         function status(message, type = 'info') {
@@ -194,13 +223,53 @@
         }
 
         function getCurrentText() {
-            return state.currentView === 'translated' ? state.translatedText : state.originalText;
+            if (state.currentView === 'translated') return state.translatedText;
+            if (isStructuredMode && state.originalContent) return stringifyStructuredContent(state.originalContent);
+            return state.originalText;
+        }
+
+        function getFreshOriginalContent() {
+            if (typeof config.getOriginalContent === 'function') {
+                const freshContent = config.getOriginalContent();
+                if (freshContent) state.originalContent = freshContent;
+            }
+            return state.originalContent || config.originalContent || null;
         }
 
         function renderContent() {
-            contentElement.innerHTML = state.currentView === 'translated'
-                ? state.translatedHtml
-                : state.originalHtml;
+            if (typeof config.onBeforeViewChange === 'function') {
+                config.onBeforeViewChange({ ...state });
+            }
+
+            if (isStructuredMode) {
+                if (state.currentView === 'translated' && typeof config.onRenderTranslated === 'function') {
+                    config.onRenderTranslated({
+                        contentElement,
+                        translatedContent: state.translatedContent,
+                        translatedText: state.translatedText,
+                        translatedHtml: state.translatedHtml,
+                        languageCode: state.selectedLanguage,
+                        languageLabel: normaliseLanguageLabel(state.selectedLanguage, config.languages),
+                        state: { ...state }
+                    });
+                } else if (state.currentView === 'original' && typeof config.onRenderOriginal === 'function') {
+                    config.onRenderOriginal({
+                        contentElement,
+                        originalContent: state.originalContent,
+                        originalText: state.originalText,
+                        originalHtml: state.originalHtml,
+                        state: { ...state }
+                    });
+                } else {
+                    contentElement.innerHTML = state.currentView === 'translated'
+                        ? (state.translatedHtml || escapeHtml(state.translatedText || '').replace(/\n/g, '<br>'))
+                        : state.originalHtml;
+                }
+            } else {
+                contentElement.innerHTML = state.currentView === 'translated'
+                    ? state.translatedHtml
+                    : state.originalHtml;
+            }
 
             const originalButton = mount.querySelector('[data-answer-toolbar-view="original"]');
             const translatedButton = mount.querySelector('[data-answer-toolbar-view="translated"]');
@@ -213,13 +282,14 @@
             }
 
             if (translatedButton) {
-                translatedButton.disabled = !state.translatedHtml;
+                const hasTranslation = isStructuredMode ? Boolean(state.translatedContent) : Boolean(state.translatedHtml);
+                translatedButton.disabled = !hasTranslation;
                 translatedButton.classList.toggle('bg-indigo-600', state.currentView === 'translated');
                 translatedButton.classList.toggle('text-white', state.currentView === 'translated');
                 translatedButton.classList.toggle('bg-slate-100', state.currentView !== 'translated');
                 translatedButton.classList.toggle('text-slate-700', state.currentView !== 'translated');
-                translatedButton.classList.toggle('opacity-50', !state.translatedHtml);
-                translatedButton.textContent = state.translatedHtml
+                translatedButton.classList.toggle('opacity-50', !hasTranslation);
+                translatedButton.textContent = hasTranslation
                     ? normaliseLanguageLabel(state.selectedLanguage, config.languages)
                     : 'Translated';
             }
@@ -252,9 +322,14 @@
             status(`Translating full answer to ${targetLanguage}…`, 'info');
 
             try {
+                const originalContent = isStructuredMode ? getFreshOriginalContent() : null;
+
                 const result = await translateContent({
-                    text: state.originalText,
-                    html: state.originalHtml,
+                    mode: isStructuredMode ? 'structured' : 'text',
+                    text: isStructuredMode ? stringifyStructuredContent(originalContent) : state.originalText,
+                    html: isStructuredMode ? '' : state.originalHtml,
+                    structuredContent: originalContent,
+                    structureInstructions: config.structureInstructions,
                     targetLanguage,
                     targetLanguageCode: state.selectedLanguage,
                     subject: config.subject,
@@ -266,6 +341,7 @@
 
                 state.translatedHtml = result.translatedHtml;
                 state.translatedText = result.translatedText;
+                state.translatedContent = result.translatedContent;
                 state.currentView = 'translated';
 
                 renderContent();
@@ -276,7 +352,9 @@
                         languageCode: state.selectedLanguage,
                         languageLabel: targetLanguage,
                         translatedText: state.translatedText,
-                        translatedHtml: state.translatedHtml
+                        translatedHtml: state.translatedHtml,
+                        translatedContent: state.translatedContent,
+                        mode: isStructuredMode ? 'structured' : 'text'
                     });
                 }
             } catch (error) {
@@ -288,8 +366,10 @@
         }
 
         function setView(view) {
-            if (view === 'translated' && !state.translatedHtml) return;
-            state.currentView = view === 'translated' ? 'translated' : 'original';
+            const nextView = view === 'translated' ? 'translated' : 'original';
+            const hasTranslation = isStructuredMode ? Boolean(state.translatedContent) : Boolean(state.translatedHtml);
+            if (nextView === 'translated' && !hasTranslation) return;
+            state.currentView = nextView;
             renderContent();
             status('', 'info');
         }
@@ -422,6 +502,7 @@
             mount: null,
             answerHtml: '',
             answerText: '',
+            answerContent: null,
             title: 'Answer Tools',
             subject: '',
             topic: '',
@@ -430,11 +511,15 @@
             defaultLanguage: 'af',
             languages: DEFAULT_LANGUAGES,
             translationEndpoint: DEFAULT_TRANSLATION_ENDPOINT,
+            translationMode: 'text',
+            structureInstructions: '',
             showCopy: true,
             showReadAloud: true,
             showTranslate: true,
             onSave: null,
             onTranslated: null,
+            onRenderOriginal: null,
+            onRenderTranslated: null,
             ...options
         };
 
@@ -464,6 +549,7 @@
             contentElement,
             originalHtml: config.answerHtml,
             originalText: config.answerText,
+            originalContent: config.answerContent,
             subject: config.subject,
             topic: config.topic,
             grade: config.grade,
@@ -471,9 +557,13 @@
             defaultLanguage: config.defaultLanguage,
             languages: config.languages,
             translationEndpoint: config.translationEndpoint,
+            translationMode: config.translationMode,
+            structureInstructions: config.structureInstructions,
             showCopy: config.showCopy,
             showTranslate: config.showTranslate,
-            onTranslated: config.onTranslated
+            onTranslated: config.onTranslated,
+            onRenderOriginal: config.onRenderOriginal,
+            onRenderTranslated: config.onRenderTranslated
         });
 
         return {
