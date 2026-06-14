@@ -63,7 +63,8 @@ exports.handler = async function (event) {
             .join('\n');
     }
 
-    function buildPlainTextPrompt({
+    function buildBlockTextPrompt({
+        textBlocks,
         sourceText,
         safeTargetLanguage,
         safeTargetLanguageCode,
@@ -72,19 +73,29 @@ exports.handler = async function (event) {
         grade,
         sourceTool
     }) {
-        return `Translate the learner-facing answer below into ${safeTargetLanguage}.
+        const hasBlocks = Array.isArray(textBlocks) && textBlocks.length > 0;
+        const blockPayload = hasBlocks
+            ? JSON.stringify(textBlocks, null, 2)
+            : JSON.stringify([sourceText || ''], null, 2);
+
+        return `Translate the learner-facing answer blocks below into ${safeTargetLanguage}.
 
 Rules:
-- Keep the meaning the same.
+- Return valid JSON only.
+- Return JSON with this exact shape:
+{
+  "translatedBlocks": ["translated block 1", "translated block 2"],
+  "translatedText": "all translated blocks joined with blank lines"
+}
+- The translatedBlocks array must have exactly the same number of items as the original blocks array.
+- Keep each block's meaning the same.
 - Keep it age-appropriate for ${grade || 'a school learner'}.
 - Do not add new facts or examples unless they are already implied by the original.
-- Preserve headings, bullet points, numbered steps, line breaks, and paragraph breaks where possible.
+- Preserve paragraph breaks inside each block where useful.
+- Preserve bullet points and numbered steps where useful.
+- Remove raw Markdown heading markers like # or ## from the translated text. Use normal words only.
 - Keep mathematical notation, formulas, units, names, and proper nouns unchanged unless translation is clearly appropriate.
 - Use natural, school-friendly ${safeTargetLanguage}.
-- Return JSON only with this exact shape:
-{
-  "translatedText": "translated plain text"
-}
 
 Context:
 Subject: ${subject || 'Not specified'}
@@ -92,8 +103,8 @@ Topic: ${topic || 'Not specified'}
 Source tool: ${sourceTool || 'Not specified'}
 Target language code: ${safeTargetLanguageCode || 'Not specified'}
 
-Original answer:
-${sourceText || '[No plain text supplied]'}`;
+Original blocks:
+${blockPayload}`;
     }
 
     function buildStructuredPrompt({
@@ -124,6 +135,7 @@ Rules:
 - Preserve arrays and item order.
 - Preserve IDs, database IDs, flags, booleans, numbers, dates, URLs, image paths, and internal metadata exactly.
 - Translate learner-facing strings only.
+- Remove raw Markdown heading markers like # or ## from translated learner-facing values.
 - Keep mathematical notation, formulas, units, code, equations, and variable names unchanged unless translation is clearly required.
 - For multiple-choice questions, translate the question and options, and make sure correct_answer exactly matches the translated correct option.
 - For true/false questions, translate the visible options and correct_answer consistently. The correct_answer must exactly match one of the translated options when options exist.
@@ -156,6 +168,10 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             structureInstructions = ''
         } = body;
 
+        const textBlocks = Array.isArray(body.textBlocks)
+            ? body.textBlocks.map(block => String(block || '').trim()).filter(Boolean)
+            : [];
+
         const mode = String(body.mode || body.translationMode || (structuredContent ? 'structured' : 'text')).trim();
         const sourceText = String(text || '').trim();
         const safeTargetLanguage = String(targetLanguage || 'Afrikaans').trim();
@@ -170,7 +186,7 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             };
         }
 
-        if (!isStructured && !sourceText) {
+        if (!isStructured && !sourceText && textBlocks.length === 0) {
             return {
                 statusCode: 400,
                 headers,
@@ -189,7 +205,8 @@ ${JSON.stringify(structuredContent, null, 2)}`;
                 sourceTool,
                 structureInstructions
             })
-            : buildPlainTextPrompt({
+            : buildBlockTextPrompt({
+                textBlocks,
                 sourceText,
                 safeTargetLanguage,
                 safeTargetLanguageCode,
@@ -261,7 +278,19 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             throw new Error('The translation model did not return translated structured content.');
         }
 
-        const translatedText = parsed.translatedText || '';
+        let translatedBlocks = [];
+        if (!isStructured) {
+            translatedBlocks = Array.isArray(parsed.translatedBlocks)
+                ? parsed.translatedBlocks.map(block => String(block || '').trim())
+                : [];
+
+            const expectedBlockCount = textBlocks.length || (sourceText ? 1 : 0);
+            if (expectedBlockCount > 0 && translatedBlocks.length !== expectedBlockCount) {
+                throw new Error('The translation model returned the wrong number of translated blocks. Please try again.');
+            }
+        }
+
+        const translatedText = parsed.translatedText || translatedBlocks.join('\n\n') || '';
         const translatedHtml = isStructured
             ? (parsed.translatedHtml || translatedText || '')
             : plainTextToHtml(translatedText);
@@ -273,6 +302,7 @@ ${JSON.stringify(structuredContent, null, 2)}`;
                 mode: isStructured ? 'structured' : 'text',
                 translatedText,
                 translatedHtml,
+                translatedBlocks: isStructured ? undefined : translatedBlocks,
                 translatedContent: isStructured ? parsed.translatedContent : undefined,
                 targetLanguage: safeTargetLanguage,
                 targetLanguageCode: safeTargetLanguageCode
