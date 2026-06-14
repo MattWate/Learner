@@ -28,34 +28,33 @@ exports.handler = async function (event) {
         };
     }
 
-    try {
-        const body = JSON.parse(event.body || '{}');
-        const {
-            text,
-            html,
-            targetLanguage = 'Afrikaans',
-            targetLanguageCode = 'af',
-            subject = '',
-            topic = '',
-            grade = '',
-            sourceTool = ''
-        } = body;
+    function safeJsonParse(value) {
+        if (!value) return null;
 
-        const sourceText = String(text || '').trim();
-        const sourceHtml = String(html || '').trim();
+        let cleanValue = String(value).trim();
 
-        if (!sourceText && !sourceHtml) {
-            return {
-                statusCode: 400,
-                headers,
-                body: JSON.stringify({ error: 'No answer text was provided for translation.' })
-            };
+        if (cleanValue.startsWith('```')) {
+            cleanValue = cleanValue
+                .replace(/^```json\s*/i, '')
+                .replace(/^```\s*/i, '')
+                .replace(/```$/i, '')
+                .trim();
         }
 
-        const safeTargetLanguage = String(targetLanguage || 'Afrikaans').trim();
-        const safeTargetLanguageCode = String(targetLanguageCode || '').trim();
+        return JSON.parse(cleanValue);
+    }
 
-        const prompt = `Translate the learner-facing answer below into ${safeTargetLanguage}.
+    function buildPlainTextPrompt({
+        sourceText,
+        sourceHtml,
+        safeTargetLanguage,
+        safeTargetLanguageCode,
+        subject,
+        topic,
+        grade,
+        sourceTool
+    }) {
+        return `Translate the learner-facing answer below into ${safeTargetLanguage}.
 
 Rules:
 - Keep the meaning the same.
@@ -81,6 +80,113 @@ ${sourceText || '[No plain text supplied]'}
 
 Original answer as HTML:
 ${sourceHtml || '[No HTML supplied]'}`;
+    }
+
+    function buildStructuredPrompt({
+        structuredContent,
+        safeTargetLanguage,
+        safeTargetLanguageCode,
+        subject,
+        topic,
+        grade,
+        sourceTool,
+        structureInstructions
+    }) {
+        return `Translate the structured LearnerGenie output below into ${safeTargetLanguage}.
+
+This is a structured educational object, not a web page. Translate the learner-facing values inside the object, then return the same object structure.
+
+Rules:
+- Return valid JSON only.
+- Return JSON with this exact shape:
+{
+  "translatedContent": { "same structure as the original object" },
+  "translatedText": "plain text summary of the translated learner-facing content",
+  "translatedHtml": "simple HTML summary of the translated learner-facing content"
+}
+- Do not change object keys.
+- Do not remove fields.
+- Do not add new questions, answers, sections, facts, or examples.
+- Preserve arrays and item order.
+- Preserve IDs, database IDs, flags, booleans, numbers, dates, URLs, image paths, and internal metadata exactly.
+- Translate learner-facing strings only.
+- Keep mathematical notation, formulas, units, code, equations, and variable names unchanged unless translation is clearly required.
+- For multiple-choice questions, translate the question and options, and make sure correct_answer exactly matches the translated correct option.
+- For true/false questions, translate the visible options and correct_answer consistently. The correct_answer must exactly match one of the translated options when options exist.
+- For short-answer or memo fields, translate the expected answer or memo without changing the academic meaning.
+- Keep the level age-appropriate for ${grade || 'a school learner'}.
+- Use natural, school-friendly ${safeTargetLanguage}.
+${structureInstructions ? `\nExtra structure instructions:\n${structureInstructions}\n` : ''}
+
+Context:
+Subject: ${subject || 'Not specified'}
+Topic: ${topic || 'Not specified'}
+Source tool: ${sourceTool || 'Not specified'}
+Target language code: ${safeTargetLanguageCode || 'Not specified'}
+
+Original structured content:
+${JSON.stringify(structuredContent, null, 2)}`;
+    }
+
+    try {
+        const body = JSON.parse(event.body || '{}');
+        const {
+            text,
+            html,
+            targetLanguage = 'Afrikaans',
+            targetLanguageCode = 'af',
+            subject = '',
+            topic = '',
+            grade = '',
+            sourceTool = '',
+            structuredContent = null,
+            structureInstructions = ''
+        } = body;
+
+        const mode = String(body.mode || body.translationMode || (structuredContent ? 'structured' : 'text')).trim();
+        const sourceText = String(text || '').trim();
+        const sourceHtml = String(html || '').trim();
+        const safeTargetLanguage = String(targetLanguage || 'Afrikaans').trim();
+        const safeTargetLanguageCode = String(targetLanguageCode || '').trim();
+        const isStructured = mode === 'structured';
+
+        if (isStructured && (!structuredContent || typeof structuredContent !== 'object')) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'No structured content was provided for translation.' })
+            };
+        }
+
+        if (!isStructured && !sourceText && !sourceHtml) {
+            return {
+                statusCode: 400,
+                headers,
+                body: JSON.stringify({ error: 'No answer text was provided for translation.' })
+            };
+        }
+
+        const prompt = isStructured
+            ? buildStructuredPrompt({
+                structuredContent,
+                safeTargetLanguage,
+                safeTargetLanguageCode,
+                subject,
+                topic,
+                grade,
+                sourceTool,
+                structureInstructions
+            })
+            : buildPlainTextPrompt({
+                sourceText,
+                sourceHtml,
+                safeTargetLanguage,
+                safeTargetLanguageCode,
+                subject,
+                topic,
+                grade,
+                sourceTool
+            });
 
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${GOOGLE_API_KEY}`;
 
@@ -98,7 +204,7 @@ ${sourceHtml || '[No HTML supplied]'}`;
             systemInstruction: {
                 parts: [
                     {
-                        text: 'You are a careful educational translator for LearnerGenie. You translate learner-facing educational content accurately and safely. You do not solve new problems, add new facts, or change the academic meaning. Return valid JSON only.'
+                        text: 'You are a careful educational translator for LearnerGenie. You translate learner-facing educational content accurately and safely. You do not solve new problems, add new facts, change quiz logic, or change the academic meaning. Return valid JSON only.'
                     }
                 ]
             }
@@ -124,17 +230,23 @@ ${sourceHtml || '[No HTML supplied]'}`;
 
         let parsed;
         try {
-            parsed = JSON.parse(modelText);
+            parsed = safeJsonParse(modelText);
         } catch (jsonError) {
             throw new Error('The translation model returned invalid JSON.');
+        }
+
+        if (isStructured && (!parsed || !parsed.translatedContent || typeof parsed.translatedContent !== 'object')) {
+            throw new Error('The translation model did not return translated structured content.');
         }
 
         return {
             statusCode: 200,
             headers,
             body: JSON.stringify({
+                mode: isStructured ? 'structured' : 'text',
                 translatedText: parsed.translatedText || '',
                 translatedHtml: parsed.translatedHtml || parsed.translatedText || '',
+                translatedContent: isStructured ? parsed.translatedContent : undefined,
                 targetLanguage: safeTargetLanguage,
                 targetLanguageCode: safeTargetLanguageCode
             })
