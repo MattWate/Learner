@@ -66,6 +66,23 @@
         button.textContent = isBusy ? busyText : normalText;
     }
 
+    function getFriendlyTranslationError(response, rawBody) {
+        const trimmedBody = String(rawBody || '').trim();
+        const endpointHint = 'Translation service did not return JSON. Check that /.netlify/functions/translate-answer is deployed and accessible.';
+
+        if (trimmedBody.startsWith('<')) {
+            if (response.status === 404) {
+                return 'Translation service was not found. Netlify may not have deployed the translate-answer function yet.';
+            }
+            if (response.status >= 500) {
+                return 'Translation service returned a server error page. Check the Netlify function logs for translate-answer.';
+            }
+            return endpointHint;
+        }
+
+        return `Translation service returned an unexpected response${response.status ? ` (${response.status})` : ''}.`;
+    }
+
     function speakText(text, options = {}) {
         if (!('speechSynthesis' in window)) {
             if (typeof options.onError === 'function') {
@@ -140,7 +157,14 @@
             })
         });
 
-        const data = await response.json();
+        const rawBody = await response.text();
+        let data;
+
+        try {
+            data = rawBody ? JSON.parse(rawBody) : {};
+        } catch (error) {
+            throw new Error(getFriendlyTranslationError(response, rawBody));
+        }
 
         if (!response.ok) {
             throw new Error(data.error || 'Translation failed.');
@@ -173,7 +197,7 @@
             translationEndpoint: DEFAULT_TRANSLATION_ENDPOINT,
             translationMode: 'text',
             structureInstructions: '',
-            showCopy: true,
+            showCopy: false,
             showTranslate: true,
             onViewChanged: null,
             onTranslated: null,
@@ -319,7 +343,7 @@
 
             state.isTranslating = true;
             setButtonBusy(button, true, 'Translating…', 'Translate');
-            status(`Translating full answer to ${targetLanguage}…`, 'info');
+            status(`Translating to ${targetLanguage}…`, 'info');
 
             try {
                 const originalContent = isStructuredMode ? getFreshOriginalContent() : null;
@@ -377,21 +401,16 @@
         function renderToolbar() {
             mount.innerHTML = `
                 <div class="bg-white border border-slate-200 rounded-2xl shadow-sm px-4 py-3">
-                    <div class="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-3">
-                        <div>
-                            <p class="text-xs font-bold uppercase tracking-wide text-indigo-600">Answer Tools</p>
-                            <p class="text-sm text-slate-500">Global tools for the full generated output.</p>
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div class="flex items-center gap-2">
+                            <button type="button" data-answer-toolbar-view="original" class="rounded-full px-3 py-1.5 text-sm font-semibold bg-indigo-600 text-white">Original</button>
+                            <button type="button" data-answer-toolbar-view="translated" class="rounded-full px-3 py-1.5 text-sm font-semibold bg-slate-100 text-slate-700 opacity-50" disabled>Translated</button>
                         </div>
 
                         <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                            <div class="flex items-center gap-2">
-                                <button type="button" data-answer-toolbar-view="original" class="rounded-full px-3 py-1.5 text-sm font-semibold bg-indigo-600 text-white">Original</button>
-                                <button type="button" data-answer-toolbar-view="translated" class="rounded-full px-3 py-1.5 text-sm font-semibold bg-slate-100 text-slate-700 opacity-50" disabled>Translated</button>
-                            </div>
-
                             ${config.showTranslate ? `
                                 <div class="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-2 py-2">
-                                    <label class="text-sm font-semibold text-slate-600" for="answer-toolbar-language">Translate</label>
+                                    <label class="text-sm font-semibold text-slate-600" for="answer-toolbar-language">Translate to</label>
                                     <select id="answer-toolbar-language" data-answer-toolbar-language class="rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                                         ${renderLanguageOptions(config.languages, config.defaultLanguage)}
                                     </select>
@@ -513,7 +532,7 @@
             translationEndpoint: DEFAULT_TRANSLATION_ENDPOINT,
             translationMode: 'text',
             structureInstructions: '',
-            showCopy: true,
+            showCopy: false,
             showReadAloud: true,
             showTranslate: true,
             onSave: null,
