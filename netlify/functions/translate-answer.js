@@ -44,9 +44,27 @@ exports.handler = async function (event) {
         return JSON.parse(cleanValue);
     }
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function plainTextToHtml(value) {
+        const text = String(value || '').trim();
+        if (!text) return '';
+
+        return text
+            .split(/\n{2,}/)
+            .map(block => `<p>${escapeHtml(block).replace(/\n/g, '<br>')}</p>`)
+            .join('\n');
+    }
+
     function buildPlainTextPrompt({
         sourceText,
-        sourceHtml,
         safeTargetLanguage,
         safeTargetLanguageCode,
         subject,
@@ -60,13 +78,12 @@ Rules:
 - Keep the meaning the same.
 - Keep it age-appropriate for ${grade || 'a school learner'}.
 - Do not add new facts or examples unless they are already implied by the original.
-- Preserve headings, bullet points, numbered steps, and simple HTML structure where possible.
+- Preserve headings, bullet points, numbered steps, line breaks, and paragraph breaks where possible.
 - Keep mathematical notation, formulas, units, names, and proper nouns unchanged unless translation is clearly appropriate.
 - Use natural, school-friendly ${safeTargetLanguage}.
 - Return JSON only with this exact shape:
 {
-  "translatedText": "plain text version",
-  "translatedHtml": "simple HTML version"
+  "translatedText": "translated plain text"
 }
 
 Context:
@@ -75,11 +92,8 @@ Topic: ${topic || 'Not specified'}
 Source tool: ${sourceTool || 'Not specified'}
 Target language code: ${safeTargetLanguageCode || 'Not specified'}
 
-Original answer as plain text:
-${sourceText || '[No plain text supplied]'}
-
-Original answer as HTML:
-${sourceHtml || '[No HTML supplied]'}`;
+Original answer:
+${sourceText || '[No plain text supplied]'}`;
     }
 
     function buildStructuredPrompt({
@@ -132,7 +146,6 @@ ${JSON.stringify(structuredContent, null, 2)}`;
         const body = JSON.parse(event.body || '{}');
         const {
             text,
-            html,
             targetLanguage = 'Afrikaans',
             targetLanguageCode = 'af',
             subject = '',
@@ -145,7 +158,6 @@ ${JSON.stringify(structuredContent, null, 2)}`;
 
         const mode = String(body.mode || body.translationMode || (structuredContent ? 'structured' : 'text')).trim();
         const sourceText = String(text || '').trim();
-        const sourceHtml = String(html || '').trim();
         const safeTargetLanguage = String(targetLanguage || 'Afrikaans').trim();
         const safeTargetLanguageCode = String(targetLanguageCode || '').trim();
         const isStructured = mode === 'structured';
@@ -158,7 +170,7 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             };
         }
 
-        if (!isStructured && !sourceText && !sourceHtml) {
+        if (!isStructured && !sourceText) {
             return {
                 statusCode: 400,
                 headers,
@@ -179,7 +191,6 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             })
             : buildPlainTextPrompt({
                 sourceText,
-                sourceHtml,
                 safeTargetLanguage,
                 safeTargetLanguageCode,
                 subject,
@@ -210,13 +221,24 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             }
         };
 
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 22000);
+
         const response = await fetch(apiUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
         });
 
-        const responseBody = await response.json();
+        clearTimeout(timeout);
+
+        let responseBody;
+        try {
+            responseBody = await response.json();
+        } catch (parseError) {
+            throw new Error('Translation API returned an unreadable response.');
+        }
 
         if (!response.ok) {
             throw new Error(responseBody.error?.message || 'Translation API request failed.');
@@ -239,23 +261,33 @@ ${JSON.stringify(structuredContent, null, 2)}`;
             throw new Error('The translation model did not return translated structured content.');
         }
 
+        const translatedText = parsed.translatedText || '';
+        const translatedHtml = isStructured
+            ? (parsed.translatedHtml || translatedText || '')
+            : plainTextToHtml(translatedText);
+
         return {
             statusCode: 200,
             headers,
             body: JSON.stringify({
                 mode: isStructured ? 'structured' : 'text',
-                translatedText: parsed.translatedText || '',
-                translatedHtml: parsed.translatedHtml || parsed.translatedText || '',
+                translatedText,
+                translatedHtml,
                 translatedContent: isStructured ? parsed.translatedContent : undefined,
                 targetLanguage: safeTargetLanguage,
                 targetLanguageCode: safeTargetLanguageCode
             })
         };
     } catch (error) {
+        const isAbort = error?.name === 'AbortError';
         return {
             statusCode: 500,
             headers,
-            body: JSON.stringify({ error: error.message || 'Translation failed.' })
+            body: JSON.stringify({
+                error: isAbort
+                    ? 'Translation took too long. Please try a shorter answer or try again.'
+                    : (error.message || 'Translation failed.')
+            })
         };
     }
 };
