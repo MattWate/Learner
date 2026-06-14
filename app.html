@@ -1797,11 +1797,26 @@ Provide a JSON object with these keys:
                     if (error) console.error("Error saving work:", error.message);
                 });
 
-                outputEl.innerHTML = `
+                                const outputHtml = `
                     <div class="bg-gray-50/50 p-6 rounded-lg">
                         ${createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
                     </div>
                 `;
+
+                outputEl.innerHTML = createTranslatedOutputShell(
+                    'es-answer-toolbar',
+                    'es-answer-content',
+                    outputHtml
+                );
+
+                attachTextTranslationToolbar({
+                    toolbarId: 'es-answer-toolbar',
+                    contentId: 'es-answer-content',
+                    originalHtml: outputHtml,
+                    sourceTool: 'explainSimply',
+                    topic
+                });
+
                 lucide.createIcons();
             } catch (e) {
                 errorEl.textContent = `An error occurred: ${e.message}`;
