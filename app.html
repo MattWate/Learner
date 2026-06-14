@@ -13,8 +13,9 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://js.paystack.co/v1/inline.js"></script> 
-
+    <script src="https://js.paystack.co/v1/inline.js"></script>
+    <script src="/answer-tools.js"></script>
+    
     <style>
         body {
             font-family: 'Poppins', sans-serif;
@@ -701,6 +702,200 @@
                 <div id="${sectionId}" class="prose prose-sm max-w-none text-gray-600">${textContent}</div>
             </div>`;
         }
+
+                // --- TRANSLATION TOOL HELPERS ---
+
+        function answerToolsAvailable() {
+            return Boolean(window.LearnerGenieAnswerTools?.createOutputToolbar);
+        }
+
+        function getOutputTextFromHtml(html) {
+            const temp = document.createElement('div');
+            temp.innerHTML = html || '';
+            return (temp.innerText || temp.textContent || '').trim();
+        }
+
+        function createTranslatedOutputShell(toolbarId, contentId, contentHtml) {
+            return `
+                <div class="space-y-4">
+                    <div id="${toolbarId}" class="print:hidden"></div>
+                    <div id="${contentId}">
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function attachTextTranslationToolbar({ toolbarId, contentId, originalHtml, sourceTool, topic = '' }) {
+            if (!answerToolsAvailable()) {
+                console.warn('Answer Tools module was not found. Translation toolbar skipped.');
+                return;
+            }
+
+            const toolbarMount = document.getElementById(toolbarId);
+            const contentElement = document.getElementById(contentId);
+
+            if (!toolbarMount || !contentElement) {
+                console.warn('Translation toolbar mount or content element not found.', { toolbarId, contentId });
+                return;
+            }
+
+            try {
+                window.LearnerGenieAnswerTools.createOutputToolbar({
+                    mount: toolbarMount,
+                    contentElement,
+                    originalHtml,
+                    originalText: getOutputTextFromHtml(originalHtml),
+                    sourceTool,
+                    topic,
+                    defaultLanguage: 'af',
+                    showCopy: true,
+                    showTranslate: true,
+                    onViewChanged: () => {
+                        if (window.lucide?.createIcons) {
+                            window.lucide.createIcons();
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Could not attach translation toolbar:', error);
+            }
+        }
+
+        function renderLearningHubContent(content) {
+            const safeContent = content || {};
+            const practiceTest = safeContent.practice_test || [];
+
+            state.currentTest = practiceTest;
+            const quizHtml = renderPracticeTest(state.currentTest);
+
+            return `
+                <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
+                    ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", safeContent.learning_objectives)}
+                    ${createSectionHTML('book-open', 'indigo', "Revision Notes", safeContent.revision_notes)}
+                    
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                         <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                            <i data-lucide="file-check-2" class="text-blue-500"></i>
+                            <span class="ml-2">Practice Test</span>
+                         </h3>
+                         <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                         <div id="quiz-results" class="mb-6"></div>
+                         ${quizHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderTestBuilderContent(testData) {
+            state.currentTest = testData || [];
+            const quizHtml = renderPracticeTest(state.currentTest);
+
+            return `
+                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+                     <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
+                        <i data-lucide="clipboard-check" class="text-teal-500"></i>
+                        <span class="ml-2">Your Custom Test</span>
+                     </h3>
+                     <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
+                     <div id="quiz-results" class="mb-6"></div>
+                     ${quizHtml}
+                </div>
+            `;
+        }
+
+        function attachStructuredTranslationToolbar({
+            toolbarId,
+            contentId,
+            originalContent,
+            sourceTool,
+            topic = '',
+            structureInstructions = '',
+            renderContent
+        }) {
+            if (!answerToolsAvailable()) {
+                console.warn('Answer Tools module was not found. Structured translation toolbar skipped.');
+                return;
+            }
+
+            const toolbarMount = document.getElementById(toolbarId);
+            const contentElement = document.getElementById(contentId);
+
+            if (!toolbarMount || !contentElement) {
+                console.warn('Structured translation toolbar mount or content element not found.', { toolbarId, contentId });
+                return;
+            }
+
+            const renderAndBind = (content) => {
+                contentElement.innerHTML = renderContent(content);
+
+                if (window.lucide?.createIcons) {
+                    window.lucide.createIcons();
+                }
+
+                attachToolEventListeners();
+            };
+
+            try {
+                window.LearnerGenieAnswerTools.createOutputToolbar({
+                    mount: toolbarMount,
+                    contentElement,
+                    originalContent,
+                    originalText: JSON.stringify(originalContent || {}, null, 2),
+                    sourceTool,
+                    topic,
+                    defaultLanguage: 'af',
+                    translationMode: 'structured',
+                    structureInstructions,
+                    showCopy: true,
+                    showTranslate: true,
+                    onBeforeViewChange: () => {
+                        if ('speechSynthesis' in window) {
+                            window.speechSynthesis.cancel();
+                        }
+                    },
+                    onRenderOriginal: ({ originalContent }) => {
+                        renderAndBind(originalContent);
+                    },
+                    onRenderTranslated: ({ translatedContent }) => {
+                        renderAndBind(translatedContent);
+                    },
+                    onViewChanged: () => {
+                        if (window.lucide?.createIcons) {
+                            window.lucide.createIcons();
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Could not attach structured translation toolbar:', error);
+                renderAndBind(originalContent);
+            }
+        }
+
+        const LEARNING_HUB_TRANSLATION_INSTRUCTIONS = `
+Keep the same JSON structure for Learning Hub.
+Translate learner-facing text only.
+Preserve these keys exactly: learning_objectives, revision_notes, practice_test.
+For practice_test, preserve question order, question type, and number of questions.
+Translate question text, options, and correct_answer.
+For MCQ and TrueFalse questions, correct_answer must exactly match one translated option.
+Do not add new questions.
+Do not remove questions.
+Keep mathematical notation unchanged.
+Return valid JSON only.
+        `.trim();
+
+        const TEST_BUILDER_TRANSLATION_INSTRUCTIONS = `
+Keep the same JSON structure for Test Builder.
+Preserve the practice_test array.
+Preserve question order, question type, and number of questions.
+Translate learner-facing text only: question, options, and correct_answer.
+For MCQ and TrueFalse questions, correct_answer must exactly match one translated option.
+Do not add new questions.
+Do not remove questions.
+Keep mathematical notation unchanged.
+Return valid JSON only.
+        `.trim();
 
         // --- CORE APP RENDER FUNCTION ---
         function showMainApp() {
