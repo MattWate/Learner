@@ -5,11 +5,9 @@
  * Design direction:
  * - Output-level tools act on the whole generated answer: translate, copy, view original/translated.
  * - Section-level tools act on one block of content: read aloud.
+ * - Simple outputs are translated as content blocks and then rehydrated into the original HTML shell.
  * - Structured outputs, such as Learning Hub and Test Builder, can be translated at data level
  *   and re-rendered by the host activity so quiz logic is not broken.
- *
- * This file remains independent from app.html so we can test new activity modules safely
- * before wiring them into the main learner app.
  */
 (function () {
     const DEFAULT_TRANSLATION_ENDPOINT = '/api/translate-answer';
@@ -42,11 +40,6 @@
     function normaliseLanguageLabel(languageCode, languages) {
         const match = languages.find(language => language.code === languageCode);
         return match ? match.label : languageCode;
-    }
-
-    function getSpeechLang(languageCode, languages) {
-        const match = languages.find(language => language.code === languageCode);
-        return match?.speechLang || languageCode || 'en-ZA';
     }
 
     function renderLanguageOptions(languages, defaultLanguage) {
@@ -136,8 +129,104 @@
         }
     }
 
+    function cleanMarkdownText(value) {
+        return String(value || '')
+            .replace(/```[\s\S]*?```/g, match => match.replace(/```/g, ''))
+            .replace(/\r\n/g, '\n')
+            .replace(/^\s*#{1,6}\s+/gm, '')
+            .replace(/\*\*(.*?)\*\*/g, '$1')
+            .replace(/__(.*?)__/g, '$1')
+            .replace(/^\s*[-*]\s+/gm, '• ')
+            .trim();
+    }
+
+    function plainTextToHtml(value) {
+        const text = cleanMarkdownText(value);
+        if (!text) return '';
+
+        const lines = text.split('\n');
+        const blocks = [];
+        let currentList = [];
+        let currentParagraph = [];
+
+        function flushParagraph() {
+            if (!currentParagraph.length) return;
+            blocks.push(`<p>${escapeHtml(currentParagraph.join(' '))}</p>`);
+            currentParagraph = [];
+        }
+
+        function flushList() {
+            if (!currentList.length) return;
+            blocks.push(`<ul>${currentList.map(item => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`);
+            currentList = [];
+        }
+
+        lines.forEach(rawLine => {
+            const line = rawLine.trim();
+
+            if (!line) {
+                flushParagraph();
+                flushList();
+                return;
+            }
+
+            const listMatch = line.match(/^(?:•|-|\*)\s+(.+)$/);
+            if (listMatch) {
+                flushParagraph();
+                currentList.push(listMatch[1].trim());
+                return;
+            }
+
+            const numberedMatch = line.match(/^\d+[.)]\s+(.+)$/);
+            if (numberedMatch) {
+                flushParagraph();
+                currentList.push(line);
+                return;
+            }
+
+            flushList();
+            currentParagraph.push(line);
+        });
+
+        flushParagraph();
+        flushList();
+
+        return blocks.join('\n');
+    }
+
+    function extractBlocksFromHtml(html, selector = '.prose') {
+        const temp = document.createElement('div');
+        temp.innerHTML = html || '';
+        const blockElements = Array.from(temp.querySelectorAll(selector));
+
+        if (!blockElements.length) return [];
+
+        return blockElements
+            .map(element => cleanMarkdownText(element.innerText || element.textContent || ''))
+            .filter(Boolean);
+    }
+
+    function applyTranslatedBlocksToHtmlShell(originalHtml, translatedBlocks = [], selector = '.prose') {
+        const temp = document.createElement('div');
+        temp.innerHTML = originalHtml || '';
+        const blockElements = Array.from(temp.querySelectorAll(selector));
+
+        if (!blockElements.length || !translatedBlocks.length) {
+            return plainTextToHtml(translatedBlocks.join('\n\n'));
+        }
+
+        blockElements.forEach((element, index) => {
+            const translatedBlock = translatedBlocks[index];
+            if (typeof translatedBlock !== 'string') return;
+            element.innerHTML = plainTextToHtml(translatedBlock);
+        });
+
+        return temp.innerHTML;
+    }
+
     async function translateContent(options) {
         const isStructured = options.mode === 'structured' || options.translationMode === 'structured' || Boolean(options.structuredContent);
+        const textBlocks = Array.isArray(options.textBlocks) ? options.textBlocks : [];
 
         const response = await fetch(options.translationEndpoint || DEFAULT_TRANSLATION_ENDPOINT, {
             method: 'POST',
@@ -145,6 +234,7 @@
             body: JSON.stringify({
                 mode: isStructured ? 'structured' : 'text',
                 text: options.text || '',
+                textBlocks: isStructured ? undefined : textBlocks,
                 html: options.html || '',
                 structuredContent: isStructured ? (options.structuredContent || {}) : undefined,
                 structureInstructions: options.structureInstructions || '',
@@ -174,6 +264,7 @@
             mode: data.mode || (isStructured ? 'structured' : 'text'),
             translatedText: data.translatedText || stripHtml(data.translatedHtml || ''),
             translatedHtml: data.translatedHtml || escapeHtml(data.translatedText || '').replace(/\n/g, '<br>'),
+            translatedBlocks: Array.isArray(data.translatedBlocks) ? data.translatedBlocks : [],
             translatedContent: data.translatedContent || null,
             targetLanguage: data.targetLanguage || options.targetLanguage,
             targetLanguageCode: data.targetLanguageCode || options.targetLanguageCode
@@ -196,6 +287,7 @@
             languages: DEFAULT_LANGUAGES,
             translationEndpoint: DEFAULT_TRANSLATION_ENDPOINT,
             translationMode: 'text',
+            contentBlockSelector: '.prose',
             structureInstructions: '',
             showCopy: false,
             showTranslate: true,
@@ -215,13 +307,18 @@
         if (!contentElement) throw new Error('Output toolbar content element was not found.');
 
         const isStructuredMode = config.translationMode === 'structured';
+        const originalHtml = config.originalHtml || escapeHtml(config.originalText || '').replace(/\n/g, '<br>');
+        const originalBlocks = !isStructuredMode ? extractBlocksFromHtml(originalHtml, config.contentBlockSelector) : [];
+        const originalText = config.originalText || (originalBlocks.length ? originalBlocks.join('\n\n') : stripHtml(originalHtml));
 
         const state = {
-            originalHtml: config.originalHtml || escapeHtml(config.originalText || '').replace(/\n/g, '<br>'),
-            originalText: config.originalText || stripHtml(config.originalHtml || ''),
+            originalHtml,
+            originalText,
+            originalBlocks,
             originalContent: config.originalContent || null,
             translatedHtml: '',
             translatedText: '',
+            translatedBlocks: [],
             translatedContent: null,
             currentView: 'original',
             selectedLanguage: config.defaultLanguage,
@@ -247,7 +344,9 @@
         }
 
         function getCurrentText() {
-            if (state.currentView === 'translated') return state.translatedText;
+            if (state.currentView === 'translated') {
+                return state.translatedBlocks.length ? state.translatedBlocks.join('\n\n') : state.translatedText;
+            }
             if (isStructuredMode && state.originalContent) return stringifyStructuredContent(state.originalContent);
             return state.originalText;
         }
@@ -351,6 +450,7 @@
                 const result = await translateContent({
                     mode: isStructuredMode ? 'structured' : 'text',
                     text: isStructuredMode ? stringifyStructuredContent(originalContent) : state.originalText,
+                    textBlocks: isStructuredMode ? [] : state.originalBlocks,
                     html: isStructuredMode ? '' : state.originalHtml,
                     structuredContent: originalContent,
                     structureInstructions: config.structureInstructions,
@@ -363,9 +463,20 @@
                     translationEndpoint: config.translationEndpoint
                 });
 
-                state.translatedHtml = result.translatedHtml;
-                state.translatedText = result.translatedText;
+                state.translatedBlocks = result.translatedBlocks || [];
+                state.translatedText = result.translatedText || state.translatedBlocks.join('\n\n');
                 state.translatedContent = result.translatedContent;
+
+                if (!isStructuredMode && state.originalBlocks.length && state.translatedBlocks.length) {
+                    state.translatedHtml = applyTranslatedBlocksToHtmlShell(
+                        state.originalHtml,
+                        state.translatedBlocks,
+                        config.contentBlockSelector
+                    );
+                } else {
+                    state.translatedHtml = result.translatedHtml;
+                }
+
                 state.currentView = 'translated';
 
                 renderContent();
@@ -377,6 +488,7 @@
                         languageLabel: targetLanguage,
                         translatedText: state.translatedText,
                         translatedHtml: state.translatedHtml,
+                        translatedBlocks: state.translatedBlocks,
                         translatedContent: state.translatedContent,
                         mode: isStructuredMode ? 'structured' : 'text'
                     });
