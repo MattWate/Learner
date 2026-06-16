@@ -1577,7 +1577,7 @@ async function checkAndIncrementUsage() {
                     if (error) console.error("Error saving work:", error.message);
                 });
 
-                let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
+            let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
                 if (result.breakdown) {
                     outputHtml += createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
                 }
@@ -1590,9 +1590,23 @@ async function checkAndIncrementUsage() {
                     outputHtml += createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
                 }
                 outputHtml += '</div>';
-                outputEl.innerHTML = outputHtml;
+
+                outputEl.innerHTML = createTranslatedOutputShell(
+                    'hh-answer-toolbar',
+                    'hh-answer-content',
+                    outputHtml
+                );
+
+                attachTextTranslationToolbar({
+                    toolbarId: 'hh-answer-toolbar',
+                    contentId: 'hh-answer-content',
+                    originalHtml: outputHtml,
+                    sourceTool: 'homeworkHelper',
+                    topic: inputPromptForDb
+                });
 
                 lucide.createIcons();
+                
             } catch (e) {
                 errorEl.textContent = `An error occurred: ${e.message}`;
                 errorEl.classList.remove('hidden');
@@ -1651,7 +1665,7 @@ Provide a JSON object with these keys:
                     if (error) console.error("Error saving work:", error.message);
                 });
 
-                outputEl.innerHTML = `
+                const outputHtml = `
                     <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
                         ${createSectionHTML('info', 'blue', "Understanding the Concept", result.explanation)}
                         ${createSectionHTML('list', 'indigo', "Step-by-Step Solution", result.steps)}
@@ -1674,6 +1688,20 @@ Provide a JSON object with these keys:
                         </div>
                     </div>
                 `;
+
+                outputEl.innerHTML = createTranslatedOutputShell(
+                    'math-answer-toolbar',
+                    'math-answer-content',
+                    outputHtml
+                );
+
+                attachTextTranslationToolbar({
+                    toolbarId: 'math-answer-toolbar',
+                    contentId: 'math-answer-content',
+                    originalHtml: outputHtml,
+                    sourceTool: 'mathHub',
+                    topic: mathProblem
+                });
 
                 lucide.createIcons();
             } catch (e) {
