@@ -1764,22 +1764,30 @@ Provide a JSON object with these keys:
                     if (error) console.error("Error saving work:", error.message);
                 });
                 
-                state.currentTest = result.practice_test || [];
-                const quizHtml = renderPracticeTest(state.currentTest);
+                const originalLearningHubContent = {
+                    learning_objectives: result.learning_objectives,
+                    revision_notes: result.revision_notes,
+                    practice_test: result.practice_test || []
+                };
 
-                outputEl.innerHTML = `
-                    <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                        ${createSectionHTML('check-circle', 'green', "Key Learning Objectives", result.learning_objectives)}
-                        ${createSectionHTML('book-open', 'indigo', "Revision Notes", result.revision_notes)}
-                        
-                        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                             <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="file-check-2" class="text-blue-500"></i><span class="ml-2">Practice Test</span></h3>
-                             <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                             <div id="quiz-results" class="mb-6"></div>
-                             ${quizHtml}
-                        </div>
-                    </div>
-                `;
+                const outputHtml = renderLearningHubContent(originalLearningHubContent);
+
+                outputEl.innerHTML = createTranslatedOutputShell(
+                    'lh-answer-toolbar',
+                    'lh-answer-content',
+                    outputHtml
+                );
+
+                attachStructuredTranslationToolbar({
+                    toolbarId: 'lh-answer-toolbar',
+                    contentId: 'lh-answer-content',
+                    originalContent: originalLearningHubContent,
+                    sourceTool: 'learningHub',
+                    topic: inputPromptForDb,
+                    structureInstructions: LEARNING_HUB_TRANSLATION_INSTRUCTIONS,
+                    renderContent: renderLearningHubContent
+                });
+
                 lucide.createIcons();
                 attachToolEventListeners();
             } catch (e) {
