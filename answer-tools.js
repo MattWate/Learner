@@ -11,6 +11,7 @@
  */
 (function () {
     const DEFAULT_TRANSLATION_ENDPOINT = '/api/translate-answer';
+    const STRUCTURED_QUIZ_BATCH_SIZE = 2;
 
     const DEFAULT_LANGUAGES = [
         { code: 'af', label: 'Afrikaans', speechLang: 'af-ZA' },
@@ -344,6 +345,168 @@
         };
     }
 
+    function cloneStructuredContent(value) {
+        try {
+            return JSON.parse(JSON.stringify(value || {}));
+        } catch (error) {
+            return {};
+        }
+    }
+
+    function chunkArray(items = [], size = STRUCTURED_QUIZ_BATCH_SIZE) {
+        const chunks = [];
+
+        for (let index = 0; index < items.length; index += size) {
+            chunks.push({
+                startIndex: index,
+                items: items.slice(index, index + size)
+            });
+        }
+
+        return chunks;
+    }
+
+    function createStructuredTranslationChunks(originalContent, sourceTool) {
+        const content = originalContent || {};
+        const tool = String(sourceTool || '').toLowerCase();
+        const chunks = [];
+
+        if (tool === 'learninghub') {
+            if (content.learning_objectives) {
+                chunks.push({
+                    label: 'learning objectives',
+                    type: 'learning_objectives',
+                    content: {
+                        learning_objectives: content.learning_objectives
+                    }
+                });
+            }
+
+            if (content.revision_notes) {
+                chunks.push({
+                    label: 'revision notes',
+                    type: 'revision_notes',
+                    content: {
+                        revision_notes: content.revision_notes
+                    }
+                });
+            }
+
+            const practiceTest = Array.isArray(content.practice_test) ? content.practice_test : [];
+            chunkArray(practiceTest).forEach(batch => {
+                chunks.push({
+                    label: `practice questions ${batch.startIndex + 1}-${batch.startIndex + batch.items.length}`,
+                    type: 'practice_test',
+                    startIndex: batch.startIndex,
+                    content: {
+                        practice_test: batch.items
+                    }
+                });
+            });
+
+            return chunks.length ? chunks : [{ label: 'Learning Hub content', type: 'full', content }];
+        }
+
+        if (tool === 'testbuilder') {
+            const practiceTest = Array.isArray(content.practice_test) ? content.practice_test : [];
+            chunkArray(practiceTest).forEach(batch => {
+                chunks.push({
+                    label: `test questions ${batch.startIndex + 1}-${batch.startIndex + batch.items.length}`,
+                    type: 'practice_test',
+                    startIndex: batch.startIndex,
+                    content: {
+                        practice_test: batch.items
+                    }
+                });
+            });
+
+            return chunks.length ? chunks : [{ label: 'Test Builder content', type: 'full', content }];
+        }
+
+        return [{ label: 'structured content', type: 'full', content }];
+    }
+
+    function mergeStructuredTranslationChunk(target, chunk, translatedContent) {
+        if (!translatedContent || typeof translatedContent !== 'object') return;
+
+        if (chunk.type === 'learning_objectives' && Object.prototype.hasOwnProperty.call(translatedContent, 'learning_objectives')) {
+            target.learning_objectives = translatedContent.learning_objectives;
+            return;
+        }
+
+        if (chunk.type === 'revision_notes' && Object.prototype.hasOwnProperty.call(translatedContent, 'revision_notes')) {
+            target.revision_notes = translatedContent.revision_notes;
+            return;
+        }
+
+        if (chunk.type === 'practice_test' && Array.isArray(translatedContent.practice_test)) {
+            if (!Array.isArray(target.practice_test)) target.practice_test = [];
+
+            translatedContent.practice_test.forEach((question, offset) => {
+                target.practice_test[chunk.startIndex + offset] = question;
+            });
+
+            return;
+        }
+
+        Object.assign(target, translatedContent);
+    }
+
+    async function translateStructuredContentInChunks({
+        originalContent,
+        sourceTool,
+        baseOptions,
+        onProgress
+    }) {
+        const chunks = createStructuredTranslationChunks(originalContent, sourceTool);
+
+        if (chunks.length <= 1) {
+            return translateContent({
+                ...baseOptions,
+                mode: 'structured',
+                structuredContent: originalContent
+            });
+        }
+
+        const translatedContent = cloneStructuredContent(originalContent);
+        const translatedTextParts = [];
+
+        for (let index = 0; index < chunks.length; index += 1) {
+            const chunk = chunks[index];
+
+            if (typeof onProgress === 'function') {
+                onProgress(`Translating ${chunk.label} (${index + 1}/${chunks.length})…`);
+            }
+
+            const result = await translateContent({
+                ...baseOptions,
+                mode: 'structured',
+                structuredContent: chunk.content,
+                structureInstructions: `
+${baseOptions.structureInstructions || ''}
+
+You are translating one smaller chunk of a larger structured output.
+Preserve only the keys that are present in this chunk.
+Do not add missing keys from the larger object.
+Return the same chunk structure you received.
+                `.trim()
+            });
+
+            mergeStructuredTranslationChunk(translatedContent, chunk, result.translatedContent);
+
+            if (result.translatedText) {
+                translatedTextParts.push(result.translatedText);
+            }
+        }
+
+        return {
+            mode: 'structured',
+            translatedContent,
+            translatedText: translatedTextParts.join('\n\n'),
+            translatedHtml: ''
+        };
+    }
+
     function createOutputToolbar(options) {
         const config = {
             mount: null,
@@ -474,6 +637,7 @@
 
             const originalButton = mount.querySelector('[data-answer-toolbar-view="original"]');
             const translatedButton = mount.querySelector('[data-answer-toolbar-view="translated"]');
+            const noteEl = mount.querySelector('[data-answer-toolbar-note]');
 
             if (originalButton) {
                 originalButton.classList.toggle('bg-indigo-600', state.currentView === 'original');
@@ -493,6 +657,11 @@
                 translatedButton.textContent = hasTranslation
                     ? normaliseLanguageLabel(state.selectedLanguage, config.languages)
                     : 'Translated';
+            }
+
+            if (noteEl) {
+                const hasTranslation = isStructuredMode ? Boolean(state.translatedContent) : Boolean(state.translatedHtml);
+                noteEl.classList.toggle('hidden', !(hasTranslation && state.currentView === 'translated'));
             }
 
             if (typeof config.onViewChanged === 'function') {
@@ -524,9 +693,7 @@
 
             try {
                 const originalContent = isStructuredMode ? getFreshOriginalContent() : null;
-
-                const result = await translateContent({
-                    mode: isStructuredMode ? 'structured' : 'text',
+                const baseTranslationOptions = {
                     text: isStructuredMode ? stringifyStructuredContent(originalContent) : state.originalText,
                     textBlocks: isStructuredMode ? [] : state.originalBlocks,
                     html: isStructuredMode ? '' : state.originalHtml,
@@ -539,7 +706,19 @@
                     grade: config.grade,
                     sourceTool: config.sourceTool,
                     translationEndpoint: config.translationEndpoint
-                });
+                };
+
+                const result = isStructuredMode
+                    ? await translateStructuredContentInChunks({
+                        originalContent,
+                        sourceTool: config.sourceTool,
+                        baseOptions: baseTranslationOptions,
+                        onProgress: message => status(message, 'info')
+                    })
+                    : await translateContent({
+                        ...baseTranslationOptions,
+                        mode: 'text'
+                    });
 
                 state.translatedBlocks = result.translatedBlocks || [];
                 state.translatedText = result.translatedText || state.translatedBlocks.join('\n\n');
@@ -614,7 +793,10 @@
                             ` : ''}
                         </div>
                     </div>
-                    <p data-answer-toolbar-status class="text-sm min-h-5 text-slate-500 mt-2"></p>
+                    <div class="mt-2 space-y-1">
+                        <p data-answer-toolbar-status class="text-sm min-h-5 text-slate-500"></p>
+                        <p data-answer-toolbar-note class="hidden text-xs text-slate-500">Translation may vary. Check important details against the original answer.</p>
+                    </div>
                 </div>
             `;
         }
