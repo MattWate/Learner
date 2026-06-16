@@ -1915,14 +1915,28 @@ Provide a JSON object with these keys:
                 state.currentTest = result.practice_test || [];
                 const quizHtml = renderPracticeTest(state.currentTest);
 
-                outputEl.innerHTML = `
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                         <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3"><i data-lucide="clipboard-check" class="text-teal-500"></i><span class="ml-2">Your Custom Test</span></h3>
-                         <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                         <div id="quiz-results" class="mb-6"></div>
-                         ${quizHtml}
-                    </div>
-                `;
+                                const originalTestBuilderContent = {
+                    practice_test: result.practice_test || []
+                };
+
+                const outputHtml = renderTestBuilderContent(originalTestBuilderContent.practice_test);
+
+                outputEl.innerHTML = createTranslatedOutputShell(
+                    'tb-answer-toolbar',
+                    'tb-answer-content',
+                    outputHtml
+                );
+
+                attachStructuredTranslationToolbar({
+                    toolbarId: 'tb-answer-toolbar',
+                    contentId: 'tb-answer-content',
+                    originalContent: originalTestBuilderContent,
+                    sourceTool: 'testBuilder',
+                    topic,
+                    structureInstructions: TEST_BUILDER_TRANSLATION_INSTRUCTIONS,
+                    renderContent: (content) => renderTestBuilderContent(content?.practice_test || [])
+                });
+
                 lucide.createIcons();
                 attachToolEventListeners();
 
