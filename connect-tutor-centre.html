@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connect with Tutor Centre | LearnerGenie</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-violet-50 text-slate-900">
+  <main class="max-w-5xl mx-auto px-4 py-8 md:py-12">
+    <div class="mb-8 flex items-center justify-between gap-4">
+      <a href="/app.html" class="inline-flex items-center gap-2 text-sm font-semibold text-indigo-700 hover:text-indigo-900">
+        <i data-lucide="arrow-left" class="h-4 w-4"></i>
+        Back to Learner App
+      </a>
+      <span class="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-xs font-bold text-indigo-700 shadow-sm ring-1 ring-indigo-100">
+        <i data-lucide="graduation-cap" class="h-4 w-4"></i>
+        LearnerGenie
+      </span>
+    </div>
+
+    <section class="grid gap-8 lg:grid-cols-[1fr_420px] lg:items-start">
+      <div class="space-y-6">
+        <div>
+          <p class="text-sm font-bold uppercase tracking-wide text-indigo-600">Tutor Centre Connection</p>
+          <h1 class="mt-2 text-4xl md:text-5xl font-extrabold tracking-tight text-slate-950">Connect your learner to a Tutor Centre</h1>
+          <p class="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
+            Enter the short code your tutor centre shared with you. Once connected, your tutor centre can support the selected learner and view their relevant LearnerGenie activity.
+          </p>
+        </div>
+
+        <div class="rounded-3xl bg-white p-6 shadow-xl shadow-indigo-100/60 ring-1 ring-slate-200">
+          <div class="flex items-start gap-4">
+            <div class="rounded-2xl bg-indigo-100 p-3 text-indigo-700">
+              <i data-lucide="shield-check" class="h-6 w-6"></i>
+            </div>
+            <div>
+              <h2 class="text-lg font-bold text-slate-900">How it works</h2>
+              <p class="mt-2 text-sm leading-6 text-slate-600">
+                This connects one learner profile, not the whole parent account. If you have more than one learner, choose the correct learner before connecting.
+              </p>
+              <ul class="mt-4 space-y-2 text-sm text-slate-600">
+                <li class="flex gap-2"><span class="font-bold text-emerald-600">✓</span><span>Only the selected learner profile is linked.</span></li>
+                <li class="flex gap-2"><span class="font-bold text-emerald-600">✓</span><span>The tutor centre can remove learners who are not part of their centre.</span></li>
+                <li class="flex gap-2"><span class="font-bold text-emerald-600">✓</span><span>Your learner profile and saved work are not deleted if the connection is removed.</span></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="rounded-3xl bg-white p-6 shadow-2xl shadow-violet-100 ring-1 ring-slate-200">
+        <div id="auth-state" class="hidden rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"></div>
+
+        <form id="connect-form" class="space-y-5">
+          <div>
+            <label for="profile-select" class="block text-sm font-bold text-slate-700">Learner profile</label>
+            <select id="profile-select" class="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-3 text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100">
+              <option value="">Loading profiles...</option>
+            </select>
+            <p class="mt-2 text-xs text-slate-500">Choose the learner who attends this tutor centre.</p>
+          </div>
+
+          <div>
+            <label for="centre-code" class="block text-sm font-bold text-slate-700">Tutor centre code</label>
+            <input id="centre-code" type="text" autocomplete="off" placeholder="TC-8F3K2Q" class="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 uppercase tracking-wide text-slate-900 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100" />
+            <p class="mt-2 text-xs text-slate-500">You can type the code or open this page from a tutor centre QR link.</p>
+          </div>
+
+          <button id="connect-button" type="submit" class="flex w-full items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-bold text-white shadow-lg shadow-indigo-200 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60">
+            <i data-lucide="link" class="h-5 w-5"></i>
+            <span>Connect Learner</span>
+          </button>
+        </form>
+
+        <div id="status-message" class="mt-5 hidden rounded-2xl p-4 text-sm"></div>
+
+        <div id="current-connections" class="mt-6 hidden rounded-2xl border border-slate-200 bg-slate-50 p-4">
+          <h3 class="text-sm font-bold text-slate-800">Current tutor centre connection</h3>
+          <div id="connections-list" class="mt-3 space-y-2 text-sm text-slate-600"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsImtpZCI6Ilg3MDh5aGpzWGhPRXI1SVUiLCJ0eXAiOiJKV1QifQ.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDY1Mjk4MjgsImV4cCI6MjA2MjEwNTgyOH0.sLbErHU8jYuNNv5XjnM4a_l4JG3eMSmeyNIhHoEYhY';
+    const { createClient } = supabase;
+    const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const els = {
+      authState: document.getElementById('auth-state'),
+      form: document.getElementById('connect-form'),
+      profileSelect: document.getElementById('profile-select'),
+      codeInput: document.getElementById('centre-code'),
+      button: document.getElementById('connect-button'),
+      status: document.getElementById('status-message'),
+      connectionsPanel: document.getElementById('current-connections'),
+      connectionsList: document.getElementById('connections-list')
+    };
+
+    let currentSession = null;
+    let profiles = [];
+
+    function showStatus(message, type = 'info') {
+      const classes = {
+        info: 'border border-indigo-200 bg-indigo-50 text-indigo-800',
+        success: 'border border-emerald-200 bg-emerald-50 text-emerald-800',
+        error: 'border border-rose-200 bg-rose-50 text-rose-800',
+        warning: 'border border-amber-200 bg-amber-50 text-amber-800'
+      };
+      els.status.className = `mt-5 rounded-2xl p-4 text-sm ${classes[type] || classes.info}`;
+      els.status.textContent = message;
+      els.status.classList.remove('hidden');
+    }
+
+    function setLoading(isLoading) {
+      els.button.disabled = isLoading;
+      els.button.innerHTML = isLoading
+        ? '<span class="h-5 w-5 animate-spin rounded-full border-2 border-white/60 border-t-white"></span><span>Connecting...</span>'
+        : '<i data-lucide="link" class="h-5 w-5"></i><span>Connect Learner</span>';
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function normaliseCode(value) {
+      return String(value || '').trim().toUpperCase();
+    }
+
+    function getCodeFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      return normaliseCode(params.get('code') || params.get('connect_tutor_centre') || '');
+    }
+
+    async function loadSession() {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (error) throw error;
+      currentSession = data.session;
+
+      if (!currentSession?.user) {
+        els.authState.textContent = 'Please sign in to LearnerGenie before connecting to a tutor centre.';
+        els.authState.classList.remove('hidden');
+        els.form.classList.add('opacity-50', 'pointer-events-none');
+        return false;
+      }
+
+      return true;
+    }
+
+    async function loadProfiles() {
+      const { data, error } = await supabaseClient
+        .from('profiles')
+        .select('id, name, grade, school')
+        .eq('account_id', currentSession.user.id)
+        .order('name');
+
+      if (error) throw error;
+      profiles = data || [];
+
+      if (!profiles.length) {
+        els.profileSelect.innerHTML = '<option value="">No learner profiles found</option>';
+        els.form.classList.add('opacity-50', 'pointer-events-none');
+        showStatus('You need to create a learner profile before connecting to a tutor centre.', 'warning');
+        return;
+      }
+
+      els.profileSelect.innerHTML = profiles.map(profile => {
+        const meta = [profile.grade, profile.school].filter(Boolean).join(' · ');
+        return `<option value="${profile.id}">${escapeHtml(profile.name)}${meta ? ` (${escapeHtml(meta)})` : ''}</option>`;
+      }).join('');
+
+      const storedProfileId = localStorage.getItem('learnergenie_active_profile_id');
+      if (storedProfileId && profiles.some(profile => String(profile.id) === String(storedProfileId))) {
+        els.profileSelect.value = storedProfileId;
+      }
+
+      await loadConnections();
+    }
+
+    async function loadConnections() {
+      const profileId = els.profileSelect.value;
+      if (!profileId) return;
+
+      const { data, error } = await supabaseClient.rpc('get_profile_tutor_centre_connections', {
+        p_profile_id: Number(profileId)
+      });
+
+      if (error) {
+        console.warn('Could not load tutor centre connections', error);
+        return;
+      }
+
+      const connections = data || [];
+      if (!connections.length) {
+        els.connectionsPanel.classList.add('hidden');
+        els.connectionsList.innerHTML = '';
+        return;
+      }
+
+      els.connectionsPanel.classList.remove('hidden');
+      els.connectionsList.innerHTML = connections.map(connection => `
+        <div class="flex items-center gap-2 rounded-xl bg-white px-3 py-2 ring-1 ring-slate-200">
+          <i data-lucide="building-2" class="h-4 w-4 text-indigo-600"></i>
+          <span class="font-semibold text-slate-800">${escapeHtml(connection.tutor_centre_name)}</span>
+          <span class="ml-auto rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700">Connected</span>
+        </div>
+      `).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+
+    async function connectLearner(event) {
+      event.preventDefault();
+      const profileId = els.profileSelect.value;
+      const code = normaliseCode(els.codeInput.value);
+
+      if (!profileId) {
+        showStatus('Please choose a learner profile.', 'warning');
+        return;
+      }
+
+      if (!code) {
+        showStatus('Please enter the tutor centre code.', 'warning');
+        return;
+      }
+
+      setLoading(true);
+      els.status.classList.add('hidden');
+
+      try {
+        const { data, error } = await supabaseClient.rpc('join_tutor_centre_by_code', {
+          p_profile_id: Number(profileId),
+          p_invite_code: code
+        });
+
+        if (error) throw error;
+
+        const result = Array.isArray(data) ? data[0] : data;
+        const centreName = result?.tutor_centre_name || 'your tutor centre';
+        const already = Boolean(result?.already_connected);
+
+        showStatus(
+          already
+            ? `This learner is already connected to ${centreName}.`
+            : `Success. This learner is now connected to ${centreName}.`,
+          'success'
+        );
+
+        await loadConnections();
+      } catch (error) {
+        console.error(error);
+        showStatus(error.message || 'Could not connect to the tutor centre. Please check the code and try again.', 'error');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    async function init() {
+      if (window.lucide) lucide.createIcons();
+
+      const code = getCodeFromUrl();
+      if (code) els.codeInput.value = code;
+
+      els.form.addEventListener('submit', connectLearner);
+      els.profileSelect.addEventListener('change', loadConnections);
+
+      try {
+        const hasSession = await loadSession();
+        if (hasSession) await loadProfiles();
+      } catch (error) {
+        console.error(error);
+        showStatus(error.message || 'Something went wrong while loading this page.', 'error');
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
