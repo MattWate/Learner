@@ -1098,6 +1098,7 @@ Return valid JSON only.
                 mathHub: { icon: 'calculator', label: 'Mathematics Hub' },
                 myActivity: { icon: 'history', label: 'My Activity' },
                 studySquads: { icon: 'users-round', label: 'Study Squads' },
+                connectTutorCentre: { icon: 'building-2', label: 'Connect with Tutor Centre' },
                 upgrade: { icon: 'zap', label: 'Upgrade Now' }
             };
             
@@ -1126,6 +1127,10 @@ Return valid JSON only.
                     <a href="${getStudySquadsUrl()}" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
                         <i data-lucide="${navItems.studySquads.icon}" class="h-5 w-5"></i>
                         <span class="ml-3">${navItems.studySquads.label}</span>
+                    </a>
+                    <a href="/connect-tutor-centre.html" class="flex items-center w-full px-4 py-3 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100">
+                        <i data-lucide="${navItems.connectTutorCentre.icon}" class="h-5 w-5"></i>
+                        <span class="ml-3">${navItems.connectTutorCentre.label}</span>
                     </a>
                 </div>
             `;
