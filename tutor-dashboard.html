@@ -430,6 +430,11 @@
               </div>
               <div class="flex flex-wrap gap-3">
                 ${tutorState.centres.length > 1 ? `<select id="centre-select" class="px-3 py-2 border border-gray-300 rounded-lg bg-white">${tutorState.centres.map((item) => `<option value="${item.id}" ${String(item.id) === String(tutorState.activeCentreId) ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}</select>` : ''}
+                <a href="/tutor-centre-invites.html" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700">
+                  <i data-lucide="qr-code" class="h-4 w-4"></i>
+                  <span>Invite Learners</span>
+                </a>
+                
                 <a href="/app.html" class="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 font-semibold hover:bg-gray-200">Learner App</a>
               </div>
             </div>
