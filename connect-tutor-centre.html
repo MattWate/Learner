@@ -137,15 +137,55 @@
       return normaliseCode(params.get('code') || params.get('connect_tutor_centre') || '');
     }
 
+    function buildOnboardingUrl(code) {
+      const params = new URLSearchParams();
+      if (code) params.set('connect_tutor_centre', code);
+      params.set('source', 'tutor_centre_invite');
+      const query = params.toString();
+      return query ? `/app.html?${query}` : '/app.html';
+    }
+
+    function redirectToOnboarding(code) {
+      const safeCode = normaliseCode(code);
+      const onboardingUrl = buildOnboardingUrl(safeCode);
+
+      if (safeCode) {
+        localStorage.setItem('learnergenie_pending_tutor_centre_code', safeCode);
+        localStorage.setItem('learnergenie_pending_tutor_centre_redirect', `/connect-tutor-centre.html?code=${encodeURIComponent(safeCode)}`);
+      }
+
+      els.authState.innerHTML = `
+        <div class="flex items-start gap-3">
+          <span class="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <i data-lucide="log-in" class="h-4 w-4"></i>
+          </span>
+          <div>
+            <p class="font-bold">Create or sign in to your LearnerGenie account first.</p>
+            <p class="mt-1 text-amber-800/90">We are taking you to the LearnerGenie onboarding flow. After creating your learner profile, return to this tutor centre link to finish connecting.</p>
+            <a href="${onboardingUrl}" class="mt-3 inline-flex items-center gap-2 rounded-lg bg-amber-600 px-3 py-2 text-xs font-bold text-white hover:bg-amber-700">
+              Go to LearnerGenie
+              <i data-lucide="arrow-right" class="h-3.5 w-3.5"></i>
+            </a>
+          </div>
+        </div>
+      `;
+      els.authState.classList.remove('hidden');
+      els.form.classList.add('opacity-50', 'pointer-events-none');
+
+      if (window.lucide) lucide.createIcons();
+
+      window.setTimeout(() => {
+        window.location.href = onboardingUrl;
+      }, 1200);
+    }
+
     async function loadSession() {
       const { data, error } = await supabaseClient.auth.getSession();
       if (error) throw error;
       currentSession = data.session;
 
       if (!currentSession?.user) {
-        els.authState.textContent = 'Please sign in to LearnerGenie before connecting to a tutor centre.';
-        els.authState.classList.remove('hidden');
-        els.form.classList.add('opacity-50', 'pointer-events-none');
+        redirectToOnboarding(getCodeFromUrl());
         return false;
       }
 
@@ -244,6 +284,9 @@
         const centreName = result?.tutor_centre_name || 'your tutor centre';
         const already = Boolean(result?.already_connected);
 
+        localStorage.removeItem('learnergenie_pending_tutor_centre_code');
+        localStorage.removeItem('learnergenie_pending_tutor_centre_redirect');
+
         showStatus(
           already
             ? `This learner is already connected to ${centreName}.`
@@ -272,7 +315,7 @@
     async function init() {
       if (window.lucide) lucide.createIcons();
 
-      const code = getCodeFromUrl();
+      const code = getCodeFromUrl() || normaliseCode(localStorage.getItem('learnergenie_pending_tutor_centre_code'));
       if (code) els.codeInput.value = code;
 
       els.form.addEventListener('submit', connectLearner);
