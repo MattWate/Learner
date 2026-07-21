@@ -210,6 +210,78 @@
         }
     }
 
+    // --- STRUCTURED (JSON) TRANSLATION HELPER (unchanged from app.html) ---
+    function attachStructuredTranslationToolbar({
+        toolbarId,
+        contentId,
+        originalContent,
+        sourceTool,
+        topic = '',
+        structureInstructions = '',
+        renderContent,
+        onRerender
+    }) {
+        if (!answerToolsAvailable()) {
+            console.warn('Answer Tools module was not found. Structured translation toolbar skipped.');
+            return;
+        }
+
+        const toolbarMount = document.getElementById(toolbarId);
+        const contentElement = document.getElementById(contentId);
+
+        if (!toolbarMount || !contentElement) {
+            console.warn('Structured translation toolbar mount or content element not found.', { toolbarId, contentId });
+            return;
+        }
+
+        const renderAndBind = (content) => {
+            contentElement.innerHTML = renderContent(content);
+
+            if (window.lucide?.createIcons) {
+                window.lucide.createIcons();
+            }
+
+            if (typeof onRerender === 'function') {
+                onRerender(content);
+            }
+        };
+
+        try {
+            window.LearnerGenieAnswerTools.createOutputToolbar({
+                mount: toolbarMount,
+                contentElement,
+                originalContent,
+                originalText: JSON.stringify(originalContent || {}, null, 2),
+                sourceTool,
+                topic,
+                defaultLanguage: 'af',
+                translationMode: 'structured',
+                structureInstructions,
+                showCopy: true,
+                showTranslate: true,
+                onBeforeViewChange: () => {
+                    if ('speechSynthesis' in window) {
+                        window.speechSynthesis.cancel();
+                    }
+                },
+                onRenderOriginal: ({ originalContent }) => {
+                    renderAndBind(originalContent);
+                },
+                onRenderTranslated: ({ translatedContent }) => {
+                    renderAndBind(translatedContent);
+                },
+                onViewChanged: () => {
+                    if (window.lucide?.createIcons) {
+                        window.lucide.createIcons();
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('Could not attach structured translation toolbar:', error);
+            renderAndBind(originalContent);
+        }
+    }
+
     window.LearnerOutput = {
         tts,
         stopTTS,
@@ -217,6 +289,7 @@
         answerToolsAvailable,
         getOutputTextFromHtml,
         createTranslatedOutputShell,
-        attachTextTranslationToolbar
+        attachTextTranslationToolbar,
+        attachStructuredTranslationToolbar
     };
 })();
