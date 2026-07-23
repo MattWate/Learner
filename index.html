@@ -3,241 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Learning Genie - Your AI Learning Assistant</title>
+    <meta name="description" content="LearnerGenie helps school learners build better study habits with safe, guided support for homework, revision and test preparation.">
+    <title>LearnerGenie - Better Study Habits Start Here</title>
     <link rel="icon" href="/logo.svg" type="image/svg+xml">
-    
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Poppins -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background-color: #f8fafc; /* light gray background */
-        }
-        /* Responsive logo size for landing page */
-        .landing-logo-sm { width: 4rem; height: 4rem; } /* Mobile nav */
-        
-        /* Custom gradient text */
-        .gradient-text {
-            background: linear-gradient(to right, #4f46e5, #ec4899); /* Indigo to Pink */
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
+        :root{--ink:#172033;--purple:#6657d9;--purple-dark:#4d3fc1;--paper:#fbfaf7;--coral:#ff7c70}
+        html{scroll-behavior:smooth} body{font-family:'DM Sans',sans-serif;color:var(--ink);background:var(--paper)}
+        h1,h2,h3,.brand-font{font-family:'Manrope',sans-serif}.hero-grid{background-image:radial-gradient(circle at 15% 10%,rgba(255,213,106,.28),transparent 23%),radial-gradient(circle at 88% 20%,rgba(188,235,220,.45),transparent 24%),linear-gradient(180deg,#fbfaf7 0%,#fff 100%)}
+        .soft-shadow{box-shadow:0 24px 70px rgba(53,46,112,.13)}.mini-shadow{box-shadow:0 12px 32px rgba(23,32,51,.08)}
+        .scribble{position:relative;display:inline-block}.scribble:after{content:'';position:absolute;left:2%;right:0;bottom:-8px;height:8px;border-radius:50%;border-top:3px solid var(--coral);transform:rotate(-1deg)}
+        .step-line:before{content:'';position:absolute;left:28px;top:58px;bottom:-30px;width:2px;background:linear-gradient(var(--purple),rgba(102,87,217,.08))}.step-line:last-child:before{display:none}
     </style>
 </head>
 <body class="antialiased">
-
-    <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50">
-        <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between items-center h-16">
-            <div class="flex items-center">
-                <img src="/logo.svg" alt="Learning Genie Logo" class="landing-logo-sm">
-                <span class="ml-3 text-2xl font-bold text-gray-800">Learning Genie</span>
+<header class="sticky top-0 z-50 border-b border-slate-200/70 bg-[#fbfaf7]/90 backdrop-blur-xl">
+    <nav class="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <a href="/" class="flex items-center gap-3"><img src="/logo.svg" alt="LearnerGenie logo" class="h-12 w-12"><span class="brand-font text-xl font-extrabold tracking-tight text-slate-900">LearnerGenie</span></a>
+        <div class="flex items-center gap-3 sm:gap-6">
+            <a href="#how-it-works" class="hidden text-sm font-semibold text-slate-600 hover:text-indigo-700 md:inline">How it works</a>
+            <a href="#pricing" class="hidden text-sm font-semibold text-slate-600 hover:text-indigo-700 sm:inline">Pricing</a>
+            <a href="/login.html" class="text-sm font-semibold text-slate-700 hover:text-indigo-700">Log in</a>
+            <a href="/login.html" class="rounded-full bg-[#6657d9] px-5 py-2.5 text-sm font-bold text-white hover:bg-[#4d3fc1]">Start free</a>
+        </div>
+    </nav>
+</header>
+<main>
+<section class="hero-grid overflow-hidden pb-20 pt-14 sm:pb-28 sm:pt-20 lg:pb-32 lg:pt-24">
+    <div class="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-[1.02fr_.98fr] lg:px-8">
+        <div class="max-w-2xl">
+            <div class="mb-6 inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-white/80 px-4 py-2 text-sm font-bold text-indigo-700 mini-shadow"><span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#f0edff]"><i data-lucide="sparkles" class="h-4 w-4"></i></span>Safe, guided learning support</div>
+            <h1 class="text-4xl font-extrabold leading-[1.08] tracking-[-0.04em] text-slate-950 sm:text-5xl lg:text-6xl xl:text-7xl">Better study habits start with the <span class="scribble text-[#6657d9]">right support.</span></h1>
+            <p class="mt-7 max-w-xl text-lg leading-8 text-slate-600 sm:text-xl">LearnerGenie helps children understand difficult work, revise with purpose and prepare with confidence — without turning every homework session into a struggle.</p>
+            <div class="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
+                <a href="/login.html" class="inline-flex w-full items-center justify-center gap-2 rounded-full bg-[#6657d9] px-7 py-4 text-base font-bold text-white hover:bg-[#4d3fc1] sm:w-auto">Start learning free <i data-lucide="arrow-right" class="h-5 w-5"></i></a>
+                <span class="flex items-center gap-2 text-sm font-medium text-slate-500"><i data-lucide="check" class="h-4 w-4 text-emerald-600"></i> Explore before you subscribe</span>
             </div>
-            <div class="flex items-center space-x-4">
-                <a href="#pricing" class="hidden sm:inline text-gray-600 font-medium hover:text-indigo-600">Pricing</a>
-                <a href="/login.html" class="text-indigo-600 font-medium hover:text-indigo-800">Log In</a>
-                <a href="/login.html" class="bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-700 transition duration-150 ease-in-out">
-                    Get Started
-                </a>
-            </div>
-        </nav>
-    </header>
-
-    <!-- Hero Section -->
-    <section class="py-20 md:py-32 bg-gradient-to-b from-indigo-50 to-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <!-- Text Content -->
-            <div class="text-center md:text-left">
-                <h1 class="text-4xl sm:text-5xl md:text-6xl font-extrabold text-gray-900 leading-tight mb-4">
-                    Unlock Your Learning <span class="gradient-text">Superpowers</span>
-                </h1>
-                <p class="mt-4 text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto md:mx-0 mb-8">
-                    Get instant AI help for homework, practice tests, and simple explanations. Start free, upgrade for unlimited access.
-                </p>
-                <a href="/login.html" class="inline-block bg-indigo-600 text-white font-semibold py-3 px-8 rounded-lg text-lg hover:bg-indigo-700 transition duration-150 ease-in-out shadow-lg transform hover:scale-105">
-                    Start Learning Free
-                </a>
-            </div>
-            <!-- Image Column -->
-            <div class="flex justify-center">
-                <img src="/hero_image.png" alt="Parent and child learning together on a laptop" class="rounded-lg shadow-2xl max-w-md w-full"> 
+            <div class="mt-10 flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-slate-600">
+                <span class="flex items-center gap-2"><i data-lucide="shield-check" class="h-5 w-5 text-[#6657d9]"></i> Designed for learners</span>
+                <span class="flex items-center gap-2"><i data-lucide="graduation-cap" class="h-5 w-5 text-[#6657d9]"></i> Grade-aware support</span>
+                <span class="flex items-center gap-2"><i data-lucide="users" class="h-5 w-5 text-[#6657d9]"></i> Individual profiles</span>
             </div>
         </div>
-    </section>
-
-    <!-- Features Section (Simplified for space) -->
-    <section id="features" class="py-16 md:py-24 bg-white">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 class="text-3xl font-bold text-center text-gray-800 mb-12">The Tools You Need to Succeed</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                <!-- Feature 1: Homework Helper -->
-                <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-rose-400 text-center">
-                    <i data-lucide="life-buoy" class="h-12 w-12 text-rose-500 mb-4 mx-auto"></i>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Homework Helper</h3>
-                    <p class="text-gray-600">Snap a photo or type your question for hints and answers.</p>
-                </div>
-                <!-- Feature 2: Learning Hub -->
-                <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-indigo-500 text-center">
-                    <i data-lucide="book-marked" class="h-12 w-12 text-indigo-600 mb-4 mx-auto"></i>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Learning Hub</h3>
-                    <p class="text-gray-600">Get revision notes and interactive practice tests on any topic.</p>
-                </div>
-                <!-- Feature 3: Explain Simply -->
-                <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-amber-400 text-center">
-                    <i data-lucide="baby" class="h-12 w-12 text-amber-500 mb-4 mx-auto"></i>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Explain It Simply</h3>
-                    <p class="text-gray-600">Confusing concepts made easy with simple explanations.</p>
-                </div>
-                <!-- Feature 4: Test Builder -->
-                 <div class="bg-indigo-50 p-6 rounded-xl shadow-md border-t-4 border-teal-400 text-center">
-                    <i data-lucide="clipboard-check" class="h-12 w-12 text-teal-500 mb-4 mx-auto"></i>
-                    <h3 class="text-xl font-semibold text-gray-800 mb-2">Test Builder</h3>
-                    <p class="text-gray-600">Create custom quizzes to test your knowledge before exams.</p>
-                </div>
+        <div class="relative mx-auto w-full max-w-xl lg:mx-0">
+            <div class="relative overflow-hidden rounded-[2rem] border border-white bg-white p-3 soft-shadow">
+                <img src="/hero_image.png" alt="A parent and child learning together with LearnerGenie" class="aspect-[4/3] w-full rounded-[1.45rem] object-cover">
+                <div class="absolute inset-x-8 bottom-8 rounded-2xl border border-white/70 bg-white/95 p-4 backdrop-blur mini-shadow sm:left-auto sm:w-72"><div class="flex items-start gap-3"><span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#f0edff] text-[#6657d9]"><i data-lucide="lightbulb" class="h-5 w-5"></i></span><div><p class="text-xs font-bold uppercase tracking-[.12em] text-[#6657d9]">Explain it simply</p><p class="mt-1 text-sm font-semibold leading-5 text-slate-700">Break confusing concepts into steps a learner can understand.</p></div></div></div>
             </div>
         </div>
-    </section>
-    
-    <!-- NEW: Pricing Section -->
-    <section id="pricing" class="py-16 md:py-24 bg-gray-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h2 class="text-4xl font-extrabold text-gray-800 mb-4">Simple, Transparent Pricing</h2>
-            <p class="text-xl text-gray-600 mb-16">Start free, upgrade for unlimited access and family support.</p>
-            
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
-                
-                <!-- Pricing Card 1: Free Tier -->
-                <div class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-100 flex flex-col">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Free Trial</h3>
-                    <p class="text-gray-600 mb-4 text-sm">Explore the power of AI learning.</p>
-                    
-                    <div class="text-4xl font-extrabold mb-6 text-indigo-600">R0</div>
-                    
-                    <ul class="text-left space-y-3 flex-1">
-                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> 1 Learner Profile</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="sparkle" class="h-5 w-5 text-amber-400 mr-2"></i> 5 Questions/Week limit</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="x-circle" class="h-5 w-5 text-red-500 mr-2"></i> No saved work history</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> Access to all 4 tools</li>
-                    </ul>
-                    
-                    <a href="/login.html" class="mt-8 w-full bg-gray-200 text-gray-800 font-semibold py-3 px-6 rounded-lg hover:bg-gray-300 transition duration-150">
-                        Sign Up Free
-                    </a>
-                </div>
-                
-                <!-- Pricing Card 2: Single Learner -->
-                <div class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-100 flex flex-col">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Single Learner</h3>
-                    <p class="text-gray-600 mb-4 text-sm">Full access for one child.</p>
-                    
-                    <div class="text-4xl font-extrabold mb-6 text-indigo-600">R69<span class="text-lg font-normal">/month</span></div>
-                    
-                    <ul class="text-left space-y-3 flex-1">
-                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> 1 Learner Profile</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-5 w-5 text-green-500 mr-2"></i> Unlimited tool usage</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-5 w-5 text-green-500 mr-2"></i> Full activity history</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="book-open-check" class="h-5 w-5 text-green-500 mr-2"></i> Full access to all tools</li>
-                    </ul>
-                    
-                    <a href="/login.html" class="mt-8 w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
-                        Subscribe Now
-                    </a>
-                </div>
-
-                <!-- Pricing Card 3: Family Two (Best Value) -->
-                <div class="bg-indigo-600 p-6 rounded-xl shadow-2xl border-4 border-indigo-500 text-white flex flex-col transform scale-105">
-                    <div class="bg-amber-400 text-indigo-900 font-bold px-3 py-1 text-sm rounded-full w-fit mx-auto mb-3">Best Value</div>
-                    <h3 class="text-xl font-bold mb-2">Family Two</h3>
-                    <p class="text-indigo-200 mb-4 text-sm">Ideal for two children.</p>
-                    
-                    <div class="text-4xl font-extrabold mb-6">R99<span class="text-lg font-normal">/month</span></div>
-                    
-                    <ul class="text-left space-y-3 flex-1">
-                        <li class="flex items-center"><i data-lucide="check-circle" class="h-5 w-5 text-amber-300 mr-2"></i> Up to 2 Learner Profiles</li>
-                        <li class="flex items-center"><i data-lucide="infinity" class="h-5 w-5 text-amber-300 mr-2"></i> Unlimited tool usage</li>
-                        <li class="flex items-center"><i data-lucide="save" class="h-5 w-5 text-amber-300 mr-2"></i> Full activity history</li>
-                        <li class="flex items-center"><i data-lucide="book-open-check" class="h-5 w-5 text-amber-300 mr-2"></i> Full access to all tools</li>
-                    </ul>
-                    
-                    <a href="/login.html" class="mt-8 w-full bg-white text-indigo-600 font-bold py-3 px-6 rounded-lg hover:bg-indigo-50 transition duration-150 shadow-lg">
-                        Get Family Plan
-                    </a>
-                </div>
-
-
-                 <!-- Pricing Card 4: Family Ultra -->
-                <div class="bg-white p-6 rounded-xl shadow-2xl border-4 border-gray-100 flex flex-col">
-                    <h3 class="text-xl font-bold text-gray-800 mb-2">Family Ultra</h3>
-                    <p class="text-gray-600 mb-4 text-sm">Support for up to four children.</p>
-                    
-                    <div class="text-4xl font-extrabold mb-6 text-indigo-600">R149<span class="text-lg font-normal">/month</span></div>
-                    
-                    <ul class="text-left space-y-3 flex-1">
-                        <li class="flex items-center text-gray-700"><i data-lucide="check-circle" class="h-5 w-5 text-green-500 mr-2"></i> Up to 4 Learner Profiles</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="infinity" class="h-5 w-5 text-green-500 mr-2"></i> Unlimited tool usage</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="save" class="h-5 w-5 text-green-500 mr-2"></i> Full activity history</li>
-                        <li class="flex items-center text-gray-700"><i data-lucide="book-open-check" class="h-5 w-5 text-green-500 mr-2"></i> Full access to all tools</li>
-                    </ul>
-                    
-                    <a href="/login.html" class="mt-8 w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition duration-150">
-                        Get Ultra Plan
-                    </a>
-                </div>
-                
-            </div>
+    </div>
+</section>
+<section class="bg-white py-20 sm:py-24">
+    <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-3xl text-center"><p class="text-sm font-extrabold uppercase tracking-[.18em] text-[#6657d9]">Made for real family life</p><h2 class="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-5xl">Studying should not require a nightly argument.</h2><p class="mt-5 text-lg leading-8 text-slate-600">LearnerGenie gives children a constructive next step when they are stuck, unsure what to revise or tempted to put studying off.</p></div>
+        <div class="mt-14 grid gap-5 md:grid-cols-3">
+            <article class="rounded-[1.75rem] bg-[#fff6e3] p-7 sm:p-8"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-amber-600 mini-shadow"><i data-lucide="message-circle-question" class="h-6 w-6"></i></span><h3 class="mt-6 text-lg font-extrabold">“I don’t understand this.”</h3><p class="mt-3 leading-7 text-slate-600">Get explanations and hints matched to the learner’s level, so confusion becomes a manageable next step.</p></article>
+            <article class="rounded-[1.75rem] bg-[#f0edff] p-7 sm:p-8"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-[#6657d9] mini-shadow"><i data-lucide="map" class="h-6 w-6"></i></span><h3 class="mt-6 text-lg font-extrabold">“I don’t know what to study.”</h3><p class="mt-3 leading-7 text-slate-600">Turn a topic into focused revision notes and useful practice, instead of staring at a textbook without a plan.</p></article>
+            <article class="rounded-[1.75rem] bg-[#eaf8f3] p-7 sm:p-8"><span class="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-emerald-700 mini-shadow"><i data-lucide="timer-reset" class="h-6 w-6"></i></span><h3 class="mt-6 text-lg font-extrabold">“I’ll do it later.”</h3><p class="mt-3 leading-7 text-slate-600">Make studying easier to start with quick, purposeful activities that build confidence and consistency over time.</p></article>
         </div>
-    </section>
-
-    <!-- Footer -->
-    <footer class="bg-gray-800 text-gray-400 py-8">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <p>&copy; 2025 Learning Genie. All rights reserved.</p>
+    </div>
+</section>
+<section id="how-it-works" class="bg-[#172033] py-20 text-white sm:py-28">
+    <div class="mx-auto grid max-w-7xl gap-14 px-4 sm:px-6 lg:grid-cols-[.9fr_1.1fr] lg:px-8">
+        <div><p class="text-sm font-extrabold uppercase tracking-[.18em] text-[#bcebdc]">One connected learning loop</p><h2 class="mt-4 text-3xl font-extrabold tracking-tight sm:text-5xl">From confusion to confidence.</h2><p class="mt-6 max-w-lg text-lg leading-8 text-slate-300">LearnerGenie is more than a place to ask for answers. Each tool helps a learner understand, practise and take the next step independently.</p><a href="/login.html" class="mt-8 inline-flex items-center gap-2 font-bold text-[#ffd56a]">Try the learning tools <i data-lucide="arrow-right" class="h-5 w-5"></i></a></div>
+        <div class="space-y-8">
+            <article class="step-line relative flex gap-5 pb-4"><span class="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#6657d9] text-xl font-extrabold">1</span><div class="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8"><h3 class="text-xl font-extrabold">Understand</h3><p class="mt-3 leading-7 text-slate-300">Use Homework Helper or Explain It Simply when a concept is difficult. Learners get guidance they can follow.</p></div></article>
+            <article class="step-line relative flex gap-5 pb-4"><span class="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#6657d9] text-xl font-extrabold">2</span><div class="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8"><h3 class="text-xl font-extrabold">Revise</h3><p class="mt-3 leading-7 text-slate-300">Use the Learning Hub to create useful revision material around the topics that matter now.</p></div></article>
+            <article class="step-line relative flex gap-5 pb-4"><span class="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#6657d9] text-xl font-extrabold">3</span><div class="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8"><h3 class="text-xl font-extrabold">Practise</h3><p class="mt-3 leading-7 text-slate-300">Build quizzes and practice tests that turn passive reading into active recall.</p></div></article>
+            <article class="step-line relative flex gap-5"><span class="relative z-10 flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#6657d9] text-xl font-extrabold">4</span><div class="rounded-3xl border border-white/10 bg-white/5 p-6 sm:p-8"><h3 class="text-xl font-extrabold">Keep going</h3><p class="mt-3 leading-7 text-slate-300">Build a history of learning activity and make focused study feel more familiar.</p></div></article>
         </div>
-    </footer>
-
-    <script>
-        lucide.createIcons();
-
-    </script>
-
-    <div id="cookie-consent-banner" class="hidden fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 shadow-lg z-50 flex-col md:flex-row justify-between items-center">
-    <p class="text-sm mb-2 md:mb-0 md:mr-4">
-        We use essential cookies to make our site work. By using our site, you consent to our use of cookies.
-        <a href="/legal.html#cookies" class="font-semibold underline hover:text-indigo-300">Learn More</a>.
-    </p>
-    <button id="accept-cookies-btn" class="bg-indigo-600 text-white font-semibold py-2 px-6 rounded-lg hover:bg-indigo-700 flex-shrink-0">
-        Accept
-    </button>
-</div>
-
-<script>
-    (function() {
-        const banner = document.getElementById('cookie-consent-banner');
-        const acceptBtn = document.getElementById('accept-cookies-btn');
-
-        // Check if user has already consented
-        if (localStorage.getItem('cookie_consent') === 'true') {
-            return; // Don't show banner
-        }
-
-        // If not, show the banner
-        banner.classList.remove('hidden');
-        banner.classList.add('flex');
-
-        // Set consent on click
-        acceptBtn.addEventListener('click', () => {
-            localStorage.setItem('cookie_consent', 'true');
-            banner.style.display = 'none';
-        });
-    })();
-</script>
-    
+    </div>
+</section>
+<section class="bg-white py-20 sm:py-28">
+    <div class="mx-auto grid max-w-7xl items-center gap-14 px-4 sm:px-6 lg:grid-cols-2 lg:px-8">
+        <div class="rounded-[2rem] bg-[#f0edff] p-7 sm:p-10"><div class="rounded-3xl bg-white p-6 mini-shadow"><div class="flex items-center justify-between border-b border-slate-100 pb-4"><div class="flex items-center gap-3"><img src="/logo.svg" alt="" class="h-10 w-10"><div><p class="text-xs font-bold uppercase tracking-wider text-[#6657d9]">LearnerGenie</p><p class="font-extrabold">Guided support</p></div></div><span class="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold text-emerald-700">Learner-ready</span></div><div class="mt-6 space-y-4"><div class="ml-auto max-w-[85%] rounded-2xl rounded-br-md bg-[#6657d9] p-4 text-sm leading-6 text-white">Can you explain fractions in a simpler way?</div><div class="max-w-[92%] rounded-2xl rounded-bl-md bg-slate-100 p-4 text-sm leading-6 text-slate-700"><strong>Think of a pizza cut into equal slices.</strong> The bottom number tells you how many equal slices there are, and the top number tells you how many you have.</div></div></div></div>
+        <div><p class="text-sm font-extrabold uppercase tracking-[.18em] text-[#6657d9]">Built for learners, not the open internet</p><h2 class="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-5xl">Useful to children. Reassuring to parents.</h2><p class="mt-6 text-lg leading-8 text-slate-600">LearnerGenie creates a focused learning environment around schoolwork, organised into clear tools and individual learner profiles.</p><div class="mt-8 grid gap-5 sm:grid-cols-2"><div><h3 class="font-extrabold">Guided experience</h3><p class="mt-1 text-sm leading-6 text-slate-600">Clear learning tasks rather than an unrestricted blank chatbot.</p></div><div><h3 class="font-extrabold">Level-aware help</h3><p class="mt-1 text-sm leading-6 text-slate-600">Support shaped around the learner’s grade and needs.</p></div><div><h3 class="font-extrabold">Understanding first</h3><p class="mt-1 text-sm leading-6 text-slate-600">Tools designed to explain, practise and reinforce learning.</p></div><div><h3 class="font-extrabold">Personal profiles</h3><p class="mt-1 text-sm leading-6 text-slate-600">Keep each child’s learning experience and history separate.</p></div></div></div>
+    </div>
+</section>
+<section id="pricing" class="bg-[#f5f3ed] py-20 sm:py-28">
+    <div class="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div class="mx-auto max-w-3xl text-center"><p class="text-sm font-extrabold uppercase tracking-[.18em] text-[#6657d9]">Simple family pricing</p><h2 class="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-5xl">Start free. Add unlimited support when it proves useful.</h2><p class="mt-5 text-lg leading-8 text-slate-600">Every paid plan includes unlimited use of all four learning tools and a full activity history.</p></div>
+        <div class="mt-14 grid gap-6 lg:grid-cols-[.8fr_1.2fr]">
+            <article class="flex flex-col rounded-[2rem] border border-slate-200 bg-white p-7 sm:p-9"><p class="text-sm font-extrabold uppercase tracking-[.14em] text-slate-500">Try LearnerGenie</p><h3 class="mt-3 text-2xl font-extrabold">Free</h3><p class="mt-3 leading-7 text-slate-600">Explore all four tools with one learner profile and a weekly question allowance.</p><ul class="mt-7 space-y-3 text-sm font-semibold"><li>✓ 1 learner profile</li><li>✓ Access to all four tools</li><li>✓ 5 questions per week</li></ul><a href="/login.html" class="mt-8 inline-flex w-full items-center justify-center rounded-full border-2 border-slate-200 px-6 py-3.5 font-extrabold hover:border-[#6657d9] hover:text-[#6657d9]">Sign up free</a></article>
+            <article class="relative overflow-hidden rounded-[2rem] bg-[#6657d9] p-7 text-white soft-shadow sm:p-9"><div class="relative"><div class="flex flex-col justify-between gap-5 sm:flex-row"><div><p class="text-sm font-extrabold uppercase tracking-[.14em] text-indigo-200">Unlimited learning support</p><h3 class="mt-3 text-2xl font-extrabold">Choose your family size</h3></div><span class="h-fit w-fit rounded-full bg-[#ffd56a] px-4 py-2 text-xs font-extrabold text-slate-900">Best value: 2 learners</span></div><div class="mt-8 grid gap-3 sm:grid-cols-3"><div class="rounded-2xl bg-white p-5 text-slate-900"><p class="text-sm font-bold text-slate-500">1 learner</p><p class="mt-2 text-3xl font-extrabold">R69<span class="text-sm text-slate-500">/mo</span></p></div><div class="rounded-2xl border-2 border-[#ffd56a] bg-white p-5 text-slate-900"><p class="text-sm font-bold text-[#6657d9]">2 learners</p><p class="mt-2 text-3xl font-extrabold">R99<span class="text-sm text-slate-500">/mo</span></p></div><div class="rounded-2xl bg-white p-5 text-slate-900"><p class="text-sm font-bold text-slate-500">Up to 4</p><p class="mt-2 text-3xl font-extrabold">R149<span class="text-sm text-slate-500">/mo</span></p></div></div><p class="mt-7 text-sm font-semibold text-indigo-100">Unlimited tool usage · Full activity history · Separate learner profiles</p><a href="/login.html" class="mt-8 inline-flex items-center gap-2 rounded-full bg-white px-7 py-4 font-extrabold text-[#4d3fc1]">Get started <i data-lucide="arrow-right" class="h-5 w-5"></i></a></div></article>
+        </div>
+    </div>
+</section>
+<section class="bg-white py-20 sm:py-28"><div class="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8"><div class="rounded-[2.25rem] bg-[#172033] px-6 py-14 text-white sm:px-12"><img src="/logo.svg" alt="" class="mx-auto h-16 w-16"><h2 class="mx-auto mt-6 max-w-3xl text-3xl font-extrabold tracking-tight sm:text-5xl">Give your child a better way to study.</h2><p class="mx-auto mt-5 max-w-2xl text-lg leading-8 text-slate-300">Start with the free plan and turn the next difficult topic into a clear, manageable learning step.</p><a href="/login.html" class="mt-8 inline-flex items-center gap-2 rounded-full bg-[#ffd56a] px-7 py-4 font-extrabold text-slate-900">Start learning free <i data-lucide="arrow-right" class="h-5 w-5"></i></a></div></div></section>
+</main>
+<footer class="border-t border-slate-200 bg-[#fbfaf7] py-10"><div class="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 px-4 text-center sm:px-6 md:flex-row lg:px-8"><div class="flex items-center gap-3"><img src="/logo.svg" alt="LearnerGenie logo" class="h-10 w-10"><span class="brand-font font-extrabold">LearnerGenie</span></div><p class="text-sm text-slate-500">&copy; 2026 LearnerGenie. Better support for better study habits.</p><a href="/legal.html" class="text-sm font-semibold text-slate-600 hover:text-[#6657d9]">Legal &amp; privacy</a></div></footer>
+<div id="cookie-consent-banner" class="fixed bottom-4 left-4 right-4 z-50 hidden flex-col items-start justify-between gap-4 rounded-2xl bg-slate-950 p-4 text-white shadow-2xl md:left-1/2 md:right-auto md:w-[min(720px,calc(100%-2rem))] md:-translate-x-1/2 md:flex-row md:items-center"><p class="text-sm leading-6 text-slate-300">We use essential cookies to make our site work. By using our site, you consent to our use of cookies. <a href="/legal.html#cookies" class="font-bold text-white underline">Learn more</a>.</p><button id="accept-cookies-btn" class="shrink-0 rounded-full bg-[#6657d9] px-5 py-2.5 text-sm font-bold text-white">Accept</button></div>
+<script>lucide.createIcons();(function(){const b=document.getElementById('cookie-consent-banner'),a=document.getElementById('accept-cookies-btn');if(localStorage.getItem('cookie_consent')==='true')return;b.classList.remove('hidden');b.classList.add('flex');a.addEventListener('click',()=>{localStorage.setItem('cookie_consent','true');b.style.display='none'})})();</script>
 </body>
 </html>
