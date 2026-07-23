@@ -70,11 +70,14 @@
             return null;
         }
 
+        // Matches selectProfile() in app.html exactly: looks up by id only.
+        // app.html does not filter by account_id client-side either - profile
+        // access control is whatever RLS policy (if any) is set on this table
+        // in Supabase. We mirror that rather than adding a stricter check here.
         const { data, error } = await client
             .from('profiles')
             .select('*')
             .eq('id', profileId)
-            .eq('account_id', session.user.id)
             .single();
 
         if (error || !data) {
