@@ -96,7 +96,7 @@
      * after which app.html attempts to attach a submit listener to a missing
      * #create-profile-form element. Capture the Add Profile action before the
      * broken handler, render the expected form, and attach the existing
-     * handleCreateProfile function once.
+     * handleCreateProfile function once per rendered form.
      */
     document.addEventListener('click', async function profileFormHotfix(event) {
         const addProfileButton = event.target.closest('#show-add-profile-btn');
@@ -171,7 +171,7 @@
                 return;
             }
 
-            profileForm.addEventListener('submit', handleCreateProfile, { once: true });
+            profileForm.addEventListener('submit', handleCreateProfile);
             document.getElementById('profile-name')?.focus();
 
             document.getElementById('cancel-add-profile-btn')?.addEventListener('click', () => {
