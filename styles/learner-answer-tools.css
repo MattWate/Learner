@@ -1,0 +1,66 @@
+/* LearnerGenie output toolbar styles for pages that do not load Tailwind. */
+[id$='-answer-toolbar'] > div,
+.translation-toolbar {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  padding:12px;
+  border:1px solid #e5e7eb;
+  border-radius:18px;
+  background:rgba(255,255,255,.96);
+  box-shadow:0 10px 30px rgba(23,32,51,.07);
+}
+[id$='-answer-toolbar'] button,
+[id$='-answer-toolbar'] select {
+  min-height:38px;
+  border:1px solid #dfe4e8;
+  border-radius:999px;
+  background:#fff;
+  color:#465365;
+  padding:8px 12px;
+  font-weight:700;
+  font-size:13px;
+  cursor:pointer;
+}
+[id$='-answer-toolbar'] select { padding-right:34px; }
+[id$='-answer-toolbar'] button:hover:not(:disabled),
+[id$='-answer-toolbar'] select:hover {
+  border-color:#b9d8d3;
+  color:#2f7f78;
+  background:#f8fcfb;
+}
+[id$='-answer-toolbar'] button:disabled {
+  cursor:not-allowed;
+  opacity:.45;
+  background:#f5f6f7;
+}
+[id$='-answer-toolbar'] label {
+  color:#667085;
+  font-size:13px;
+  font-weight:700;
+}
+[id$='-answer-toolbar'] p,
+[id$='-answer-toolbar'] .text-xs,
+[id$='-answer-toolbar'] .text-sm {
+  width:100%;
+  margin:0;
+  color:#667085;
+  font-size:12px;
+  line-height:1.5;
+}
+[id$='-answer-toolbar'] .flex { display:flex; }
+[id$='-answer-toolbar'] .items-center { align-items:center; }
+[id$='-answer-toolbar'] .justify-between { justify-content:space-between; }
+[id$='-answer-toolbar'] .gap-2 { gap:8px; }
+[id$='-answer-toolbar'] .gap-3 { gap:12px; }
+[id$='-answer-toolbar'] .flex-wrap { flex-wrap:wrap; }
+[id$='-answer-toolbar'] .w-full { width:100%; }
+[id$='-answer-toolbar'] .hidden { display:none !important; }
+@media(max-width:620px){
+  [id$='-answer-toolbar'] > div,
+  .translation-toolbar { align-items:stretch; }
+  [id$='-answer-toolbar'] button,
+  [id$='-answer-toolbar'] select { max-width:100%; }
+}
