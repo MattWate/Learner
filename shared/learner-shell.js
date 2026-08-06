@@ -21,21 +21,22 @@
     }
 
     function profileLink(path) {
-        return window.LearnerAuth?.withProfileId ? window.LearnerAuth.withProfileId(path) : path;
+        if (!window.LearnerAuth?.withProfileId) return path;
+        const hashIndex = path.indexOf('#');
+        if (hashIndex === -1) return window.LearnerAuth.withProfileId(path);
+        const base = path.slice(0, hashIndex);
+        const hash = path.slice(hashIndex);
+        return `${window.LearnerAuth.withProfileId(base)}${hash}`;
     }
 
     function navHtml(activeKey) {
         let group = '';
         return NAV_ITEMS.map(item => {
-            const heading = item.group !== group
-                ? `<div class="lg-nav-label">${item.group}</div>`
-                : '';
+            const heading = item.group !== group ? `<div class="lg-nav-label">${item.group}</div>` : '';
             group = item.group;
             const active = item.key === activeKey;
             return `${heading}<a class="lg-nav-link${active ? ' is-active' : ''}" href="${profileLink(item.path)}">
-                <i data-lucide="${item.icon}" width="18"></i>
-                <span>${item.label}</span>
-                ${active ? '<span class="lg-active-dot"></span>' : ''}
+                <i data-lucide="${item.icon}" width="18"></i><span>${item.label}</span>${active ? '<span class="lg-active-dot"></span>' : ''}
             </a>`;
         }).join('');
     }
@@ -58,10 +59,7 @@
             <div class="lg-mobile-overlay" data-lg-close-menu></div>
             <div class="lg-app">
                 <aside class="lg-sidebar" aria-label="Main navigation">
-                    <a class="lg-brand" href="${profileLink('/app.html')}">
-                        <img src="/logo.svg" alt="LearnerGenie">
-                        <div><strong class="lg-brand-font">LearnerGenie</strong><span>Learning workspace</span></div>
-                    </a>
+                    <a class="lg-brand" href="${profileLink('/app.html')}"><img src="/logo.svg" alt="LearnerGenie"><div><strong class="lg-brand-font">LearnerGenie</strong><span>Learning workspace</span></div></a>
                     <div class="lg-learner-card">
                         <div class="lg-avatar">${escapeHtml(initial)}</div>
                         <div class="lg-learner-meta"><strong>${escapeHtml(profileName)}</strong><span>${gradeText}</span></div>
@@ -92,5 +90,5 @@
         if (window.lucide?.createIcons) window.lucide.createIcons();
     }
 
-    window.LearnerShell = { render };
+    window.LearnerShell = { render, profileLink };
 })();
