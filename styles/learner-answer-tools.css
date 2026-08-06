@@ -2,95 +2,178 @@
 [id$='-answer-toolbar'] > div,
 .translation-toolbar {
   display:grid;
-  grid-template-columns:auto minmax(250px,1fr) auto;
+  grid-template-columns:auto minmax(260px, 1fr) auto;
   align-items:center;
-  gap:12px 16px;
-  padding:12px 14px;
-  border:1px solid #e5e7eb;
+  gap:18px;
+  padding:14px 16px;
+  border:1px solid #e3e8ec;
   border-radius:18px;
-  background:rgba(255,255,255,.96);
+  background:rgba(255,255,255,.97);
   box-shadow:0 10px 30px rgba(23,32,51,.07);
 }
-[id$='-answer-toolbar'] button,
-[id$='-answer-toolbar'] select {
+
+/* Flatten the utility-class wrapper structure into a clean toolbar row. */
+[id$='-answer-toolbar'] > div > .flex,
+.translation-toolbar > .flex {
+  display:contents;
+}
+
+/* Original / Translated is one segmented view control. */
+[id$='-answer-toolbar'] [data-answer-toolbar-view='original'],
+[id$='-answer-toolbar'] [data-answer-toolbar-view='translated'] {
   min-height:38px;
-  border:1px solid #dfe4e8;
-  border-radius:999px;
+  margin:0;
+  padding:8px 14px;
+  border:1px solid #dce3e8;
+  border-radius:0;
   background:#fff;
-  color:#465365;
-  padding:8px 13px;
-  font-weight:700;
+  color:#536173;
   font-size:13px;
-  line-height:1;
+  font-weight:800;
   cursor:pointer;
 }
-[id$='-answer-toolbar'] select {
-  min-width:150px;
-  padding-right:36px;
+[id$='-answer-toolbar'] [data-answer-toolbar-view='original'] {
+  border-radius:999px 0 0 999px;
 }
-[id$='-answer-toolbar'] button:hover:not(:disabled),
-[id$='-answer-toolbar'] select:hover {
+[id$='-answer-toolbar'] [data-answer-toolbar-view='translated'] {
+  margin-left:-1px;
+  border-radius:0 999px 999px 0;
+  font-size:0;
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-view='translated']::after {
+  content:'Translated';
+  font-size:13px;
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-view].bg-indigo-600 {
+  border-color:#17324d;
+  background:#17324d;
+  color:#fff;
+  position:relative;
+  z-index:1;
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-view]:disabled {
+  cursor:not-allowed;
+  opacity:.48;
+  background:#f5f7f8;
+}
+
+/* Translation action is one cohesive control group. */
+[id$='-answer-toolbar'] [data-answer-toolbar-language] {
+  width:100%;
+  min-width:180px;
+  min-height:40px;
+  padding:8px 40px 8px 14px;
+  border:1px solid #dce3e8;
+  border-radius:12px;
+  color:#344054;
+  background:#fff;
+  font-size:13px;
+  font-weight:750;
+  cursor:pointer;
+}
+[id$='-answer-toolbar'] label[for='answer-toolbar-language'] {
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-action='translate'] {
+  min-height:40px;
+  padding:8px 17px;
+  border:0;
+  border-radius:12px;
+  color:#fff;
+  background:#2f7f78;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(47,127,120,.16);
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-action='translate']:hover:not(:disabled) {
+  background:#276d67;
+}
+
+/* Copy is deliberately quieter than Translate. */
+[id$='-answer-toolbar'] [data-answer-toolbar-action='copy'] {
+  min-height:40px;
+  padding:8px 15px;
+  border:1px solid #dce3e8;
+  border-radius:12px;
+  color:#536173;
+  background:#fff;
+  font-size:13px;
+  font-weight:750;
+  cursor:pointer;
+  white-space:nowrap;
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-action='copy']:hover {
   border-color:#b9d8d3;
   color:#2f7f78;
   background:#f8fcfb;
 }
+
 [id$='-answer-toolbar'] button:disabled {
   cursor:not-allowed;
-  opacity:.45;
-  background:#f5f6f7;
+  opacity:.5;
+  box-shadow:none;
 }
-[id$='-answer-toolbar'] label {
-  color:#667085;
-  font-size:12px;
-  font-weight:800;
-  line-height:1.25;
+
+/* The status and caution copy always occupy their own quiet row. */
+[id$='-answer-toolbar'] .mt-2 {
+  grid-column:1 / -1;
+  margin-top:-4px;
 }
-[id$='-answer-toolbar'] p,
-[id$='-answer-toolbar'] .text-xs,
-[id$='-answer-toolbar'] .text-sm {
-  grid-column:1/-1;
-  width:100%;
+[id$='-answer-toolbar'] [data-answer-toolbar-status]:empty,
+[id$='-answer-toolbar'] [data-answer-toolbar-note].hidden {
+  display:none !important;
+}
+[id$='-answer-toolbar'] [data-answer-toolbar-status],
+[id$='-answer-toolbar'] [data-answer-toolbar-note] {
   margin:0;
   color:#667085;
   font-size:12px;
   line-height:1.5;
 }
-[id$='-answer-toolbar'] .flex { display:flex; }
-[id$='-answer-toolbar'] .items-center { align-items:center; }
-[id$='-answer-toolbar'] .justify-between { justify-content:space-between; }
-[id$='-answer-toolbar'] .gap-2 { gap:8px; }
-[id$='-answer-toolbar'] .gap-3 { gap:12px; }
-[id$='-answer-toolbar'] .flex-wrap { flex-wrap:wrap; }
-[id$='-answer-toolbar'] .w-full { width:100%; }
+
 [id$='-answer-toolbar'] .hidden { display:none !important; }
-[id$='-answer-toolbar'] > div > div {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  min-width:0;
+
+@media(max-width:860px){
+  [id$='-answer-toolbar'] > div,
+  .translation-toolbar {
+    grid-template-columns:auto 1fr;
+    gap:12px;
+  }
+  [id$='-answer-toolbar'] [data-answer-toolbar-action='copy'] {
+    grid-column:2;
+    justify-self:end;
+  }
 }
-[id$='-answer-toolbar'] > div > div:nth-child(2) {
-  justify-content:center;
-  flex-wrap:wrap;
-}
-[id$='-answer-toolbar'] > div > div:last-child {
-  justify-content:flex-end;
-}
-@media(max-width:760px){
+
+@media(max-width:620px){
   [id$='-answer-toolbar'] > div,
   .translation-toolbar {
     grid-template-columns:1fr;
     align-items:stretch;
+    gap:12px;
+    padding:12px;
   }
-  [id$='-answer-toolbar'] > div > div,
-  [id$='-answer-toolbar'] > div > div:nth-child(2),
-  [id$='-answer-toolbar'] > div > div:last-child {
-    justify-content:flex-start;
-    flex-wrap:wrap;
+  [id$='-answer-toolbar'] [data-answer-toolbar-view='original'],
+  [id$='-answer-toolbar'] [data-answer-toolbar-view='translated'] {
+    width:50%;
   }
-}
-@media(max-width:520px){
-  [id$='-answer-toolbar'] button,
-  [id$='-answer-toolbar'] select { max-width:100%; }
-  [id$='-answer-toolbar'] select { width:100%; }
+  [id$='-answer-toolbar'] [data-answer-toolbar-language],
+  [id$='-answer-toolbar'] [data-answer-toolbar-action='translate'],
+  [id$='-answer-toolbar'] [data-answer-toolbar-action='copy'] {
+    width:100%;
+  }
+  [id$='-answer-toolbar'] [data-answer-toolbar-action='copy'],
+  [id$='-answer-toolbar'] .mt-2 {
+    grid-column:1;
+    justify-self:stretch;
+  }
 }
