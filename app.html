@@ -217,8 +217,7 @@
                 const { data, error } = await window.LearnerAuth.supabase
                     .from('profiles')
                     .select('*')
-                    .eq('account_id', session.user.id)
-                    .order('created_at', { ascending: true });
+                    .eq('account_id', session.user.id);
 
                 if (error) throw new Error(`Could not load learner profiles: ${error.message}`);
                 profiles = data || [];
