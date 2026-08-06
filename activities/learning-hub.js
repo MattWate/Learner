@@ -1,200 +1,231 @@
-/*
- * LearnerGenie - Learning Hub (standalone page)
- *
- * Same behavior as handleGenerateLearningHelp() in app.html: revision notes,
- * learning objectives, and an AI-marked practice test, with structured
- * (JSON-level) translation so the quiz keeps working after translation.
- */
+/* LearnerGenie - Revision Notes with built-in knowledge check. */
 (function () {
     const root = document.getElementById('page-root');
     let imageUpload;
     let currentTest = [];
 
-    const LEARNING_HUB_TRANSLATION_INSTRUCTIONS = `
-Keep the same JSON structure for Learning Hub.
+    const TRANSLATION_INSTRUCTIONS = `
+Keep the same JSON structure for Revision Notes.
 Translate learner-facing text only.
 Preserve these keys exactly: learning_objectives, revision_notes, practice_test.
 For practice_test, preserve question order, question type, and number of questions.
 Translate question text, options, and correct_answer.
 For MCQ and TrueFalse questions, correct_answer must exactly match one translated option.
-Do not add new questions.
-Do not remove questions.
-Keep mathematical notation unchanged.
-Return valid JSON only.
+Do not add or remove questions. Keep mathematical notation unchanged. Return valid JSON only.
     `.trim();
 
-    function pageTemplate(profileName) {
-        return `
-            <div class="min-h-screen">
-                <header class="max-w-4xl mx-auto px-4 pt-6">
-                    <a href="${window.LearnerAuth.withProfileId('/app.html')}" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                        <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i>
-                        Back to dashboard
-                    </a>
-                </header>
-
-                <main class="max-w-4xl mx-auto px-4 py-6">
-                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Learning Hub</h2>
-                        <p class="text-gray-500 mb-8">Describe a topic or upload a photo to get revision notes and a practice test${profileName ? ` for ${profileName}` : ''}.</p>
-                        <div class="space-y-6">
-                            <div>
-                                <label for="learn-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want to learn about?</label>
-                                <textarea id="learn-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., The planets in our solar system"></textarea>
-                            </div>
-                            <div class="text-center text-sm font-medium text-gray-500">OR</div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Upload a Photo (optional)</label>
-                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                    <div class="space-y-1 text-center">
-                                        <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
-                                        <div class="flex text-sm text-gray-600">
-                                            <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div id="image-preview-wrapper" class="hidden mt-4">
-                                    <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
-                                    <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
-                                </div>
-                            </div>
-                        </div>
-                        <button id="generate-learning-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn</button>
-                        <div id="lh-error" class="text-red-500 text-sm mt-2 hidden"></div>
-                    </div>
-                    <div id="lh-output" class="mt-8"></div>
-                </main>
-            </div>
-        `;
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
     }
 
-    function renderLearningHubContent(content) {
-        const safeContent = content || {};
-        const practiceTest = safeContent.practice_test || [];
+    function pageContent(profileName) {
+        return `
+            <div class="lg-page">
+                <header class="lg-page-header">
+                    <div>
+                        <div class="lg-eyebrow">Revise</div>
+                        <h1 class="lg-page-title">Revision Notes</h1>
+                        <p class="lg-page-copy">Turn a topic or worksheet into clear study notes and a quick knowledge check${profileName ? ` for ${escapeHtml(profileName)}` : ''}.</p>
+                    </div>
+                    <div class="lg-header-actions">
+                        <a class="lg-icon-button" href="${window.LearnerShell.profileLink('/activities/activity-history.html')}" title="Activity history"><i data-lucide="history" width="19"></i></a>
+                    </div>
+                </header>
 
-        currentTest = practiceTest;
-        const quizHtml = window.LearnerQuiz.renderPracticeTest(currentTest);
+                <section class="lg-panel lg-input-panel" id="lh-input-panel">
+                    <div class="lg-panel-heading">
+                        <div class="lg-panel-icon"><i data-lucide="book-open-check"></i></div>
+                        <div><h2>What are you revising?</h2><p>Enter a topic, paste learning content or upload a clear photo of the material.</p></div>
+                    </div>
+                    <div class="lg-revision-input-grid">
+                        <div class="lg-field">
+                            <label for="learn-topic">Topic or learning content</label>
+                            <textarea id="learn-topic" class="lg-textarea" placeholder="For example: The water cycle, or paste the content you need to revise."></textarea>
+                        </div>
+                        <div class="lg-field">
+                            <label for="image-upload">Upload learning material</label>
+                            <div class="lg-upload-zone">
+                                <label for="image-upload"><i data-lucide="upload-cloud" width="30"></i><strong>Choose a photo</strong><span>Worksheet, textbook page or handwritten notes</span><input id="image-upload" type="file" accept="image/*"></label>
+                            </div>
+                            <div id="image-preview-wrapper" class="lg-image-preview lg-hidden">
+                                <img id="image-preview" alt="Uploaded learning material preview">
+                                <button id="remove-image-btn" type="button"><i data-lucide="x" width="16"></i>Remove image</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="lh-error" class="lg-inline-error lg-hidden" role="alert"></div>
+                    <div class="lg-action-row"><button id="generate-learning-help-btn" class="lg-primary-button" type="button"><i data-lucide="sparkles" width="18"></i>Create revision notes</button></div>
+                </section>
+
+                <section id="lh-loading" class="lg-panel lg-inline-loading lg-hidden" aria-live="polite">
+                    <div class="lg-spinner"></div><h3>Building your revision guide…</h3><p>We are organising the material into useful notes and preparing a short knowledge check.</p>
+                </section>
+                <div id="lh-output" aria-live="polite"></div>
+            </div>`;
+    }
+
+    function hasContent(value) {
+        if (value == null) return false;
+        if (Array.isArray(value)) return value.some(hasContent);
+        if (typeof value === 'object') return Object.values(value).some(hasContent);
+        return String(value).trim().length > 0;
+    }
+
+    function contentHtml(value) {
+        if (Array.isArray(value)) {
+            const items = value.filter(hasContent).map(item => `<li>${contentHtml(item)}</li>`).join('');
+            return items ? `<ul>${items}</ul>` : '';
+        }
+        if (value && typeof value === 'object') {
+            return Object.entries(value).filter(([, item]) => hasContent(item)).map(([key, item]) =>
+                `<div><strong>${escapeHtml(key.replace(/_/g, ' '))}:</strong> ${contentHtml(item)}</div>`
+            ).join('');
+        }
+        return window.LearnerOutput.renderMarkdown
+            ? window.LearnerOutput.renderMarkdown(String(value || ''))
+            : escapeHtml(value);
+    }
+
+    function normaliseSections(content) {
+        const notes = content?.revision_notes;
+        const sections = [];
+        if (hasContent(content?.learning_objectives)) {
+            sections.push({ type: 'key', icon: 'list-checks', title: 'What to know', content: content.learning_objectives });
+        }
+        if (Array.isArray(notes)) {
+            notes.filter(hasContent).forEach((item, index) => sections.push({ type: index === 0 ? 'overview' : 'default', icon: index === 0 ? 'map' : 'book-open', title: index === 0 ? 'Overview' : `Key section ${index + 1}`, content: item }));
+        } else if (notes && typeof notes === 'object') {
+            Object.entries(notes).filter(([, value]) => hasContent(value)).forEach(([key, value], index) => {
+                const label = key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+                const lowered = key.toLowerCase();
+                let type = 'default', icon = 'book-open';
+                if (lowered.includes('overview') || index === 0) { type = 'overview'; icon = 'map'; }
+                if (lowered.includes('term') || lowered.includes('definition')) { type = 'terms'; icon = 'book-a'; }
+                if (lowered.includes('summary') || lowered.includes('remember')) { type = 'summary'; icon = 'bookmark-check'; }
+                sections.push({ type, icon, title: label, content: value });
+            });
+        } else if (hasContent(notes)) {
+            sections.push({ type: 'overview', icon: 'book-open', title: 'Revision notes', content: notes });
+        }
+        return sections;
+    }
+
+    function renderRevisionContent(content) {
+        const sections = normaliseSections(content);
+        currentTest = Array.isArray(content?.practice_test) ? content.practice_test.filter(question => question?.question) : [];
+        const noteCards = sections.map(section => `
+            <section class="lg-note-card lg-note-card--${section.type}">
+                <h3><i data-lucide="${section.icon}" width="20"></i>${escapeHtml(section.title)}</h3>
+                ${contentHtml(section.content)}
+            </section>`).join('');
+        const quizHtml = currentTest.length ? `
+            <section class="lg-quiz-card">
+                <div class="lg-quiz-intro">
+                    <div><div class="lg-eyebrow">Quick knowledge check</div><h2>Check what you remember</h2><p>${currentTest.length} questions based on these revision notes.</p></div>
+                    <button id="lh-start-quiz" class="lg-primary-button lg-quiz-start" type="button"><i data-lucide="play" width="17"></i>Start quiz</button>
+                </div>
+                <div id="lh-quiz-body" class="lg-quiz-body lg-hidden"><div id="quiz-results"></div>${window.LearnerQuiz.renderPracticeTest(currentTest)}</div>
+            </section>` : '';
 
         return `
-            <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                ${window.LearnerOutput.createSectionHTML('check-circle', 'green', 'Key Learning Objectives', safeContent.learning_objectives)}
-                ${window.LearnerOutput.createSectionHTML('book-open', 'indigo', 'Revision Notes', safeContent.revision_notes)}
+            <div class="lg-revision-guide">
+                <section class="lg-revision-hero"><div class="lg-eyebrow">Revision guide</div><h2>Your study notes</h2><p>Review the useful sections below, then try the short quiz while the ideas are still fresh.</p></section>
+                ${noteCards ? `<div class="lg-note-grid">${noteCards}</div>` : '<div class="lg-panel" style="margin-top:16px"><p>No usable revision sections were returned. Please try again with a little more detail.</p></div>'}
+                ${quizHtml}
+            </div>`;
+    }
 
-                <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                     <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
-                        <i data-lucide="file-check-2" class="text-blue-500"></i>
-                        <span class="ml-2">Practice Test</span>
-                     </h3>
-                     <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                     <div id="quiz-results" class="mb-6"></div>
-                     ${quizHtml}
-                </div>
-            </div>
-        `;
+    function wireRenderedContent() {
+        const startButton = document.getElementById('lh-start-quiz');
+        const quizBody = document.getElementById('lh-quiz-body');
+        if (startButton && quizBody) {
+            startButton.addEventListener('click', () => {
+                quizBody.classList.remove('lg-hidden');
+                startButton.classList.add('lg-hidden');
+                quizBody.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+        window.LearnerQuiz.wireQuizForm(() => currentTest);
+        if (window.lucide?.createIcons) window.lucide.createIcons();
+    }
+
+    function setLoading(isLoading) {
+        document.getElementById('lh-input-panel').classList.toggle('lg-hidden', isLoading);
+        document.getElementById('lh-loading').classList.toggle('lg-hidden', !isLoading);
+        document.getElementById('generate-learning-help-btn').disabled = isLoading;
     }
 
     async function handleGenerateLearningHelp(profile) {
-        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
-
-        const topic = document.getElementById('learn-topic').value;
+        const topicEl = document.getElementById('learn-topic');
+        const topic = topicEl.value.trim();
+        const uploadedImageBase64 = imageUpload.getImageBase64();
         const errorEl = document.getElementById('lh-error');
         const outputEl = document.getElementById('lh-output');
-        const button = document.getElementById('generate-learning-help-btn');
-        const uploadedImageBase64 = imageUpload.getImageBase64();
 
-        errorEl.classList.add('hidden');
+        errorEl.classList.add('lg-hidden');
         if (!topic && !uploadedImageBase64) {
             errorEl.textContent = 'Please enter a topic or upload a photo.';
-            errorEl.classList.remove('hidden');
+            errorEl.classList.remove('lg-hidden');
+            topicEl.focus();
             return;
         }
+        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
 
-        button.disabled = true;
-        button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
-        outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your learning guide...</p></div>`;
+        setLoading(true);
+        outputEl.innerHTML = '';
         currentTest = [];
-
-        const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the following topic or image.
-Provide a JSON object with three keys: "learning_objectives", "revision_notes", and "practice_test".
-- "learning_objectives": A bulleted list of key things a student should know.
-- "revision_notes": Detailed and comprehensive notes, broken into key sections.
-- "practice_test": An array of 5-7 question objects. Each object must have three keys:
-    1. "question": The string of the question text.
-    2. "type": A string, either "MCQ" (Multiple Choice), "TrueFalse", or "ShortAnswer".
-    3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
-    4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
-The topic is: ${topic}`;
-        const inputPromptForDb = topic || "Learning Hub (Image)";
+        const prompt = `You are a helpful and safe AI assistant for students. Analyse the topic or image and create age-appropriate revision material.
+Return a valid JSON object with exactly these keys: "learning_objectives", "revision_notes", and "practice_test".
+- "learning_objectives": a concise array of the most important things to know. Omit filler.
+- "revision_notes": use an object of clearly named sections when that improves the material, or a concise string/array for a small topic. Include only sections that add real learning value; do not create empty or repetitive sections.
+- "practice_test": an array of 3-5 questions based only on the notes. Each question must contain "question", "type", "options", and "correct_answer". Type must be "MCQ", "TrueFalse", or "ShortAnswer". MCQ and TrueFalse correct_answer must exactly match one option. ShortAnswer options must be [].
+Topic or content: ${topic || 'Use the uploaded image.'}`;
+        const inputPromptForDb = topic || 'Revision Notes (Image)';
 
         try {
             const jsonText = await window.LearnerAPI.fetchWithRetry(prompt, true, 1, 'text', uploadedImageBase64);
             const result = JSON.parse(jsonText);
+            const savedContent = {
+                learning_objectives: result.learning_objectives,
+                revision_notes: result.revision_notes,
+                practice_test: Array.isArray(result.practice_test) ? result.practice_test : []
+            };
 
             window.LearnerAuth.supabase.from('saved_work').insert({
                 profile_id: profile.id,
                 work_type: 'learningHub',
                 input_prompt: { prompt: inputPromptForDb },
-                output_content: {
-                    learning_objectives: result.learning_objectives,
-                    revision_notes: result.revision_notes,
-                    practice_test: result.practice_test
-                }
-            }).then(({ error }) => {
-                if (error) console.error('Error saving work:', error.message);
-            });
+                output_content: savedContent
+            }).then(({ error }) => { if (error) console.error('Error saving work:', error.message); });
 
-            const originalLearningHubContent = {
-                learning_objectives: result.learning_objectives,
-                revision_notes: result.revision_notes,
-                practice_test: result.practice_test || []
-            };
-
-            const outputHtml = renderLearningHubContent(originalLearningHubContent);
-
-            outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell(
-                'lh-answer-toolbar',
-                'lh-answer-content',
-                outputHtml
-            );
-
+            const outputHtml = renderRevisionContent(savedContent);
+            outputEl.innerHTML = `<div class="lg-toolbar-wrap">${window.LearnerOutput.createTranslatedOutputShell('lh-answer-toolbar', 'lh-answer-content', outputHtml)}</div>`;
             window.LearnerOutput.attachStructuredTranslationToolbar({
-                toolbarId: 'lh-answer-toolbar',
-                contentId: 'lh-answer-content',
-                originalContent: originalLearningHubContent,
-                sourceTool: 'learningHub',
-                topic: inputPromptForDb,
-                structureInstructions: LEARNING_HUB_TRANSLATION_INSTRUCTIONS,
-                renderContent: renderLearningHubContent,
-                onRerender: () => window.LearnerQuiz.wireQuizForm(() => currentTest)
+                toolbarId: 'lh-answer-toolbar', contentId: 'lh-answer-content', originalContent: savedContent,
+                sourceTool: 'learningHub', topic: inputPromptForDb, structureInstructions: TRANSLATION_INSTRUCTIONS,
+                renderContent: renderRevisionContent, onRerender: wireRenderedContent
             });
-
-            if (window.lucide?.createIcons) window.lucide.createIcons();
-            window.LearnerQuiz.wireQuizForm(() => currentTest);
-        } catch (e) {
-            errorEl.textContent = `An error occurred: ${e.message}`;
-            errorEl.classList.remove('hidden');
+            wireRenderedContent();
+        } catch (error) {
+            errorEl.textContent = `We could not create the revision guide: ${error.message}`;
+            errorEl.classList.remove('lg-hidden');
             outputEl.innerHTML = '';
         } finally {
-            button.disabled = false;
-            button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Help Me Learn`;
-            if (window.lucide?.createIcons) window.lucide.createIcons();
+            document.getElementById('lh-loading').classList.add('lg-hidden');
+            document.getElementById('lh-input-panel').classList.remove('lg-hidden');
+            document.getElementById('generate-learning-help-btn').disabled = false;
         }
     }
 
     async function init() {
         const result = await window.LearnerAuth.requireSessionAndProfile();
         if (!result) return;
-
-        const { profile } = result;
-
-        root.innerHTML = pageTemplate(profile.name);
-        if (window.lucide?.createIcons) window.lucide.createIcons();
-
+        const { profile, account } = result;
+        window.LearnerShell.render({ root, profile, account, activeKey: 'revision', title: 'Revision Notes', content: pageContent(profile.name) });
         imageUpload = window.LearnerImageUpload.attach();
-
-        document.getElementById('generate-learning-help-btn').addEventListener('click', () => {
-            handleGenerateLearningHelp(profile);
-        });
+        document.getElementById('generate-learning-help-btn').addEventListener('click', () => handleGenerateLearningHelp(profile));
     }
 
     init();
