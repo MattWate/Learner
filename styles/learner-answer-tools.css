@@ -1,12 +1,11 @@
 /* LearnerGenie output toolbar styles for pages that do not load Tailwind. */
 [id$='-answer-toolbar'] > div,
 .translation-toolbar {
-  display:flex;
+  display:grid;
+  grid-template-columns:auto minmax(250px,1fr) auto;
   align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  flex-wrap:wrap;
-  padding:12px;
+  gap:12px 16px;
+  padding:12px 14px;
   border:1px solid #e5e7eb;
   border-radius:18px;
   background:rgba(255,255,255,.96);
@@ -19,12 +18,16 @@
   border-radius:999px;
   background:#fff;
   color:#465365;
-  padding:8px 12px;
+  padding:8px 13px;
   font-weight:700;
   font-size:13px;
+  line-height:1;
   cursor:pointer;
 }
-[id$='-answer-toolbar'] select { padding-right:34px; }
+[id$='-answer-toolbar'] select {
+  min-width:150px;
+  padding-right:36px;
+}
 [id$='-answer-toolbar'] button:hover:not(:disabled),
 [id$='-answer-toolbar'] select:hover {
   border-color:#b9d8d3;
@@ -38,12 +41,14 @@
 }
 [id$='-answer-toolbar'] label {
   color:#667085;
-  font-size:13px;
-  font-weight:700;
+  font-size:12px;
+  font-weight:800;
+  line-height:1.25;
 }
 [id$='-answer-toolbar'] p,
 [id$='-answer-toolbar'] .text-xs,
 [id$='-answer-toolbar'] .text-sm {
+  grid-column:1/-1;
   width:100%;
   margin:0;
   color:#667085;
@@ -58,9 +63,34 @@
 [id$='-answer-toolbar'] .flex-wrap { flex-wrap:wrap; }
 [id$='-answer-toolbar'] .w-full { width:100%; }
 [id$='-answer-toolbar'] .hidden { display:none !important; }
-@media(max-width:620px){
+[id$='-answer-toolbar'] > div > div {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+[id$='-answer-toolbar'] > div > div:nth-child(2) {
+  justify-content:center;
+  flex-wrap:wrap;
+}
+[id$='-answer-toolbar'] > div > div:last-child {
+  justify-content:flex-end;
+}
+@media(max-width:760px){
   [id$='-answer-toolbar'] > div,
-  .translation-toolbar { align-items:stretch; }
+  .translation-toolbar {
+    grid-template-columns:1fr;
+    align-items:stretch;
+  }
+  [id$='-answer-toolbar'] > div > div,
+  [id$='-answer-toolbar'] > div > div:nth-child(2),
+  [id$='-answer-toolbar'] > div > div:last-child {
+    justify-content:flex-start;
+    flex-wrap:wrap;
+  }
+}
+@media(max-width:520px){
   [id$='-answer-toolbar'] button,
   [id$='-answer-toolbar'] select { max-width:100%; }
+  [id$='-answer-toolbar'] select { width:100%; }
 }
