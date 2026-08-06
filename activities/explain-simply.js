@@ -12,7 +12,7 @@
                         <p class="lg-page-copy">Turn a difficult topic into a clear explanation that feels easier to understand${profileName ? ` for ${escapeHtml(profileName)}` : ''}.</p>
                     </div>
                     <div class="lg-header-actions">
-                        <a class="lg-icon-button" href="${window.LearnerAuth.withProfileId('/app.html#history')}" title="Activity history" aria-label="Activity history"><i data-lucide="history" width="19"></i></a>
+                        <a class="lg-icon-button" href="${window.LearnerShell.profileLink('/app.html#history')}" title="Activity history" aria-label="Activity history"><i data-lucide="history" width="19"></i></a>
                     </div>
                 </header>
 
@@ -60,7 +60,6 @@
         const inputPanel = document.getElementById('es-input-panel');
         const loadingPanel = document.getElementById('es-loading');
         const button = document.getElementById('generate-explanation-btn');
-
         inputPanel.classList.toggle('lg-hidden', isLoading);
         loadingPanel.classList.toggle('lg-hidden', !isLoading);
         button.disabled = isLoading;
@@ -99,16 +98,8 @@
                 if (error) console.error('Error saving work:', error.message);
             });
 
-            const outputHtml = `
-                <div class="lg-output-card">
-                    ${window.LearnerOutput.createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
-                </div>`;
-
-            outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell(
-                'es-answer-toolbar',
-                'es-answer-content',
-                outputHtml
-            );
+            const outputHtml = `<div class="lg-output-card">${window.LearnerOutput.createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}</div>`;
+            outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell('es-answer-toolbar', 'es-answer-content', outputHtml);
 
             window.LearnerOutput.attachTextTranslationToolbar({
                 toolbarId: 'es-answer-toolbar',
@@ -122,11 +113,9 @@
         } catch (error) {
             errorEl.textContent = `We could not create the explanation: ${error.message}`;
             errorEl.classList.remove('lg-hidden');
-            document.getElementById('es-input-panel').classList.remove('lg-hidden');
             outputEl.innerHTML = '';
         } finally {
-            document.getElementById('es-loading').classList.add('lg-hidden');
-            document.getElementById('generate-explanation-btn').disabled = false;
+            setLoading(false);
         }
     }
 
@@ -135,14 +124,7 @@
         if (!result) return;
 
         const { profile, account } = result;
-        window.LearnerShell.render({
-            root,
-            profile,
-            account,
-            activeKey: 'explain',
-            title: 'Explain It Simply',
-            content: pageContent(profile.name)
-        });
+        window.LearnerShell.render({ root, profile, account, activeKey: 'explain', title: 'Explain It Simply', content: pageContent(profile.name) });
 
         const topicEl = document.getElementById('explain-topic');
         const countEl = document.getElementById('es-character-count');
