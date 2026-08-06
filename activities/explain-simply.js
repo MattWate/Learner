@@ -1,64 +1,89 @@
-/*
- * LearnerGenie - Explain Simply (standalone page)
- *
- * Real pilot for the full-page-navigation architecture: same behavior as
- * handleGenerateExplanation() in app.html, but as its own page using the
- * shared/learner-*.js modules instead of duplicating that logic.
- *
- * app.html is untouched by this file. This page is reached by full page
- * navigation and expects a ?profile_id= query param, the same convention
- * study-squads.html already uses.
- */
+/* LearnerGenie - Explain It Simply standalone activity. */
 (function () {
     const root = document.getElementById('page-root');
 
-    function pageTemplate(profileName) {
+    function pageContent(profileName) {
         return `
-            <div class="min-h-screen">
-                <header class="max-w-4xl mx-auto px-4 pt-6">
-                    <a href="${window.LearnerAuth.withProfileId('/app.html')}" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                        <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i>
-                        Back to dashboard
-                    </a>
+            <div class="lg-page">
+                <header class="lg-page-header">
+                    <div>
+                        <div class="lg-eyebrow">Understand</div>
+                        <h1 class="lg-page-title">Explain It Simply</h1>
+                        <p class="lg-page-copy">Turn a difficult topic into a clear explanation that feels easier to understand${profileName ? ` for ${escapeHtml(profileName)}` : ''}.</p>
+                    </div>
+                    <div class="lg-header-actions">
+                        <a class="lg-icon-button" href="${window.LearnerAuth.withProfileId('/app.html#history')}" title="Activity history" aria-label="Activity history"><i data-lucide="history" width="19"></i></a>
+                    </div>
                 </header>
 
-                <main class="max-w-4xl mx-auto px-4 py-6">
-                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Explain It Simply</h2>
-                        <p class="text-gray-500 mb-8">Enter a complex topic or question to get a simple explanation${profileName ? ` for ${profileName}` : ''}.</p>
+                <section class="lg-panel lg-input-panel" id="es-input-panel">
+                    <div class="lg-panel-heading">
+                        <div class="lg-panel-icon"><i data-lucide="lightbulb"></i></div>
                         <div>
-                            <label for="explain-topic" class="block text-sm font-medium text-gray-700 mb-1">What do you want explained?</label>
-                            <textarea id="explain-topic" rows="4" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What is photosynthesis? or Explain black holes"></textarea>
+                            <h2>What do you want explained?</h2>
+                            <p>Ask about a topic, idea or question. LearnerGenie will break it into simpler parts.</p>
                         </div>
-                        <button id="generate-explanation-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300">
-                            <i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain
-                        </button>
-                        <div id="es-error" class="text-red-500 text-sm mt-2 hidden"></div>
                     </div>
-                    <div id="es-output" class="mt-8"></div>
-                </main>
-            </div>
-        `;
+                    <div class="lg-field">
+                        <label for="explain-topic">Your topic or question</label>
+                        <textarea id="explain-topic" class="lg-textarea" placeholder="For example: Why does it sometimes snow and sometimes sleet?"></textarea>
+                        <div class="lg-field-note"><span>Try to be as specific as you can.</span><span id="es-character-count">0 characters</span></div>
+                    </div>
+                    <div id="es-error" class="lg-inline-error lg-hidden" role="alert"></div>
+                    <div class="lg-action-row">
+                        <button id="generate-explanation-btn" class="lg-primary-button" type="button">
+                            <i data-lucide="sparkles" width="18"></i><span>Explain it simply</span>
+                        </button>
+                    </div>
+                </section>
+
+                <section id="es-loading" class="lg-panel lg-loading-panel lg-hidden" aria-live="polite">
+                    <div class="lg-spinner"></div>
+                    <h3>Making this easier to understand…</h3>
+                    <p>We are turning the topic into a clear, learner-friendly explanation.</p>
+                </section>
+
+                <div id="es-output" class="lg-output" aria-live="polite"></div>
+            </div>`;
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function setLoading(isLoading) {
+        const inputPanel = document.getElementById('es-input-panel');
+        const loadingPanel = document.getElementById('es-loading');
+        const button = document.getElementById('generate-explanation-btn');
+
+        inputPanel.classList.toggle('lg-hidden', isLoading);
+        loadingPanel.classList.toggle('lg-hidden', !isLoading);
+        button.disabled = isLoading;
     }
 
     async function handleGenerateExplanation(profile) {
-        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
-
-        const topic = document.getElementById('explain-topic').value;
+        const topicEl = document.getElementById('explain-topic');
+        const topic = topicEl.value.trim();
         const errorEl = document.getElementById('es-error');
         const outputEl = document.getElementById('es-output');
-        const button = document.getElementById('generate-explanation-btn');
 
-        errorEl.classList.add('hidden');
+        errorEl.classList.add('lg-hidden');
         if (!topic) {
             errorEl.textContent = 'Please enter a topic or question.';
-            errorEl.classList.remove('hidden');
+            errorEl.classList.remove('lg-hidden');
+            topicEl.focus();
             return;
         }
 
-        button.disabled = true;
-        button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Explaining...`;
-        outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking of a simple explanation...</p></div>`;
+        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
+
+        setLoading(true);
+        outputEl.innerHTML = '';
 
         const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Topic: "${topic}"`;
 
@@ -75,10 +100,9 @@
             });
 
             const outputHtml = `
-                <div class="bg-gray-50/50 p-6 rounded-lg">
+                <div class="lg-output-card">
                     ${window.LearnerOutput.createSectionHTML('baby', 'amber', 'Here is a simple explanation', text)}
-                </div>
-            `;
+                </div>`;
 
             outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell(
                 'es-answer-toolbar',
@@ -95,29 +119,37 @@
             });
 
             if (window.lucide?.createIcons) window.lucide.createIcons();
-        } catch (e) {
-            errorEl.textContent = `An error occurred: ${e.message}`;
-            errorEl.classList.remove('hidden');
+        } catch (error) {
+            errorEl.textContent = `We could not create the explanation: ${error.message}`;
+            errorEl.classList.remove('lg-hidden');
+            document.getElementById('es-input-panel').classList.remove('lg-hidden');
             outputEl.innerHTML = '';
         } finally {
-            button.disabled = false;
-            button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Explain`;
-            if (window.lucide?.createIcons) window.lucide.createIcons();
+            document.getElementById('es-loading').classList.add('lg-hidden');
+            document.getElementById('generate-explanation-btn').disabled = false;
         }
     }
 
     async function init() {
         const result = await window.LearnerAuth.requireSessionAndProfile();
-        if (!result) return; // requireSessionAndProfile already redirected
+        if (!result) return;
 
-        const { profile } = result;
-
-        root.innerHTML = pageTemplate(profile.name);
-        if (window.lucide?.createIcons) window.lucide.createIcons();
-
-        document.getElementById('generate-explanation-btn').addEventListener('click', () => {
-            handleGenerateExplanation(profile);
+        const { profile, account } = result;
+        window.LearnerShell.render({
+            root,
+            profile,
+            account,
+            activeKey: 'explain',
+            title: 'Explain It Simply',
+            content: pageContent(profile.name)
         });
+
+        const topicEl = document.getElementById('explain-topic');
+        const countEl = document.getElementById('es-character-count');
+        topicEl.addEventListener('input', () => {
+            countEl.textContent = `${topicEl.value.length} character${topicEl.value.length === 1 ? '' : 's'}`;
+        });
+        document.getElementById('generate-explanation-btn').addEventListener('click', () => handleGenerateExplanation(profile));
     }
 
     init();
