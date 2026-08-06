@@ -17,35 +17,14 @@
     <script src="/answer-tools-tts-language-patch.js"></script>
 
     <style>
-        body {
-            font-family: 'Poppins', sans-serif;
-            background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc);
-            min-height: 100vh;
-        }
+        body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); min-height: 100vh; }
         .prose { max-width: 65ch; }
         .prose-sm { font-size: 0.875rem; line-height: 1.5; }
-        .quiz-question-wrapper.correct {
-            border-left-color: #22c55e;
-            background-color: #f0fdf4;
-        }
-        .quiz-question-wrapper.incorrect {
-            border-left-color: #ef4444;
-            background-color: #fef2f2;
-        }
-        .quiz-feedback {
-            display: none;
-            font-size: 0.875rem;
-            font-weight: 500;
-            margin-top: 0.75rem;
-        }
-        .quiz-question-wrapper.correct .quiz-feedback.correct {
-            display: block;
-            color: #166534;
-        }
-        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect {
-            display: block;
-            color: #991b1b;
-        }
+        .quiz-question-wrapper.correct { border-left-color: #22c55e; background-color: #f0fdf4; }
+        .quiz-question-wrapper.incorrect { border-left-color: #ef4444; background-color: #fef2f2; }
+        .quiz-feedback { display: none; font-size: 0.875rem; font-weight: 500; margin-top: 0.75rem; }
+        .quiz-question-wrapper.correct .quiz-feedback.correct { display: block; color: #166534; }
+        .quiz-question-wrapper.incorrect .quiz-feedback.incorrect { display: block; color: #991b1b; }
     </style>
 </head>
 <body>
@@ -57,6 +36,7 @@
     <script src="/shared/learner-api.js"></script>
     <script src="/shared/learner-usage.js"></script>
     <script src="/shared/learner-output.js"></script>
+    <script src="/shared/learner-markdown.js"></script>
     <script src="/shared/learner-region.js"></script>
     <script src="/shared/learner-quiz.js"></script>
     <script src="/activities/test-builder.js"></script>
