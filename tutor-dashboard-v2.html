@@ -3,24 +3,59 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Learning Genie - Tutor Dashboard</title>
+  <title>LearnerGenie · Tutor Dashboard</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml" />
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); min-height: 100vh; }
-    .clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-    .modal-backdrop { background-color: rgba(15, 23, 42, 0.65); }
-  </style>
+  <link rel="stylesheet" href="/styles/learner-design.css" />
+  <link rel="stylesheet" href="/styles/tutor-dashboard.css" />
 </head>
-<body>
-  <div id="app" class="min-h-screen p-4 md:p-8"></div>
+<body class="lg-tutor-page">
+  <header class="lg-tutor-mobile-header">
+    <button id="tutor-menu-open" class="lg-mobile-menu-button" type="button" aria-label="Open tutor navigation"><i data-lucide="menu"></i></button>
+    <div><strong>LearnerGenie</strong><span>Tutor Centre</span></div>
+  </header>
+
+  <aside class="lg-sidebar lg-tutor-sidebar" id="tutor-sidebar">
+    <div class="lg-brand">
+      <div class="lg-brand-mark">L</div>
+      <div><strong>LearnerGenie</strong><span>Tutor Centre</span></div>
+    </div>
+
+    <div class="lg-tutor-centre-card">
+      <span>Active centre</span>
+      <strong id="tutor-centre-name">Tutor Centre</strong>
+    </div>
+
+    <nav class="lg-nav lg-tutor-nav">
+      <div class="lg-nav-label">Overview</div>
+      <button class="lg-nav-link is-active" type="button" data-tutor-view="overview"><i data-lucide="layout-dashboard"></i><span>Dashboard</span></button>
+      <button class="lg-nav-link" type="button" data-tutor-view="learners"><i data-lucide="users"></i><span>Learners</span></button>
+      <button class="lg-nav-link" type="button" data-tutor-view="activity"><i data-lucide="activity"></i><span>Activity</span></button>
+      <div class="lg-nav-label">Manage</div>
+      <button class="lg-nav-link" type="button" data-tutor-view="groups"><i data-lucide="layers-3"></i><span>Groups</span></button>
+      <a class="lg-nav-link" href="/tutor-centre-invites.html"><i data-lucide="mail-plus"></i><span>Invites</span></a>
+      <a class="lg-nav-link" href="/app.html"><i data-lucide="arrow-left"></i><span>Learner app</span></a>
+    </nav>
+
+    <div class="lg-tutor-sidebar-bottom">
+      <div class="lg-tutor-account-card"><strong>Tutor workspace</strong><span>Centre administrator</span></div>
+    </div>
+  </aside>
+
+  <div id="tutor-menu-overlay" class="lg-mobile-overlay"></div>
+
+  <main class="lg-tutor-main">
+    <div id="app"></div>
+  </main>
+
   <div id="modal-root"></div>
   <script src="/tutor-dashboard-v2.js"></script>
   <script src="/tutor-json-renderer.js"></script>
+  <script src="/tutor-dashboard-ui.js"></script>
 </body>
 </html>
