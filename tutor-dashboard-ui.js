@@ -35,15 +35,30 @@
     intro.querySelector('[data-ui-insight]')?.addEventListener('click',()=>document.getElementById('generate-ai-insight-btn')?.click());
   }
 
+  function metricHtml(label,value,note,iconName){
+    return `<div><div class="flex items-center justify-between"><p class="text-xs font-bold uppercase tracking-wide text-gray-500">${esc(label)}</p><i data-lucide="${iconName}" class="h-5 w-5 text-indigo-500"></i></div><div class="mt-3 text-2xl font-bold text-gray-800 leading-tight">${esc(value)}</div><p class="mt-2 text-sm text-gray-500">${esc(note)}</p></div>`;
+  }
+
   function ensureMetrics(root){
     const metrics=[...root.children].find(el=>el.tagName==='SECTION' && el.classList.contains('grid') && el.querySelectorAll(':scope > div').length===5);
     if(!metrics)return;
     metrics.classList.add('lg-tutor-metrics');
-    const cards=[...metrics.children];
-    if(cards.length===5){
-      // The approved dashboard uses four decision-oriented metrics. Keep focus data elsewhere.
-      cards[4].style.display='none';
-    }
+    const learners=typeof state!=='undefined' ? (state.learners||[]) : [];
+    const activity=typeof state!=='undefined' ? (state.activity||[]) : [];
+    const weekCutoff=Date.now()-7*86400000;
+    const weekActs=activity.filter(a=>new Date(a.created_at).getTime()>=weekCutoff);
+    const activeIds=new Set(weekActs.map(a=>Number(a.profile_id)));
+    const attention=learners.filter(l=>{
+      const s=typeof summaryForLearner==='function'?summaryForLearner(l):{latest:null};
+      const d=typeof daysAgo==='function'?daysAgo(s.latest):null;
+      return d===null || d>=7;
+    }).length;
+    const groups=typeof state!=='undefined' ? (state.groups||[]).length : 0;
+    metrics.innerHTML=
+      metricHtml('Assigned learners',learners.length,`Across ${groups} tutor group${groups===1?'':'s'}`,'users')+
+      metricHtml('Active this week',activeIds.size,learners.length?`${Math.round((activeIds.size/learners.length)*100)}% of assigned learners`:'No assigned learners','activity')+
+      metricHtml('Need attention',attention,'Inactive for 7+ days or no activity','triangle-alert')+
+      metricHtml('Activities this week',weekActs.length,'Learning actions in the last 7 days','archive');
   }
 
   function ensureTabs(root){
@@ -81,9 +96,7 @@
     const compactLearners=learnersCard?.cloneNode(true);
     if(compactLearners){
       compactLearners.querySelectorAll('tbody tr').forEach((row,i)=>{ if(i>3)row.remove(); });
-      const head=compactLearners.querySelector('h2'); if(head)head.textContent='Learners';
       compactLearners.querySelectorAll('input,select').forEach(el=>el.remove());
-      compactLearners.querySelector('[class*="grid-cols-1"]')?.remove();
       compactLearners.querySelectorAll('[data-open-learner]').forEach(row=>row.addEventListener('click',()=>{ const id=row.dataset.openLearner; if(typeof openLearner==='function')openLearner(id); }));
       overviewMain.appendChild(compactLearners);
     }
@@ -137,7 +150,6 @@
   function enhance(){
     const root=app.firstElementChild;
     if(!root)return;
-    // Do not restructure loading/error/access states.
     if(!root.querySelector('header') || !root.textContent.includes('Tutor Insight')){ setCentreLabel(); icon(); return; }
     setCentreLabel(); ensureIntro(root); ensureMetrics(root); ensureTabs(root); buildViews(root); bindShell(); showView(activeView); icon();
   }
