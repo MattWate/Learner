@@ -50,9 +50,29 @@
             </div>`;
     }
 
+    function valueToText(value) {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return String(value);
+        if (Array.isArray(value)) return value.map(valueToText).filter(Boolean).join('\n');
+        if (typeof value === 'object') {
+            const preferredKeys = ['working', 'calculation', 'equation', 'step', 'instruction', 'explanation', 'reason', 'description', 'text', 'answer', 'problem', 'question'];
+            const preferred = preferredKeys
+                .filter(key => value[key] !== undefined && value[key] !== null && value[key] !== '')
+                .map(key => valueToText(value[key]))
+                .filter(Boolean);
+            if (preferred.length) return [...new Set(preferred)].join('\n');
+            return Object.entries(value)
+                .map(([key, child]) => `${key.replace(/_/g, ' ')}: ${valueToText(child)}`)
+                .filter(line => !line.endsWith(': '))
+                .join('\n');
+        }
+        return String(value);
+    }
+
     function renderMarkdown(value) {
-        if (window.LearnerOutput?.renderMarkdown) return window.LearnerOutput.renderMarkdown(value ?? '');
-        return `<p>${escapeHtml(value ?? '')}</p>`;
+        const text = valueToText(value);
+        if (window.LearnerOutput?.renderMarkdown) return window.LearnerOutput.renderMarkdown(text);
+        return `<p>${escapeHtml(text)}</p>`;
     }
 
     function readButton(targetId) {
@@ -60,8 +80,8 @@
     }
 
     function renderMathAnswer(result, mathProblem) {
-        const steps = Array.isArray(result.steps) ? result.steps.filter(Boolean) : [];
-        const practice = Array.isArray(result.practice_problems) ? result.practice_problems.filter(Boolean).slice(0, 3) : [];
+        const steps = Array.isArray(result.steps) ? result.steps.filter(step => valueToText(step).trim()) : [];
+        const practice = Array.isArray(result.practice_problems) ? result.practice_problems.filter(prob => valueToText(prob).trim()).slice(0, 3) : [];
         const method = result.method || result.explanation || '';
 
         return `
@@ -81,7 +101,7 @@
                     <section class="lg-math-card lg-math-card--answer"><div class="lg-math-card-head"><h3><i data-lucide="circle-check" width="20" style="color:var(--lg-teal)"></i>Final answer</h3>${readButton('math-final')}</div><div class="lg-math-final" id="math-final">${renderMarkdown(result.final_answer || 'Check the working above.')}</div></section>
                 </div>
 
-                ${practice.length ? `<section class="lg-math-practice"><h3><i data-lucide="pencil-line" width="20" style="color:#a27714"></i>Now you try</h3><p>Choose a similar problem and LearnerGenie will place it in the problem box for you.</p><div class="lg-math-practice-list">${practice.map(prob => `<button type="button" class="lg-math-practice-button" data-practice-problem="${escapeHtml(encodeURIComponent(String(prob)))}"><span>${escapeHtml(prob)}</span><span>Try this one →</span></button>`).join('')}</div></section>` : ''}
+                ${practice.length ? `<section class="lg-math-practice"><h3><i data-lucide="pencil-line" width="20" style="color:#a27714"></i>Now you try</h3><p>Choose a similar problem and LearnerGenie will place it in the problem box for you.</p><div class="lg-math-practice-list">${practice.map(prob => { const problemText = valueToText(prob); return `<button type="button" class="lg-math-practice-button" data-practice-problem="${escapeHtml(encodeURIComponent(problemText))}"><span>${escapeHtml(problemText)}</span><span>Try this one →</span></button>`; }).join('')}</div></section>` : ''}
             </div>`;
     }
 
@@ -129,7 +149,7 @@ Rules:
 Return valid JSON only with these keys:
 - "explanation": a short explanation of what the learner needs to understand.
 - "method": a concise description of the method being used.
-- "steps": an array of clear step-by-step working, in order.
+- "steps": an array of clear step-by-step working, in order. Prefer plain strings, but structured objects are allowed when a step needs separate equation and explanation fields.
 - "final_answer": the definitive result or conclusion.
 - "practice_problems": an array of 2 similar problems for the learner to try.`;
 
