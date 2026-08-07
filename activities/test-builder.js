@@ -1,13 +1,9 @@
-/*
- * LearnerGenie - Test Builder (standalone page)
- *
- * Same behavior as handleGenerateTestBuilder() in app.html: custom practice
- * test by topic, question count, and question types, with structured
- * translation support.
- */
+/* LearnerGenie - Practice Test */
 (function () {
     const root = document.getElementById('page-root');
     let currentTest = [];
+    let currentQuestionIndex = 0;
+    let currentTopic = '';
 
     const TEST_BUILDER_TRANSLATION_INSTRUCTIONS = `
 Keep the same JSON structure for Test Builder.
@@ -21,155 +17,243 @@ Keep mathematical notation unchanged.
 Return valid JSON only.
     `.trim();
 
-    function pageTemplate(profileName) {
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function pageContent(profileName) {
         return `
-            <div class="min-h-screen">
-                <header class="max-w-4xl mx-auto px-4 pt-6">
-                    <a href="${window.LearnerAuth.withProfileId('/app.html')}" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                        <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i>
-                        Back to dashboard
-                    </a>
+            <div class="lg-page">
+                <header class="lg-page-header">
+                    <div>
+                        <div class="lg-eyebrow">Practise</div>
+                        <h1 class="lg-page-title">Practice Test</h1>
+                        <p class="lg-page-copy">Build a focused test on any topic, choose the question mix, then work through it one question at a time${profileName ? `, ${escapeHtml(profileName)}` : ''}.</p>
+                    </div>
                 </header>
 
-                <main class="max-w-4xl mx-auto px-4 py-6">
-                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-teal-500 print:hidden">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Test Builder</h2>
-                        <p class="text-gray-500 mb-8">Create a custom practice test on any topic${profileName ? ` for ${profileName}` : ''}.</p>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                            <div class="md:col-span-2">
-                                <label for="tb-topic" class="block text-sm font-medium text-gray-700 mb-1">Topic</label>
-                                <textarea id="tb-topic" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., World War 2 Key Battles"></textarea>
-                            </div>
-                            <div>
-                                <label for="tb-num-questions" class="block text-sm font-medium text-gray-700 mb-1">Number of Questions</label>
-                                <select id="tb-num-questions" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-white">
-                                    <option value="10" selected>10</option>
-                                    <option value="20">20</option>
-                                    <option value="30">30</option>
+                <section class="lg-panel lg-input-panel" id="tb-setup">
+                    <div class="lg-panel-heading">
+                        <div class="lg-panel-icon" style="background:var(--lg-coral-soft);color:var(--lg-coral)"><i data-lucide="clipboard-check"></i></div>
+                        <div>
+                            <h2>Build your practice test</h2>
+                            <p>Choose a topic, test length and the types of questions you want to practise.</p>
+                        </div>
+                    </div>
+
+                    <div class="lg-test-setup-grid">
+                        <div class="lg-field" style="margin-top:0">
+                            <label for="tb-topic">Topic or learning content</label>
+                            <textarea id="tb-topic" class="lg-textarea" placeholder="e.g. World War 2 key battles"></textarea>
+                            <div class="lg-field-note"><span>Be specific if you want the test to focus on one part of a subject.</span></div>
+                        </div>
+
+                        <div class="lg-test-options">
+                            <div class="lg-test-option-card">
+                                <label for="tb-num-questions">Number of questions</label>
+                                <select id="tb-num-questions" class="lg-test-select">
+                                    <option value="10" selected>10 questions</option>
+                                    <option value="20">20 questions</option>
+                                    <option value="30">30 questions</option>
                                 </select>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Question Types</label>
-                                <div class="space-y-2 mt-2">
-                                    <label class="flex items-center"><input type="checkbox" id="tb-qt-mcq" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Multiple Choice</span></label>
-                                    <label class="flex items-center"><input type="checkbox" id="tb-qt-tf" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">True/False</span></label>
-                                    <label class="flex items-center"><input type="checkbox" id="tb-qt-short" class="h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500" checked> <span class="ml-2 text-sm text-gray-700">Short Answer</span></label>
+                            <div class="lg-test-option-card">
+                                <label>Question mix</label>
+                                <div class="lg-question-types">
+                                    <label class="lg-question-type"><input type="checkbox" id="tb-qt-mcq" checked><span>Multiple choice</span></label>
+                                    <label class="lg-question-type"><input type="checkbox" id="tb-qt-tf" checked><span>True / False</span></label>
+                                    <label class="lg-question-type"><input type="checkbox" id="tb-qt-short" checked><span>Short answer</span></label>
                                 </div>
                             </div>
                         </div>
-                        <button id="generate-test-builder-btn" class="w-full bg-teal-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-teal-700 transition-all duration-300 flex items-center justify-center disabled:bg-teal-300 mb-8"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test</button>
-                        <div id="tb-error" class="text-red-500 text-sm mt-2 mb-6 hidden"></div>
                     </div>
-                    <div id="tb-output" class="mt-8">
-                         <div class="text-center p-12 bg-white rounded-xl shadow-lg border-t-4 border-gray-200">
-                            <i data-lucide="lightbulb" class="mx-auto h-16 w-16 text-gray-300"></i>
-                            <h3 class="mt-4 text-lg font-semibold text-gray-700">Your test will appear here.</h3>
-                            <p class="mt-1 text-gray-500">Fill out the form above to create a practice test.</p>
-                        </div>
-                    </div>
-                </main>
-            </div>
-        `;
+
+                    <div id="tb-error" class="lg-inline-error lg-hidden"></div>
+                    <div class="lg-action-row"><button id="generate-test-builder-btn" class="lg-primary-button"><i data-lucide="sparkles" width="18"></i>Build practice test</button></div>
+                </section>
+
+                <div id="tb-output"><div class="lg-test-empty"><i data-lucide="clipboard-list" width="30"></i><p>Your practice test will appear here when you are ready.</p></div></div>
+            </div>`;
     }
 
     function renderTestBuilderContent(testData) {
-        currentTest = testData || [];
+        currentTest = Array.isArray(testData) ? testData : [];
+        currentQuestionIndex = 0;
         const quizHtml = window.LearnerQuiz.renderPracticeTest(currentTest);
+        const map = currentTest.map((_, index) => `<button type="button" data-question-jump="${index}">${index + 1}</button>`).join('');
 
         return `
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                 <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
-                    <i data-lucide="clipboard-check" class="text-teal-500"></i>
-                    <span class="ml-2">Your Custom Test</span>
-                 </h3>
-                 <p class="text-sm text-gray-600 mb-6">Test your knowledge! Check your answers at the end.</p>
-                 <div id="quiz-results" class="mb-6"></div>
-                 ${quizHtml}
-            </div>
-        `;
+            <div class="lg-test-shell">
+                <section class="lg-test-main" id="lg-test-main">
+                    <div class="lg-test-results" id="quiz-results"></div>
+                    <div class="lg-test-progress-row" id="lg-test-progress-row">
+                        <strong id="lg-test-progress-label">Question 1 of ${currentTest.length}</strong>
+                        <div class="lg-test-progress-track"><div class="lg-test-progress-bar" id="lg-test-progress-bar"></div></div>
+                    </div>
+                    ${quizHtml}
+                    <div class="lg-test-nav" id="lg-test-nav">
+                        <button type="button" class="lg-test-back" id="lg-test-back">Back</button>
+                        <button type="button" class="lg-test-next" id="lg-test-next">Next question</button>
+                    </div>
+                </section>
+                <aside class="lg-test-side" id="lg-test-side">
+                    <h3>Test progress</h3>
+                    <div class="lg-question-map" id="lg-question-map">${map}</div>
+                    <div class="lg-test-tip"><strong>Take your time</strong><p>This is practice. Use the test to find what you understand and what needs another look.</p></div>
+                </aside>
+            </div>`;
+    }
+
+    function isQuestionAnswered(index) {
+        const question = currentTest[index];
+        if (!question) return false;
+        if (question.type === 'MCQ' || question.type === 'TrueFalse') {
+            return Boolean(document.querySelector(`input[name="question_${index}"]:checked`));
+        }
+        const input = document.querySelector(`input[name="question_${index}"]`);
+        return Boolean(input?.value.trim());
+    }
+
+    function refreshQuestionView() {
+        const blocks = Array.from(document.querySelectorAll('.quiz-question-wrapper'));
+        if (!blocks.length) return;
+        currentQuestionIndex = Math.max(0, Math.min(currentQuestionIndex, blocks.length - 1));
+
+        blocks.forEach((block, index) => block.classList.toggle('lg-current-question', index === currentQuestionIndex));
+        document.getElementById('lg-test-progress-label').textContent = `Question ${currentQuestionIndex + 1} of ${blocks.length}`;
+        document.getElementById('lg-test-progress-bar').style.width = `${((currentQuestionIndex + 1) / blocks.length) * 100}%`;
+
+        const back = document.getElementById('lg-test-back');
+        const next = document.getElementById('lg-test-next');
+        back.disabled = currentQuestionIndex === 0;
+        back.style.opacity = currentQuestionIndex === 0 ? '.45' : '1';
+        next.textContent = currentQuestionIndex === blocks.length - 1 ? 'Check my answers' : 'Next question';
+
+        document.querySelectorAll('[data-question-jump]').forEach(button => {
+            const index = Number(button.dataset.questionJump);
+            button.classList.toggle('is-current', index === currentQuestionIndex);
+            button.classList.toggle('is-answered', index !== currentQuestionIndex && isQuestionAnswered(index));
+        });
+    }
+
+    async function showResultsReview() {
+        await window.LearnerQuiz.submitQuiz(currentTest);
+        const main = document.getElementById('lg-test-main');
+        main?.classList.add('lg-review-mode');
+        document.getElementById('lg-test-progress-row')?.classList.add('lg-hidden');
+        document.getElementById('lg-test-nav')?.classList.add('lg-hidden');
+        document.getElementById('lg-test-side')?.classList.add('lg-hidden');
+        main?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function wireFocusedTest() {
+        const blocks = Array.from(document.querySelectorAll('.quiz-question-wrapper'));
+        if (!blocks.length) return;
+
+        document.getElementById('lg-test-back')?.addEventListener('click', () => {
+            currentQuestionIndex -= 1;
+            refreshQuestionView();
+        });
+
+        document.getElementById('lg-test-next')?.addEventListener('click', async () => {
+            if (currentQuestionIndex === blocks.length - 1) {
+                await showResultsReview();
+                return;
+            }
+            currentQuestionIndex += 1;
+            refreshQuestionView();
+        });
+
+        document.querySelectorAll('[data-question-jump]').forEach(button => button.addEventListener('click', () => {
+            currentQuestionIndex = Number(button.dataset.questionJump);
+            refreshQuestionView();
+        }));
+
+        document.querySelectorAll('#quiz-form input').forEach(input => input.addEventListener('change', refreshQuestionView));
+        document.querySelectorAll('#quiz-form input[type="text"]').forEach(input => input.addEventListener('input', refreshQuestionView));
+        refreshQuestionView();
     }
 
     async function handleGenerateTestBuilder(profile) {
-        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
-
-        const topic = document.getElementById('tb-topic').value;
+        const topic = document.getElementById('tb-topic').value.trim();
         const numQuestions = document.getElementById('tb-num-questions').value;
         const errorEl = document.getElementById('tb-error');
         const outputEl = document.getElementById('tb-output');
         const button = document.getElementById('generate-test-builder-btn');
-
         const questionTypes = [];
         if (document.getElementById('tb-qt-mcq').checked) questionTypes.push('MCQ');
         if (document.getElementById('tb-qt-tf').checked) questionTypes.push('TrueFalse');
         if (document.getElementById('tb-qt-short').checked) questionTypes.push('ShortAnswer');
 
-        errorEl.classList.add('hidden');
+        errorEl.classList.add('lg-hidden');
         if (!topic || questionTypes.length === 0) {
             errorEl.textContent = 'Please provide a topic and select at least one question type.';
-            errorEl.classList.remove('hidden');
+            errorEl.classList.remove('lg-hidden');
             return;
         }
 
+        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
+
+        currentTopic = topic;
         button.disabled = true;
-        button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Generating...`;
-        outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Building your practice test...</p></div>`;
+        button.innerHTML = `<span class="lg-spinner" style="width:20px;height:20px;border-width:2px;border-top-color:white"></span>Building test…`;
+        outputEl.innerHTML = `<div class="lg-panel lg-test-loading"><div class="lg-spinner"></div><h3>Building your practice test…</h3><p>Creating ${numQuestions} questions about ${escapeHtml(topic)}.</p></div>`;
         currentTest = [];
 
-        const prompt = `You are an AI test generator. Create a practice test based on the following parameters.
+        const prompt = `You are an AI test generator for school learners. Create an age-appropriate practice test based on the following parameters.
 Provide a JSON object with a single key: "practice_test".
-- "practice_test": An array of exactly ${numQuestions} question objects. Each object must have three keys:
-    1. "question": The string of the question text.
-    2. "type": A string, must be one of the selected types: ${questionTypes.join(', ')}. Try to include a mix if multiple types are selected.
-    3. "options": An array of strings for "MCQ" and "TrueFalse" types. Leave empty [] for "ShortAnswer".
-    4. "correct_answer": The string of the correct answer. For "MCQ" and "TrueFalse", this must exactly match one of the strings in the "options" array. For "ShortAnswer", this is the expected answer.
-The topic for the test is: ${topic}`;
+- "practice_test": An array of exactly ${numQuestions} question objects.
+Each object must have these four keys:
+1. "question": The question text.
+2. "type": One of: ${questionTypes.join(', ')}. Use a sensible mix when multiple types are selected.
+3. "options": An array of strings for MCQ and TrueFalse. Use [] for ShortAnswer.
+4. "correct_answer": The correct answer. For MCQ and TrueFalse it must exactly match one option.
+Do not include trick questions. Questions should test understanding, not only memorisation.
+The topic is: ${topic}`;
 
         try {
             const jsonText = await window.LearnerAPI.fetchWithRetry(prompt, true);
             const result = JSON.parse(jsonText);
+            const practiceTest = Array.isArray(result.practice_test) ? result.practice_test : [];
+            if (!practiceTest.length) throw new Error('No valid questions were returned.');
 
             window.LearnerAuth.supabase.from('saved_work').insert({
                 profile_id: profile.id,
                 work_type: 'testBuilder',
                 input_prompt: { prompt: topic },
-                output_content: result
-            }).then(({ error }) => {
-                if (error) console.error('Error saving work:', error.message);
-            });
+                output_content: { practice_test: practiceTest }
+            }).then(({ error }) => { if (error) console.error('Error saving work:', error.message); });
 
-            const originalTestBuilderContent = {
-                practice_test: result.practice_test || []
-            };
-
-            const outputHtml = renderTestBuilderContent(originalTestBuilderContent.practice_test);
-
-            outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell(
-                'tb-answer-toolbar',
-                'tb-answer-content',
-                outputHtml
-            );
+            const originalContent = { practice_test: practiceTest };
+            const testHtml = renderTestBuilderContent(practiceTest);
+            outputEl.innerHTML = `<div class="lg-test-stage"><div class="lg-test-toolbar" id="tb-answer-toolbar"></div><div id="tb-answer-content">${testHtml}</div></div>`;
 
             window.LearnerOutput.attachStructuredTranslationToolbar({
                 toolbarId: 'tb-answer-toolbar',
                 contentId: 'tb-answer-content',
-                originalContent: originalTestBuilderContent,
+                originalContent,
                 sourceTool: 'testBuilder',
                 topic,
                 structureInstructions: TEST_BUILDER_TRANSLATION_INSTRUCTIONS,
-                renderContent: (content) => renderTestBuilderContent(content?.practice_test || []),
-                onRerender: () => window.LearnerQuiz.wireQuizForm(() => currentTest)
+                renderContent: content => renderTestBuilderContent(content?.practice_test || []),
+                onRerender: wireFocusedTest
             });
 
             if (window.lucide?.createIcons) window.lucide.createIcons();
-            window.LearnerQuiz.wireQuizForm(() => currentTest);
-
-        } catch (e) {
-            errorEl.textContent = `An error occurred: ${e.message}`;
-            errorEl.classList.remove('hidden');
-            outputEl.innerHTML = '<div class="text-center text-red-600"><p>Could not generate test. Please try again.</p></div>';
+            wireFocusedTest();
+            outputEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+            errorEl.textContent = `Could not build the test: ${error.message}`;
+            errorEl.classList.remove('lg-hidden');
+            outputEl.innerHTML = `<div class="lg-inline-error">The practice test could not be generated. Please try again.</div>`;
         } finally {
             button.disabled = false;
-            button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Generate Test`;
+            button.innerHTML = `<i data-lucide="sparkles" width="18"></i>Build practice test`;
             if (window.lucide?.createIcons) window.lucide.createIcons();
         }
     }
@@ -177,15 +261,19 @@ The topic for the test is: ${topic}`;
     async function init() {
         const result = await window.LearnerAuth.requireSessionAndProfile();
         if (!result) return;
+        const { profile, account } = result;
 
-        const { profile } = result;
-
-        root.innerHTML = pageTemplate(profile.name);
-        if (window.lucide?.createIcons) window.lucide.createIcons();
-
-        document.getElementById('generate-test-builder-btn').addEventListener('click', () => {
-            handleGenerateTestBuilder(profile);
+        window.LearnerShell.render({
+            root,
+            profile,
+            account,
+            activeKey: 'test',
+            title: 'Practice Test',
+            mobileTitle: 'Practice Test',
+            content: pageContent(profile.name)
         });
+
+        document.getElementById('generate-test-builder-btn').addEventListener('click', () => handleGenerateTestBuilder(profile));
     }
 
     init();
