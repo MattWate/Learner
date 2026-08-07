@@ -3,32 +3,49 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
-  <title>LearnerGenie - Study Squads</title>
+  <title>LearnerGenie · Study Squads</title>
   <link rel="icon" href="/logo.svg" type="image/svg+xml" />
 
-  <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet" />
 
+  <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/lucide@latest"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 
+  <link rel="stylesheet" href="/styles/learner-design.css" />
   <link rel="stylesheet" href="/study-squads.css" />
 </head>
-
-<body>
-  <div id="app" class="min-h-screen">
-    <div class="min-h-screen flex items-center justify-center">
-      <div class="text-center">
-        <div class="animate-spin rounded-full h-14 w-14 border-b-2 border-indigo-600 mx-auto"></div>
-        <p class="mt-4 text-gray-600 font-medium">Loading Study Squads...</p>
-      </div>
-    </div>
+<body class="lg-squads-page">
+  <div class="lg-mobile-header lg-squads-mobile-header">
+    <div class="lg-mobile-brand"><img src="/logo.svg" alt=""><div><strong>Study Squads</strong><span>Learning together</span></div></div>
+    <button class="lg-menu-button" type="button" id="squad-menu-open" aria-label="Open navigation"><i data-lucide="menu"></i></button>
   </div>
+  <div class="lg-mobile-overlay" id="squad-menu-overlay"></div>
+
+  <aside class="lg-sidebar lg-squads-sidebar" id="squad-sidebar" aria-label="Main navigation">
+    <a class="lg-brand" href="/app.html"><img src="/logo.svg" alt="LearnerGenie"><div><strong class="lg-brand-font">LearnerGenie</strong><span>Learning workspace</span></div></a>
+    <div class="lg-learner-card"><div class="lg-avatar" id="squad-profile-avatar">L</div><div class="lg-learner-meta"><strong id="squad-profile-name">Learner</strong><span id="squad-profile-grade">Learner profile</span></div></div>
+    <nav class="lg-nav">
+      <div class="lg-nav-label">LEARN</div>
+      <a class="lg-nav-link" data-profile-link href="/app.html"><i data-lucide="house" width="18"></i><span>Home</span></a>
+      <a class="lg-nav-link" data-profile-link href="/activities/homework-help.html"><i data-lucide="life-buoy" width="18"></i><span>Homework Helper</span></a>
+      <a class="lg-nav-link" data-profile-link href="/activities/explain-simply.html"><i data-lucide="lightbulb" width="18"></i><span>Explain It Simply</span></a>
+      <a class="lg-nav-link" data-profile-link href="/activities/learning-hub.html"><i data-lucide="book-open-check" width="18"></i><span>Revision Notes</span></a>
+      <a class="lg-nav-link" data-profile-link href="/activities/test-builder.html"><i data-lucide="clipboard-check" width="18"></i><span>Practice Test</span></a>
+      <a class="lg-nav-link" data-profile-link href="/activities/math-hub.html"><i data-lucide="calculator" width="18"></i><span>Mathematics</span></a>
+      <div class="lg-nav-label">PROGRESS</div>
+      <a class="lg-nav-link" data-profile-link href="/activities/activity-history.html"><i data-lucide="history" width="18"></i><span>Activity History</span></a>
+      <a class="lg-nav-link is-active" href="#"><i data-lucide="users-round" width="18"></i><span>Study Squads</span><span class="lg-active-dot"></span></a>
+    </nav>
+    <div class="lg-sidebar-bottom"><div class="lg-plan-card"><strong id="squad-plan-label">Learner plan</strong><span>Study Squads</span></div><nav class="lg-nav"><a class="lg-nav-link" data-profile-link href="/app.html#settings"><i data-lucide="settings" width="18"></i><span>Settings</span></a></nav></div>
+  </aside>
+
+  <main class="lg-squads-main"><div id="app"><div class="lg-squads-loading"><div class="lg-spinner"></div><p>Loading Study Squads…</p></div></div></main>
 
   <script src="/study-squads.js"></script>
+  <script src="/study-squads-ui.js"></script>
 </body>
 </html>
