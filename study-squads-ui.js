@@ -15,7 +15,7 @@
     const select=document.getElementById('profile-select');
     const option=select?.selectedOptions?.[0];
     const profileId=select?.value||new URLSearchParams(location.search).get('profile_id');
-    let label=option?.textContent?.trim()||'Learner';
+    const label=option?.textContent?.trim()||'Learner';
     const parts=label.split('·').map(x=>x.trim());
     const name=parts[0]||'Learner';
     const grade=parts[1]||'Learner profile';
@@ -26,8 +26,8 @@
     if(nameEl)nameEl.textContent=name;
     if(gradeEl)gradeEl.textContent=grade;
     document.querySelectorAll('[data-profile-link]').forEach(link=>{
-      const raw=link.getAttribute('href')?.split('?profile_id=')[0]||link.getAttribute('href');
-      if(raw)link.href=withProfile(raw,profileId);
+      if(!link.dataset.baseHref)link.dataset.baseHref=link.getAttribute('href')||'/app.html';
+      link.href=withProfile(link.dataset.baseHref,profileId);
     });
   }
 
@@ -45,12 +45,10 @@
   function improveTabs(){
     document.querySelectorAll('[data-squad-tab]').forEach(button=>{
       if(button.dataset.squadTab==='details'){
-        const textNodes=[...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE);
-        textNodes.forEach(n=>{if(n.textContent.includes('Squad Details'))n.textContent=' Overview';});
+        [...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).forEach(n=>{if(n.textContent.includes('Squad Details'))n.textContent=' Overview';});
       }
       if(button.dataset.squadTab==='activity'){
-        const textNodes=[...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE);
-        textNodes.forEach(n=>{if(n.textContent.includes('Squad Activity'))n.textContent=' Activity';});
+        [...button.childNodes].filter(n=>n.nodeType===Node.TEXT_NODE).forEach(n=>{if(n.textContent.includes('Squad Activity'))n.textContent=' Activity';});
       }
     });
   }
@@ -76,7 +74,10 @@
         if(btn.classList.contains('bg-indigo-600'))option.selected=true;
         select.appendChild(option);
       });
-      select.addEventListener('change',()=>document.querySelector(`.squad-select-btn[data-squad-id="${CSS.escape(select.value)}"]`)?.click());
+      select.addEventListener('change',()=>{
+        const target=[...document.querySelectorAll('.squad-select-btn')].find(btn=>btn.dataset.squadId===select.value);
+        target?.click();
+      });
       const wrap=document.createElement('div');
       wrap.id='squad-switch-wrap';
       wrap.appendChild(select);
@@ -94,15 +95,67 @@
     if(meta)meta.textContent=meta.textContent.replace(/ · Weekly XP resets every Monday UTC/i,'');
   }
 
+  function topRows(){
+    if(typeof state==='undefined')return[];
+    return [...(state.leaderboard||[])].sort((a,b)=>(b.weekly_xp||0)-(a.weekly_xp||0)||(b.current_streak||0)-(a.current_streak||0)).slice(0,3);
+  }
+
+  function currentRank(){
+    if(typeof state==='undefined')return null;
+    const rows=[...(state.leaderboard||[])].sort((a,b)=>(b.weekly_xp||0)-(a.weekly_xp||0)||(b.current_streak||0)-(a.current_streak||0));
+    const profile=typeof selectedProfile==='function'?selectedProfile():null;
+    const id=profile?.id;
+    const index=rows.findIndex(row=>Number(row.profile_id)===Number(id));
+    return index>=0?index+1:null;
+  }
+
+  function overviewHtml(){
+    if(typeof state==='undefined')return'';
+    const squad=typeof activeSquad==='function'?activeSquad():null;
+    if(!squad)return'';
+    const stats=state.stats||{};
+    const rank=currentRank();
+    const rows=topRows();
+    const weeklyTotal=(state.leaderboard||[]).reduce((sum,row)=>sum+Number(row.weekly_xp||0),0);
+    const recent=(state.feed||[]).slice(0,4);
+    const invite=typeof inviteLinkFor==='function'?inviteLinkFor(squad):location.href;
+    const rowHtml=rows.length?rows.map((row,index)=>`<div class="lg-overview-rank-row"><span class="lg-overview-rank-num${index===0?' is-first':''}">${index+1}</span><div><strong>${escapeHtml(row.display_name||'Learner')}</strong><small>${row.current_streak||0} day streak</small></div><div class="lg-overview-xp"><strong>${row.weekly_xp||0} XP</strong><small>this week</small></div></div>`).join(''):`<div class="lg-overview-empty">No leaderboard activity yet.</div>`;
+    const feedHtml=recent.length?recent.map(item=>`<div class="lg-overview-feed"><span class="lg-overview-feed-icon"><i data-lucide="${typeof feedIcon==='function'?feedIcon(item.event_type):'sparkles'}" width="16"></i></span><div><strong>${escapeHtml(item.event_title||'Learning activity')}</strong><p>${escapeHtml(item.event_summary||'Learner activity')}</p><small>${escapeHtml(typeof formatDate==='function'?formatDate(item.created_at):'')}</small></div></div>`).join(''):`<div class="lg-overview-empty">No squad activity yet. Learning activity will appear here as members study.</div>`;
+
+    return `<div class="lg-overview-grid"><div class="lg-overview-main"><section class="lg-overview-insight"><div class="lg-squads-eyebrow">This week</div><h3>${rank?`You’re currently ${rank}${rank===1?'st':rank===2?'nd':rank===3?'rd':'th'} in the squad`:'Keep the squad moving'}</h3><p>You have <strong>${stats.weekly_xp||0} XP</strong> this week. Squad members have earned <strong>${weeklyTotal} XP</strong> together.</p></section><section class="lg-overview-panel"><div class="lg-overview-title"><h3>Recent squad activity</h3><span>Latest learning</span></div>${feedHtml}</section></div><aside><section class="lg-overview-panel lg-overview-top"><div class="lg-overview-title"><h3>Top this week</h3><span>Snapshot</span></div><p class="lg-overview-note">A quick view only. Open Leaderboard for the full ranking.</p>${rowHtml}<button type="button" class="lg-overview-link" data-open-leaderboard>View full leaderboard</button></section><section class="lg-overview-invite"><div class="lg-squads-eyebrow">Invite a friend</div><h3>Grow the squad</h3><p>Share the squad code or invite link. Each learner joins with their own profile.</p><div class="lg-overview-code"><strong>${escapeHtml(squad.invite_code||'')}</strong><button type="button" data-copy-code title="Copy code"><i data-lucide="copy" width="16"></i></button></div><div class="lg-overview-invite-actions"><button type="button" data-copy-link><i data-lucide="link" width="15"></i>Copy link</button><button type="button" data-show-qr><i data-lucide="qr-code" width="15"></i>Show QR</button></div><div class="lg-overview-qr lg-hidden" data-qr-wrap><div data-qr-code></div></div></section></aside></div>`;
+  }
+
+  function renderOverview(){
+    const detailsButton=document.querySelector('[data-squad-tab="details"]');
+    if(!detailsButton?.classList.contains('bg-indigo-600'))return;
+    const activeSection=document.querySelector('section.card.border-t-4.border-indigo-500');
+    const content=activeSection?.lastElementChild;
+    if(!content||content.dataset.overviewEnhanced==='1')return;
+    content.dataset.overviewEnhanced='1';
+    content.innerHTML=overviewHtml();
+    content.querySelector('[data-open-leaderboard]')?.addEventListener('click',()=>document.querySelector('[data-squad-tab="leaderboard"]')?.click());
+    const squad=typeof activeSquad==='function'?activeSquad():null;
+    content.querySelector('[data-copy-code]')?.addEventListener('click',()=>typeof copyText==='function'&&copyText(squad?.invite_code,'Squad code copied'));
+    content.querySelector('[data-copy-link]')?.addEventListener('click',()=>typeof copyText==='function'&&copyText(typeof inviteLinkFor==='function'?inviteLinkFor(squad):location.href,'Invite link copied'));
+    content.querySelector('[data-show-qr]')?.addEventListener('click',()=>{
+      const wrap=content.querySelector('[data-qr-wrap]');
+      const target=content.querySelector('[data-qr-code]');
+      if(!wrap||!target)return;
+      wrap.classList.toggle('lg-hidden');
+      if(!wrap.classList.contains('lg-hidden')&&!target.dataset.ready&&window.QRCode){
+        target.dataset.ready='1';
+        window.QRCode.toCanvas(typeof inviteLinkFor==='function'?inviteLinkFor(squad):location.href,{width:150,margin:1},(error,canvas)=>{if(!error){target.innerHTML='';target.appendChild(canvas);}});
+      }
+    });
+  }
+
   function improveLeaderboard(){
     const leaderboardButton=document.querySelector('[data-squad-tab="leaderboard"]');
-    if(!leaderboardButton)return;
-    const active=leaderboardButton.classList.contains('bg-indigo-600');
-    if(!active)return;
+    if(!leaderboardButton?.classList.contains('bg-indigo-600'))return;
     const heading=[...document.querySelectorAll('h3')].find(h=>h.textContent.trim()==='Leaderboard');
     if(heading)heading.textContent='Full squad leaderboard';
     const sub=heading?.parentElement?.querySelector('p');
-    if(sub)sub.textContent='See every member’s activity and switch between this week and all-time performance.';
+    if(sub)sub.textContent='See every member’s XP and switch between this week and all-time performance.';
   }
 
   function improveActivity(){
@@ -115,27 +168,15 @@
   }
 
   function enhance(){
-    updateSidebar();
-    ensureIntro();
-    improveTabs();
-    improveSquadSwitcher();
-    improveActiveSquadHeader();
-    improveLeaderboard();
-    improveActivity();
+    updateSidebar();ensureIntro();improveTabs();improveSquadSwitcher();improveActiveSquadHeader();renderOverview();improveLeaderboard();improveActivity();
     if(window.lucide?.createIcons)window.lucide.createIcons();
   }
 
   let queued=false;
-  const observer=new MutationObserver(()=>{
-    if(queued)return;
-    queued=true;
-    requestAnimationFrame(()=>{queued=false;enhance();});
-  });
+  const observer=new MutationObserver(()=>{if(queued)return;queued=true;requestAnimationFrame(()=>{queued=false;enhance();});});
   observer.observe(app,{childList:true,subtree:true});
-
   document.getElementById('squad-menu-open')?.addEventListener('click',()=>document.body.classList.add('lg-menu-open'));
   document.getElementById('squad-menu-overlay')?.addEventListener('click',()=>document.body.classList.remove('lg-menu-open'));
   document.querySelectorAll('#squad-sidebar .lg-nav-link').forEach(link=>link.addEventListener('click',()=>document.body.classList.remove('lg-menu-open')));
-
   enhance();
 })();
