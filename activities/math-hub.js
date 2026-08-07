@@ -1,86 +1,137 @@
-/*
- * LearnerGenie - Mathematics Hub (standalone page)
- *
- * Same behavior as handleGenerateMathHelp() in app.html: UK/SA curriculum
- * math tutoring with step-by-step solution and practice problems.
- */
+/* LearnerGenie - Mathematics Hub */
 (function () {
     const root = document.getElementById('page-root');
 
-    function pageTemplate(profileName) {
+    function escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function pageContent(profileName) {
         return `
-            <div class="min-h-screen">
-                <header class="max-w-4xl mx-auto px-4 pt-6">
-                    <a href="${window.LearnerAuth.withProfileId('/app.html')}" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                        <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i>
-                        Back to dashboard
-                    </a>
+            <div class="lg-page">
+                <header class="lg-page-header">
+                    <div>
+                        <div class="lg-eyebrow">Solve</div>
+                        <h1 class="lg-page-title">Mathematics</h1>
+                        <p class="lg-page-copy">Work through a maths problem step by step, understand the method, and then try a similar problem${profileName ? `, ${escapeHtml(profileName)}` : ''}.</p>
+                    </div>
                 </header>
 
-                <main class="max-w-4xl mx-auto px-4 py-6">
-                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Mathematics Hub</h2>
-                        <p class="text-gray-500 mb-8">Enter a math problem or topic to get a step-by-step breakdown and practice examples${profileName ? ` for ${profileName}` : ''}.</p>
-                        <div class="space-y-6">
-                            <div>
-                                <label for="math-input" class="block text-sm font-medium text-gray-700 mb-1">What are we solving today?</label>
-                                <div class="flex flex-wrap gap-2 mb-2">
-                                    <button type="button" onclick="document.getElementById('math-input').value += ' + '" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm font-bold">+</button>
-                                    <button type="button" onclick="document.getElementById('math-input').value += ' - '" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm font-bold">-</button>
-                                    <button type="button" onclick="document.getElementById('math-input').value += ' x '" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm font-bold">x</button>
-                                    <button type="button" onclick="document.getElementById('math-input').value += ' ÷ '" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm font-bold">÷</button>
-                                    <button type="button" onclick="document.getElementById('math-input').value += ' = '" class="px-3 py-1 bg-gray-100 rounded hover:bg-gray-200 text-sm font-bold">=</button>
-                                    <button type="button" onclick="document.getElementById('math-input').value += 'x'" class="px-3 py-1 bg-indigo-50 text-indigo-700 rounded hover:bg-indigo-100 text-sm font-bold italic">x</button>
-                                    <button type="button" onclick="document.getElementById('math-input').value = ''" class="px-3 py-1 bg-red-50 text-red-600 rounded hover:bg-red-100 text-sm font-medium ml-auto">Clear</button>
-                                </div>
-                                <textarea id="math-input" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., Solve for x: 2x + 5 = 15 or Explain long division"></textarea>
-                            </div>
-                        </div>
-                        <button id="generate-math-help-btn" class="mt-6 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300">
-                            <i data-lucide="calculator" class="w-5 h-5 mr-2"></i> Solve & Explain
-                        </button>
-                        <div id="math-error" class="text-red-500 text-sm mt-2 hidden"></div>
+                <section class="lg-panel lg-input-panel">
+                    <div class="lg-panel-heading">
+                        <div class="lg-panel-icon"><i data-lucide="calculator"></i></div>
+                        <div><h2>What are we solving?</h2><p>Enter a calculation, equation, word problem or maths topic.</p></div>
                     </div>
-                    <div id="math-output" class="mt-8"></div>
-                </main>
-            </div>
-        `;
+                    <div class="lg-math-input-wrap">
+                        <div class="lg-math-symbols" aria-label="Maths symbols">
+                            <button type="button" class="lg-math-symbol" data-math-symbol=" + ">+</button>
+                            <button type="button" class="lg-math-symbol" data-math-symbol=" - ">−</button>
+                            <button type="button" class="lg-math-symbol" data-math-symbol=" × ">×</button>
+                            <button type="button" class="lg-math-symbol" data-math-symbol=" ÷ ">÷</button>
+                            <button type="button" class="lg-math-symbol" data-math-symbol=" = ">=</button>
+                            <button type="button" class="lg-math-symbol" data-math-symbol="x">x</button>
+                            <button type="button" class="lg-math-symbol lg-math-symbol--clear" id="math-clear">Clear</button>
+                        </div>
+                        <div class="lg-field" style="margin-top:0">
+                            <label for="math-input">Problem or topic</label>
+                            <textarea id="math-input" class="lg-textarea" placeholder="e.g. Solve for x: 2x + 5 = 15, or explain long division"></textarea>
+                            <div class="lg-field-note"><span>We use UK/South African terminology and BODMAS where appropriate.</span></div>
+                        </div>
+                    </div>
+                    <div id="math-error" class="lg-inline-error lg-hidden"></div>
+                    <div class="lg-action-row"><button id="generate-math-help-btn" class="lg-primary-button"><i data-lucide="sparkles" width="18"></i>Solve & explain</button></div>
+                </section>
+                <div id="math-output"></div>
+            </div>`;
+    }
+
+    function renderMarkdown(value) {
+        if (window.LearnerOutput?.renderMarkdown) return window.LearnerOutput.renderMarkdown(value ?? '');
+        return `<p>${escapeHtml(value ?? '')}</p>`;
+    }
+
+    function readButton(targetId) {
+        return `<button type="button" class="lg-math-read" onclick="window.LearnerOutput.tts.speak(document.getElementById('${targetId}').innerText, this, document.getElementById('${targetId}').dataset.ttsLang || 'en-ZA')"><i data-lucide="volume-2" width="15"></i><span>Read aloud</span></button>`;
+    }
+
+    function renderMathAnswer(result, mathProblem) {
+        const steps = Array.isArray(result.steps) ? result.steps.filter(Boolean) : [];
+        const practice = Array.isArray(result.practice_problems) ? result.practice_problems.filter(Boolean).slice(0, 3) : [];
+        const method = result.method || result.explanation || '';
+
+        return `
+            <div class="lg-math-answer">
+                <div class="lg-math-answer-head">
+                    <div class="lg-panel-icon" style="background:var(--lg-gold-soft);color:#a27714"><i data-lucide="square-function"></i></div>
+                    <div><div class="lg-eyebrow">Worked example</div><h2>Let's work through it</h2><p>${escapeHtml(mathProblem)}</p></div>
+                </div>
+
+                <div class="lg-math-grid">
+                    ${result.explanation ? `<section class="lg-math-card lg-math-card--concept"><div class="lg-math-card-head"><h3><i data-lucide="lightbulb" width="20" style="color:var(--lg-navy)"></i>Understand the idea</h3>${readButton('math-concept')}</div><div class="lg-math-content" id="math-concept">${renderMarkdown(result.explanation)}</div></section>` : ''}
+
+                    <section class="lg-math-card lg-math-card--steps"><div class="lg-math-card-head"><h3><i data-lucide="list-ordered" width="20" style="color:var(--lg-teal)"></i>Working</h3>${readButton('math-working')}</div><div id="math-working" class="lg-math-steps">${steps.length ? steps.map(step => `<div class="lg-math-step">${renderMarkdown(step)}</div>`).join('') : `<div class="lg-math-step">${renderMarkdown(method)}</div>`}</div></section>
+
+                    ${result.method && result.method !== result.explanation ? `<section class="lg-math-card"><div class="lg-math-card-head"><h3><i data-lucide="route" width="20" style="color:var(--lg-teal)"></i>Method</h3>${readButton('math-method')}</div><div class="lg-math-content" id="math-method">${renderMarkdown(result.method)}</div></section>` : ''}
+
+                    <section class="lg-math-card lg-math-card--answer"><div class="lg-math-card-head"><h3><i data-lucide="circle-check" width="20" style="color:var(--lg-teal)"></i>Final answer</h3>${readButton('math-final')}</div><div class="lg-math-final" id="math-final">${renderMarkdown(result.final_answer || 'Check the working above.')}</div></section>
+                </div>
+
+                ${practice.length ? `<section class="lg-math-practice"><h3><i data-lucide="pencil-line" width="20" style="color:#a27714"></i>Now you try</h3><p>Choose a similar problem and LearnerGenie will place it in the problem box for you.</p><div class="lg-math-practice-list">${practice.map(prob => `<button type="button" class="lg-math-practice-button" data-practice-problem="${escapeHtml(encodeURIComponent(String(prob)))}"><span>${escapeHtml(prob)}</span><span>Try this one →</span></button>`).join('')}</div></section>` : ''}
+            </div>`;
+    }
+
+    function wirePracticeProblems() {
+        document.querySelectorAll('[data-practice-problem]').forEach(button => {
+            button.onclick = () => {
+                const input = document.getElementById('math-input');
+                if (!input) return;
+                input.value = decodeURIComponent(button.dataset.practiceProblem || '');
+                input.focus();
+                document.querySelector('.lg-input-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            };
+        });
     }
 
     async function handleGenerateMathHelp(profile) {
-        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
-
         const mathProblem = document.getElementById('math-input').value.trim();
         const errorEl = document.getElementById('math-error');
         const outputEl = document.getElementById('math-output');
         const button = document.getElementById('generate-math-help-btn');
 
-        errorEl.classList.add('hidden');
+        errorEl.classList.add('lg-hidden');
         if (!mathProblem) {
-            errorEl.textContent = 'Please enter a math problem or topic.';
-            errorEl.classList.remove('hidden');
+            errorEl.textContent = 'Please enter a maths problem or topic.';
+            errorEl.classList.remove('lg-hidden');
             return;
         }
+        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
 
         button.disabled = true;
-        button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Verifying Accuracy...`;
-        outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Calculating precisely...</p></div>`;
+        button.innerHTML = `<span class="lg-spinner" style="width:20px;height:20px;border-width:2px;border-top-color:white"></span>Checking the maths…`;
+        outputEl.innerHTML = `<div class="lg-panel lg-math-loading"><div class="lg-spinner"></div><h3>Working it through carefully…</h3><p>Checking the method and calculation before showing the steps.</p></div>`;
 
-        const prompt = `You are an expert math tutor for students in South Africa and the UK. 
-Analyze the following math problem or topic: "${mathProblem}".
+        const prompt = `You are an expert maths tutor for school learners in South Africa and the UK.
+Analyse this maths problem or topic: "${mathProblem}".
 
-IMPORTANT RULES:
-1. Use UK/South African English spelling and terminology (e.g., "brackets", "indices", "gradient").
-2. Follow standard pedagogical methods used in the UK/SA curriculum.
-3. If the problem involves basic arithmetic, apply BODMAS (Brackets, Orders, Division, Multiplication, Addition, Subtraction).
-4. If the problem involves Algebra, Trigonometry, or Geometry, use the appropriate logical steps for those subjects while maintaining UK/SA naming conventions.
-5. In the "Now You Try!" section, ensure all practice problems are written with clear mathematical operators.
+Rules:
+1. Use UK/South African English spelling and terminology, such as brackets, indices and gradient.
+2. Use standard pedagogical methods from UK/South African curricula.
+3. Apply BODMAS for arithmetic where appropriate.
+4. For algebra, trigonometry and geometry, show a logical, age-appropriate method and do not skip important working.
+5. Check the calculation before giving the final answer.
+6. Keep mathematical operators and notation clear.
 
-Provide a JSON object with these keys:
-- "explanation": A simple introduction to the concept or topic.
-- "steps": An array of strings with numbered, step-by-step instructions showing the logical path to the solution.
-- "final_answer": The definitive result.
-- "practice_problems": An array of 2 similar practice problems for the student to solve next.`;
+Return valid JSON only with these keys:
+- "explanation": a short explanation of what the learner needs to understand.
+- "method": a concise description of the method being used.
+- "steps": an array of clear step-by-step working, in order.
+- "final_answer": the definitive result or conclusion.
+- "practice_problems": an array of 2 similar problems for the learner to try.`;
 
         try {
             const jsonText = await window.LearnerAPI.fetchWithRetry(prompt, true);
@@ -91,56 +142,30 @@ Provide a JSON object with these keys:
                 work_type: 'mathHub',
                 input_prompt: { prompt: mathProblem },
                 output_content: result
-            }).then(({ error }) => {
-                if (error) console.error('Error saving work:', error.message);
-            });
+            }).then(({ error }) => { if (error) console.error('Error saving work:', error.message); });
 
-            const outputHtml = `
-                <div class="bg-gray-50/50 p-6 rounded-lg space-y-6">
-                    ${window.LearnerOutput.createSectionHTML('info', 'blue', 'Understanding the Concept', result.explanation)}
-                    ${window.LearnerOutput.createSectionHTML('list', 'indigo', 'Step-by-Step Solution', result.steps)}
-                    ${window.LearnerOutput.createSectionHTML('check-circle', 'green', 'Final Answer', result.final_answer)}
-
-                    <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                        <h3 class="text-lg font-semibold text-gray-800 flex items-center mb-3">
-                            <i data-lucide="edit-3" class="text-amber-500"></i>
-                            <span class="ml-2">Now You Try!</span>
-                        </h3>
-                        <div class="space-y-2">
-                            ${result.practice_problems.map(prob => `
-                                <button onclick="document.getElementById('math-input').value = '${prob.replace(/'/g, "\\'")}'; window.scrollTo({top: 0, behavior: 'smooth'});" 
-                                        class="w-full text-left p-3 rounded-lg border border-dashed border-amber-200 hover:bg-amber-50 text-amber-900 transition-colors flex justify-between items-center group">
-                                    <span>${prob}</span>
-                                    <span class="text-xs font-medium text-amber-500 opacity-0 group-hover:opacity-100 transition-opacity">Solve this one →</span>
-                                </button>
-                            `).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell(
-                'math-answer-toolbar',
-                'math-answer-content',
-                outputHtml
-            );
+            const outputHtml = renderMathAnswer(result, mathProblem);
+            outputEl.innerHTML = `<div class="lg-math-output"><div class="lg-math-toolbar" id="math-answer-toolbar"></div><div id="math-answer-content">${outputHtml}</div></div>`;
 
             window.LearnerOutput.attachTextTranslationToolbar({
                 toolbarId: 'math-answer-toolbar',
                 contentId: 'math-answer-content',
                 originalHtml: outputHtml,
                 sourceTool: 'mathHub',
-                topic: mathProblem
+                topic: mathProblem,
+                onRerender: wirePracticeProblems
             });
 
+            wirePracticeProblems();
             if (window.lucide?.createIcons) window.lucide.createIcons();
-        } catch (e) {
-            errorEl.textContent = `An error occurred: ${e.message}`;
-            errorEl.classList.remove('hidden');
+            outputEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+            errorEl.textContent = `Could not solve this problem: ${error.message}`;
+            errorEl.classList.remove('lg-hidden');
             outputEl.innerHTML = '';
         } finally {
             button.disabled = false;
-            button.innerHTML = `<i data-lucide="calculator" class="w-5 h-5 mr-2"></i> Solve & Explain`;
+            button.innerHTML = `<i data-lucide="sparkles" width="18"></i>Solve & explain`;
             if (window.lucide?.createIcons) window.lucide.createIcons();
         }
     }
@@ -148,15 +173,30 @@ Provide a JSON object with these keys:
     async function init() {
         const result = await window.LearnerAuth.requireSessionAndProfile();
         if (!result) return;
+        const { profile, account } = result;
 
-        const { profile } = result;
-
-        root.innerHTML = pageTemplate(profile.name);
-        if (window.lucide?.createIcons) window.lucide.createIcons();
-
-        document.getElementById('generate-math-help-btn').addEventListener('click', () => {
-            handleGenerateMathHelp(profile);
+        window.LearnerShell.render({
+            root,
+            profile,
+            account,
+            activeKey: 'math',
+            title: 'Mathematics',
+            mobileTitle: 'Mathematics',
+            content: pageContent(profile.name)
         });
+
+        document.querySelectorAll('[data-math-symbol]').forEach(button => {
+            button.addEventListener('click', () => {
+                const input = document.getElementById('math-input');
+                input.value += button.dataset.mathSymbol;
+                input.focus();
+            });
+        });
+        document.getElementById('math-clear').addEventListener('click', () => {
+            document.getElementById('math-input').value = '';
+            document.getElementById('math-input').focus();
+        });
+        document.getElementById('generate-math-help-btn').addEventListener('click', () => handleGenerateMathHelp(profile));
     }
 
     init();
