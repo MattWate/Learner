@@ -21,7 +21,7 @@ Return valid JSON only.
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
+            .replace(/\"/g, '&quot;')
             .replace(/'/g, '&#039;');
     }
 
@@ -125,15 +125,43 @@ Return valid JSON only.
     function wireFocusedTest() {
         const blocks = Array.from(document.querySelectorAll('.quiz-question-wrapper'));
         if (!blocks.length) return;
-        document.getElementById('lg-test-back')?.addEventListener('click', () => { currentQuestionIndex -= 1; refreshQuestionView(); });
-        document.getElementById('lg-test-next')?.addEventListener('click', async () => {
-            if (currentQuestionIndex === blocks.length - 1) return showResultsReview();
-            currentQuestionIndex += 1;
-            refreshQuestionView();
+
+        const backButton = document.getElementById('lg-test-back');
+        const nextButton = document.getElementById('lg-test-next');
+
+        if (backButton) {
+            backButton.onclick = () => {
+                currentQuestionIndex -= 1;
+                refreshQuestionView();
+            };
+        }
+
+        if (nextButton) {
+            nextButton.onclick = async () => {
+                if (currentQuestionIndex === blocks.length - 1) {
+                    await showResultsReview();
+                    return;
+                }
+                currentQuestionIndex += 1;
+                refreshQuestionView();
+            };
+        }
+
+        document.querySelectorAll('[data-question-jump]').forEach(button => {
+            button.onclick = () => {
+                currentQuestionIndex = Number(button.dataset.questionJump);
+                refreshQuestionView();
+            };
         });
-        document.querySelectorAll('[data-question-jump]').forEach(button => button.addEventListener('click', () => { currentQuestionIndex = Number(button.dataset.questionJump); refreshQuestionView(); }));
-        document.querySelectorAll('#quiz-form input').forEach(input => input.addEventListener('change', refreshQuestionView));
-        document.querySelectorAll('#quiz-form input[type="text"]').forEach(input => input.addEventListener('input', refreshQuestionView));
+
+        document.querySelectorAll('#quiz-form input').forEach(input => {
+            input.onchange = refreshQuestionView;
+        });
+
+        document.querySelectorAll('#quiz-form input[type="text"]').forEach(input => {
+            input.oninput = refreshQuestionView;
+        });
+
         refreshQuestionView();
     }
 
