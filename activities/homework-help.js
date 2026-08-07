@@ -1,97 +1,135 @@
-/*
- * LearnerGenie - Homework Helper (standalone page)
- *
- * Same behavior as handleGenerateHomeworkHelp() in app.html: typed question
- * OR worksheet photo (not both), JSON response with hints/answer(s).
- */
+/* LearnerGenie - Homework Helper */
 (function () {
     const root = document.getElementById('page-root');
     let imageUpload;
 
-    function pageTemplate(profileName) {
+    function escapeHtml(value) {
+        return String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
+    }
+
+    function pageContent(profileName) {
         return `
-            <div class="min-h-screen">
-                <header class="max-w-4xl mx-auto px-4 pt-6">
-                    <a href="${window.LearnerAuth.withProfileId('/app.html')}" class="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-700">
-                        <i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i>
-                        Back to dashboard
-                    </a>
+            <div class="lg-page">
+                <header class="lg-page-header">
+                    <div>
+                        <div class="lg-eyebrow">Solve and understand</div>
+                        <h1 class="lg-page-title">Homework Helper</h1>
+                        <p class="lg-page-copy">Ask a homework question or upload a worksheet photo. LearnerGenie will help you work through it${profileName ? `, ${escapeHtml(profileName)}` : ''}.</p>
+                    </div>
                 </header>
 
-                <main class="max-w-4xl mx-auto px-4 py-6">
-                    <div class="bg-white p-8 rounded-xl shadow-xl border-t-4 border-indigo-500 print:hidden">
-                        <h2 class="text-3xl font-bold text-gray-800 mb-2">Homework Helper</h2>
-                        <p class="text-gray-500 mb-8">Type your question or upload a photo of your worksheet to get started${profileName ? ` for ${profileName}` : ''}.</p>
-                        <div class="space-y-6">
-                            <div>
-                                <label for="hh-question" class="block text-sm font-medium text-gray-700 mb-1">Enter your question</label>
-                                <textarea id="hh-question" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g., What was the main cause of the French Revolution?"></textarea>
+                <section class="lg-panel lg-input-panel">
+                    <div class="lg-panel-heading">
+                        <div class="lg-panel-icon"><i data-lucide="life-buoy"></i></div>
+                        <div><h2>What are you working on?</h2><p>Choose one way to send the homework: type the question or upload a clear photo.</p></div>
+                    </div>
+
+                    <div class="lg-homework-grid">
+                        <div class="lg-homework-question">
+                            <label for="hh-question">Type your question</label>
+                            <textarea id="hh-question" class="lg-textarea" style="min-height:170px" placeholder="e.g. What was the main cause of the French Revolution?"></textarea>
+                            <div class="lg-field-note"><span>Include the full question if you can.</span></div>
+                        </div>
+
+                        <div class="lg-homework-upload">
+                            <label>Upload a worksheet photo</label>
+                            <div class="lg-homework-upload-zone">
+                                <label for="image-upload">
+                                    <i data-lucide="camera" width="30" style="color:var(--lg-teal)"></i>
+                                    <strong>Choose a photo</strong>
+                                    <span>PNG, JPG or GIF up to 10MB</span>
+                                    <input id="image-upload" type="file" accept="image/*">
+                                </label>
                             </div>
-                            <div class="text-center text-sm font-medium text-gray-500">OR</div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Upload Worksheet Photo</label>
-                                <div class="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
-                                    <div class="space-y-1 text-center">
-                                        <i data-lucide="camera" class="mx-auto h-12 w-12 text-gray-400"></i>
-                                        <div class="flex text-sm text-gray-600">
-                                            <label for="image-upload" class="relative cursor-pointer bg-white rounded-md font-medium text-indigo-600 hover:text-indigo-500"><span>Upload a file</span><input id="image-upload" type="file" class="sr-only" accept="image/*"></label>
-                                        </div>
-                                        <p class="text-xs text-gray-500">PNG, JPG, GIF up to 10MB</p>
-                                    </div>
-                                </div>
-                                <div id="image-preview-wrapper" class="hidden mt-4">
-                                    <img id="image-preview" class="rounded-lg max-h-64 mx-auto" />
-                                    <button id="remove-image-btn" class="mt-2 mx-auto flex items-center text-sm text-red-600 hover:text-red-800"><i data-lucide="x" class="h-4 w-4 mr-1"></i>Remove image</button>
-                                </div>
+                            <div id="image-preview-wrapper" class="lg-homework-preview hidden">
+                                <img id="image-preview" alt="Worksheet preview">
+                                <button id="remove-image-btn" type="button"><i data-lucide="x" width="16"></i>Remove image</button>
                             </div>
                         </div>
-                        <button id="generate-homework-help-btn" class="mt-8 w-full bg-indigo-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-indigo-700 flex items-center justify-center disabled:bg-indigo-300"><i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help</button>
-                        <div id="hh-error" class="text-red-500 text-sm mt-2 hidden"></div>
                     </div>
-                    <div id="hh-output" class="mt-8"></div>
-                </main>
+
+                    <div id="hh-error" class="lg-inline-error lg-hidden"></div>
+                    <div class="lg-action-row"><button id="generate-homework-help-btn" class="lg-primary-button"><i data-lucide="sparkles" width="18"></i>Get homework help</button></div>
+                </section>
+                <div id="hh-output"></div>
+            </div>`;
+    }
+
+    function contentToMarkdown(content) {
+        if (Array.isArray(content)) return content.map(item => `- ${typeof item === 'string' ? item : JSON.stringify(item)}`).join('\n');
+        if (content && typeof content === 'object') return Object.entries(content).map(([key, value]) => `- **${key}:** ${Array.isArray(value) ? value.join(', ') : String(value)}`).join('\n');
+        return String(content ?? '');
+    }
+
+    function renderSection({ type, icon, title, content }) {
+        if (content === null || content === undefined || content === '' || (Array.isArray(content) && !content.length)) return '';
+        const id = `hh-section-${Math.random().toString(36).slice(2,9)}`;
+        const html = window.LearnerOutput.renderMarkdown(contentToMarkdown(content));
+        return `<section class="lg-homework-section lg-homework-section--${type}">
+            <div class="lg-homework-section-head">
+                <div class="lg-homework-section-title"><i data-lucide="${icon}" width="20"></i><h3>${escapeHtml(title)}</h3></div>
+                <button type="button" class="lg-homework-read" title="Read aloud" onclick="window.LearnerOutput.tts.speak(document.getElementById('${id}').innerText,this,document.getElementById('${id}').dataset.ttsLang||'en-ZA')"><i data-lucide="volume-2" width="15"></i><span>Read aloud</span></button>
             </div>
-        `;
+            <div class="prose" id="${id}">${html}</div>
+        </section>`;
+    }
+
+    function renderHomeworkResult(result, topicLabel) {
+        const sections = [];
+        if (result.breakdown) sections.push(renderSection({ type:'breakdown', icon:'list-checks', title:"Let's break it down", content:result.breakdown }));
+        if (result.hints) sections.push(renderSection({ type:'hints', icon:'lightbulb', title:'How to approach it', content:result.hints }));
+        if (result.answer) sections.push(renderSection({ type:'answer', icon:'key-round', title:'Answer', content:result.answer }));
+        else if (result.answers) sections.push(renderSection({ type:'answer', icon:'circle-check-big', title:'Check your work', content:result.answers }));
+
+        return `<div class="lg-homework-answer">
+            <div class="lg-homework-answer-head"><div class="lg-eyebrow">Homework help</div><h2>Work through it step by step</h2><p>${escapeHtml(topicLabel || 'Your worksheet')}</p></div>
+            ${sections.join('')}
+        </div>`;
     }
 
     async function handleGenerateHomeworkHelp(profile) {
-        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
-
         const questionText = document.getElementById('hh-question').value.trim();
         const errorEl = document.getElementById('hh-error');
         const outputEl = document.getElementById('hh-output');
         const button = document.getElementById('generate-homework-help-btn');
         const uploadedImageBase64 = imageUpload.getImageBase64();
 
-        errorEl.classList.add('hidden');
+        errorEl.classList.add('lg-hidden');
         if (!questionText && !uploadedImageBase64) {
             errorEl.textContent = 'Please enter a question or upload a photo of your worksheet.';
-            errorEl.classList.remove('hidden');
+            errorEl.classList.remove('lg-hidden');
             return;
         }
         if (questionText && uploadedImageBase64) {
-            errorEl.textContent = 'Please provide either a typed question OR an uploaded image, not both.';
-            errorEl.classList.remove('hidden');
+            errorEl.textContent = 'Please use either a typed question or an uploaded image, not both at the same time.';
+            errorEl.classList.remove('lg-hidden');
             return;
         }
+        if (!await window.LearnerUsage.checkAndIncrementUsage()) return;
 
         button.disabled = true;
-        button.innerHTML = `<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Analyzing...`;
-        outputEl.innerHTML = `<div class="text-center text-gray-600"><p>Thinking...</p></div>`;
+        button.innerHTML = `<span class="lg-spinner" style="width:20px;height:20px;border-width:2px;border-top-color:white"></span>Thinking…`;
+        outputEl.innerHTML = `<div class="lg-panel lg-homework-loading"><div class="lg-spinner"></div><h3>Working through the homework…</h3><p>Looking for the clearest way to explain the task and guide you towards the answer.</p></div>`;
 
         let prompt = '';
         let imageData = uploadedImageBase64;
         let inputPromptForDb = questionText;
 
         if (questionText) {
-            prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. The user asked the following question: "${questionText}". 
-Provide a JSON object with two keys: "hints" and "answer". 
-- "hints": An array of gentle hints to guide the student towards the answer.
-- "answer": A clear and concise final answer to the question.`;
+            prompt = `You are a helpful and safe AI assistant for school students. Explain educational topics in an age-appropriate way. The learner asked: "${questionText}".
+Return valid JSON with exactly two keys: "hints" and "answer".
+- "hints": an array of 2-4 useful steps or clues that help the learner understand how to approach the question before seeing the answer.
+- "answer": a clear, concise final answer with enough explanation to understand why it is correct.
+Do not add keys outside this structure.`;
             imageData = null;
-        } else if (imageData) {
-            prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Analyze the uploaded worksheet image. Provide a JSON object with three keys: "breakdown", "hints", and "answers". "breakdown" should be a simple, bullet-pointed summary of the instructions. "hints" should be an array of gentle hints for each question to guide the student. "answers" should be an array with the final answers to check against.`;
-            inputPromptForDb = "Homework Help (Image)";
+        } else {
+            prompt = `You are a helpful and safe AI assistant for school students. Analyse the uploaded worksheet image.
+Return valid JSON with exactly three keys: "breakdown", "hints", and "answers".
+- "breakdown": a concise summary of what the worksheet is asking the learner to do.
+- "hints": an array of useful clues or steps for the worksheet questions.
+- "answers": an array of final answers the learner can use to check their own work.
+Do not add keys outside this structure.`;
+            inputPromptForDb = 'Homework Help (Image)';
         }
 
         try {
@@ -103,29 +141,11 @@ Provide a JSON object with two keys: "hints" and "answer".
                 work_type: 'homeworkHelper',
                 input_prompt: { prompt: inputPromptForDb },
                 output_content: result
-            }).then(({ error }) => {
-                if (error) console.error('Error saving work:', error.message);
-            });
+            }).then(({ error }) => { if (error) console.error('Error saving work:', error.message); });
 
-            let outputHtml = '<div class="bg-gray-50/50 p-6 rounded-lg space-y-6">';
-            if (result.breakdown) {
-                outputHtml += window.LearnerOutput.createSectionHTML('list-checks', 'blue', "Let's Break It Down", result.breakdown);
-            }
-            if (result.hints) {
-                outputHtml += window.LearnerOutput.createSectionHTML('lightbulb', 'yellow', 'Helpful Hints', result.hints);
-            }
-            if (result.answer) {
-                outputHtml += window.LearnerOutput.createSectionHTML('key-round', 'green', 'Answer', result.answer);
-            } else if (result.answers) {
-                outputHtml += window.LearnerOutput.createSectionHTML('key-round', 'green', 'Check Your Work', result.answers);
-            }
-            outputHtml += '</div>';
-
-            outputEl.innerHTML = window.LearnerOutput.createTranslatedOutputShell(
-                'hh-answer-toolbar',
-                'hh-answer-content',
-                outputHtml
-            );
+            const topicLabel = questionText || 'Uploaded worksheet';
+            const outputHtml = renderHomeworkResult(result, topicLabel);
+            outputEl.innerHTML = `<div class="lg-homework-output"><div class="lg-homework-toolbar" id="hh-answer-toolbar"></div><div id="hh-answer-content">${outputHtml}</div></div>`;
 
             window.LearnerOutput.attachTextTranslationToolbar({
                 toolbarId: 'hh-answer-toolbar',
@@ -136,14 +156,14 @@ Provide a JSON object with two keys: "hints" and "answer".
             });
 
             if (window.lucide?.createIcons) window.lucide.createIcons();
-
-        } catch (e) {
-            errorEl.textContent = `An error occurred: ${e.message}`;
-            errorEl.classList.remove('hidden');
+            outputEl.scrollIntoView({ behavior:'smooth', block:'start' });
+        } catch (error) {
+            errorEl.textContent = `Could not generate homework help: ${error.message}`;
+            errorEl.classList.remove('lg-hidden');
             outputEl.innerHTML = '';
         } finally {
             button.disabled = false;
-            button.innerHTML = `<i data-lucide="sparkles" class="w-5 h-5 mr-2"></i>Get Help`;
+            button.innerHTML = `<i data-lucide="sparkles" width="18"></i>Get homework help`;
             if (window.lucide?.createIcons) window.lucide.createIcons();
         }
     }
@@ -151,17 +171,11 @@ Provide a JSON object with two keys: "hints" and "answer".
     async function init() {
         const result = await window.LearnerAuth.requireSessionAndProfile();
         if (!result) return;
+        const { profile, account } = result;
 
-        const { profile } = result;
-
-        root.innerHTML = pageTemplate(profile.name);
-        if (window.lucide?.createIcons) window.lucide.createIcons();
-
+        window.LearnerShell.render({ root, profile, account, activeKey:'homework', title:'Homework Helper', mobileTitle:'Homework Helper', content:pageContent(profile.name) });
         imageUpload = window.LearnerImageUpload.attach();
-
-        document.getElementById('generate-homework-help-btn').addEventListener('click', () => {
-            handleGenerateHomeworkHelp(profile);
-        });
+        document.getElementById('generate-homework-help-btn').addEventListener('click', () => handleGenerateHomeworkHelp(profile));
     }
 
     init();
