@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LearnerGenie · Get started</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/styles/onboarding.css">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<div class="ob-app">
+  <aside class="ob-side">
+    <div class="ob-brand"><img src="/logo.svg" alt="">LearnerGenie</div>
+    <h1>One login.<br>Different ways to support learning.</h1>
+    <p>Set up the right workspace now. You can add another way of using LearnerGenie later.</p>
+    <div class="ob-steps">
+      <div class="ob-step is-active" data-step="1"><b>1</b><span>Choose your path<br><small>Family or educator</small></span></div>
+      <div class="ob-step" data-step="2"><b>2</b><span>Set up your context<br><small>Country, learner or workspace</small></span></div>
+      <div class="ob-step" data-step="3"><b>3</b><span>Confirm access<br><small>Free learner tier or tutor dashboard</small></span></div>
+      <div class="ob-step" data-step="4"><b>4</b><span>Start using LearnerGenie</span></div>
+    </div>
+    <div class="ob-side-note"><strong>One account can do both.</strong><br>A tutor can later add learner profiles for their own family, and a parent can later add a tutor workspace.</div>
+  </aside>
+  <main class="ob-main"><div class="ob-shell">
+    <div class="ob-top"><div class="ob-eyebrow" id="ob-stage">Getting started</div><div class="ob-progress"><div class="ob-track"><div class="ob-fill" id="ob-fill"></div></div><span id="ob-progress-text">1 of 4</span></div></div>
+    <div id="ob-root"><div class="ob-loading"><div><div class="ob-spinner"></div><p>Preparing your account…</p></div></div></div>
+  </div></main>
+</div>
+<script src="/shared/learner-auth.js"></script>
+<script src="/shared/region-config.js"></script>
+<script src="/shared/onboarding.js"></script>
+</body>
+</html>
