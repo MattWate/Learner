@@ -3,6 +3,7 @@
     const root = document.getElementById('page-root');
     let currentTest = [];
     let currentQuestionIndex = 0;
+    let isMarking = false;
 
     const TEST_BUILDER_TRANSLATION_INSTRUCTIONS = `
 Keep the same JSON structure for Test Builder.
@@ -72,6 +73,7 @@ Return valid JSON only.
     function renderTestBuilderContent(testData) {
         currentTest = Array.isArray(testData) ? testData : [];
         currentQuestionIndex = 0;
+        isMarking = false;
         const quizHtml = window.LearnerQuiz.renderPracticeTest(currentTest);
         const map = currentTest.map((_, index) => `<button type="button" data-question-jump="${index}">${index + 1}</button>`).join('');
         return `<div class="lg-test-shell">
@@ -93,6 +95,7 @@ Return valid JSON only.
     }
 
     function refreshQuestionView() {
+        if (isMarking) return;
         const blocks = Array.from(document.querySelectorAll('.quiz-question-wrapper'));
         if (!blocks.length) return;
         currentQuestionIndex = Math.max(0, Math.min(currentQuestionIndex, blocks.length - 1));
@@ -111,15 +114,85 @@ Return valid JSON only.
         });
     }
 
-    async function showResultsReview() {
-        await window.LearnerQuiz.submitQuiz(currentTest);
+    function setMarkingState(active) {
         const main = document.getElementById('lg-test-main');
-        main?.classList.add('lg-review-mode');
-        main?.parentElement?.classList.add('lg-review-shell');
-        document.getElementById('lg-test-progress-row')?.classList.add('lg-hidden');
-        document.getElementById('lg-test-nav')?.classList.add('lg-hidden');
-        document.getElementById('lg-test-side')?.classList.add('lg-hidden');
-        main?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const nav = document.getElementById('lg-test-nav');
+        const progress = document.getElementById('lg-test-progress-row');
+        const side = document.getElementById('lg-test-side');
+        const form = document.getElementById('quiz-form');
+
+        document.getElementById('lg-test-marking')?.remove();
+
+        [nav, side, form].forEach(section => {
+            if (section) section.style.pointerEvents = active ? 'none' : '';
+        });
+        document.querySelectorAll('#lg-test-nav button, #lg-question-map button, #quiz-form input').forEach(control => {
+            control.disabled = active;
+        });
+
+        if (!active || !main) return;
+
+        const markingPanel = document.createElement('div');
+        markingPanel.id = 'lg-test-marking';
+        markingPanel.className = 'lg-test-loading';
+        markingPanel.setAttribute('role', 'status');
+        markingPanel.setAttribute('aria-live', 'polite');
+        markingPanel.innerHTML = `
+            <div class="lg-spinner"></div>
+            <h3>Marking your test…</h3>
+            <p>Checking your answers${currentTest.some(question => question.type === 'ShortAnswer') ? ', including your written responses' : ''}. This can take a few moments.</p>
+        `;
+
+        if (progress) progress.insertAdjacentElement('afterend', markingPanel);
+        else main.prepend(markingPanel);
+
+        if (form) form.style.opacity = '.35';
+        if (nav) nav.style.opacity = '.45';
+        if (side) side.style.opacity = '.55';
+        markingPanel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function clearMarkingVisualState() {
+        document.getElementById('lg-test-marking')?.remove();
+        const nav = document.getElementById('lg-test-nav');
+        const side = document.getElementById('lg-test-side');
+        const form = document.getElementById('quiz-form');
+        [nav, side, form].forEach(section => {
+            if (section) {
+                section.style.pointerEvents = '';
+                section.style.opacity = '';
+            }
+        });
+        document.querySelectorAll('#lg-test-nav button, #lg-question-map button, #quiz-form input').forEach(control => {
+            control.disabled = false;
+        });
+    }
+
+    async function showResultsReview() {
+        if (isMarking) return;
+        isMarking = true;
+        setMarkingState(true);
+
+        try {
+            await window.LearnerQuiz.submitQuiz(currentTest);
+            document.getElementById('lg-test-marking')?.remove();
+            const main = document.getElementById('lg-test-main');
+            main?.classList.add('lg-review-mode');
+            main?.parentElement?.classList.add('lg-review-shell');
+            document.getElementById('lg-test-progress-row')?.classList.add('lg-hidden');
+            document.getElementById('lg-test-nav')?.classList.add('lg-hidden');
+            document.getElementById('lg-test-side')?.classList.add('lg-hidden');
+            const form = document.getElementById('quiz-form');
+            if (form) form.style.opacity = '';
+            main?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } catch (error) {
+            console.error('Could not mark practice test:', error);
+            clearMarkingVisualState();
+            const results = document.getElementById('quiz-results');
+            if (results) results.innerHTML = '<div class="lg-inline-error">We could not finish marking the test. Please try again.</div>';
+        } finally {
+            isMarking = false;
+        }
     }
 
     function wireFocusedTest() {
@@ -131,6 +204,7 @@ Return valid JSON only.
 
         if (backButton) {
             backButton.onclick = () => {
+                if (isMarking) return;
                 currentQuestionIndex -= 1;
                 refreshQuestionView();
             };
@@ -138,6 +212,7 @@ Return valid JSON only.
 
         if (nextButton) {
             nextButton.onclick = async () => {
+                if (isMarking) return;
                 if (currentQuestionIndex === blocks.length - 1) {
                     await showResultsReview();
                     return;
@@ -149,6 +224,7 @@ Return valid JSON only.
 
         document.querySelectorAll('[data-question-jump]').forEach(button => {
             button.onclick = () => {
+                if (isMarking) return;
                 currentQuestionIndex = Number(button.dataset.questionJump);
                 refreshQuestionView();
             };
