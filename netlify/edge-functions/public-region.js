@@ -9,16 +9,17 @@ export default async function handler(request, context) {
 
   if (region === 'US') {
     html = html
-      .replace('R69<span class="text-sm text-slate-500">/mo</span>', '$5.99<span class="text-sm text-slate-500">/mo</span>')
-      .replace('R99<span class="text-sm text-slate-500">/mo</span>', '$7.99<span class="text-sm text-slate-500">/mo</span>')
-      .replace('R149<span class="text-sm text-slate-500">/mo</span>', '$10.99<span class="text-sm text-slate-500">/mo</span>');
+      .replace(/R69(?=<span[^>]*>\/mo<\/span>)/g, '$5.99')
+      .replace(/R99(?=<span[^>]*>\/mo<\/span>)/g, '$7.99')
+      .replace(/R149(?=<span[^>]*>\/mo<\/span>)/g, '$10.99');
   }
 
-  html = html.replace('</head>', `<meta name="learnergenie-region" content="${region}">\n</head>`);
+  html = html.replace('</head>', `<meta name="learnergenie-region" content="${region}"><meta name="learnergenie-country" content="${country || 'UNKNOWN'}">\n</head>`);
+
   const headers = new Headers(response.headers);
   headers.set('x-learnergenie-region', region);
-  headers.set('cache-control', 'public, max-age=0, must-revalidate');
+  headers.set('x-learnergenie-country', country || 'UNKNOWN');
+  headers.set('cache-control', 'private, no-store, max-age=0');
+  headers.set('vary', 'accept-encoding');
   return new Response(html, { status: response.status, headers });
 }
-
-export const config = { path: '/' };
