@@ -106,18 +106,40 @@ exports.handler = async (event) => {
       if (error) throw error;
     }
 
-    else if (eventType === 'subscription.disable' || eventType === 'subscription.not_renew') {
+    else if (eventType === 'subscription.not_renew') {
+      const subscriptionId=eventData.subscription_code || eventData.subscription?.subscription_code || eventData.id;
+      if(subscriptionId){
+        const {data:subRow,error:subError}=await supabase.from('subscriptions').select('id').eq('provider','paystack').eq('provider_subscription_id',String(subscriptionId)).maybeSingle();
+        if(subError)throw subError;
+        if(subRow?.id){
+          const {error}=await supabase.from('subscriptions').update({
+            cancel_at_period_end:true,
+            updated_at:new Date().toISOString(),
+            metadata:{last_paystack_event:eventType}
+          }).eq('id',subRow.id);
+          if(error)throw error;
+        }
+      }
+      // Keep account access active until Paystack sends subscription.disable.
+    }
+
+    else if (eventType === 'subscription.disable') {
       const subscriptionId=eventData.subscription_code || eventData.subscription?.subscription_code || eventData.id;
       let userId=await resolveUserId(supabase,eventData);
       let subRow=null;
       if(subscriptionId){
-        const {data}=await supabase.from('subscriptions').select('id,account_id').eq('provider','paystack').eq('provider_subscription_id',String(subscriptionId)).maybeSingle();
+        const {data,error}=await supabase.from('subscriptions').select('id,account_id').eq('provider','paystack').eq('provider_subscription_id',String(subscriptionId)).maybeSingle();
+        if(error)throw error;
         subRow=data||null;
         if(subRow?.account_id)userId=subRow.account_id;
-        if(subRow?.id)await supabase.from('subscriptions').update({status:'cancelled',updated_at:new Date().toISOString(),metadata:{last_paystack_event:eventType}}).eq('id',subRow.id);
+        if(subRow?.id){
+          const {error:updateError}=await supabase.from('subscriptions').update({status:'cancelled',cancel_at_period_end:false,updated_at:new Date().toISOString(),metadata:{last_paystack_event:eventType}}).eq('id',subRow.id);
+          if(updateError)throw updateError;
+        }
       }
       if (userId) {
-        const {data:account}=await supabase.from('accounts').select('subscription_id').eq('id',userId).maybeSingle();
+        const {data:account,error:accountReadError}=await supabase.from('accounts').select('subscription_id').eq('id',userId).maybeSingle();
+        if(accountReadError)throw accountReadError;
         if(!subscriptionId || String(account?.subscription_id||'')===String(subscriptionId)){
           const { error } = await supabase.from('accounts').update({active_tier:'free',subscription_status:'cancelled',profile_limit:1,subscription_id:null}).eq('id', userId);
           if (error) throw error;
