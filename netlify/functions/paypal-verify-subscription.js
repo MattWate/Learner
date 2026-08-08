@@ -42,6 +42,7 @@ exports.handler = async (event) => {
     const subscription=await ppRes.json();
     const plan=PLAN_MAP[subscription.plan_id];
     if(!plan) return {statusCode:400,body:JSON.stringify({error:'This PayPal plan is not recognised by LearnerGenie.'})};
+    if(String(subscription.custom_id||'') !== userId) return {statusCode:403,body:JSON.stringify({error:'This PayPal subscription does not belong to the signed-in LearnerGenie account.'})};
     if(subscription.status !== 'ACTIVE') return {statusCode:409,body:JSON.stringify({error:`PayPal reports the subscription as ${subscription.status}. Access will activate once it becomes ACTIVE.`})};
 
     const {data:existing}=await supabase.from('subscriptions').select('id').eq('provider','paypal').eq('provider_subscription_id',subscriptionId).maybeSingle();
