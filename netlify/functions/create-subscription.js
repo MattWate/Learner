@@ -29,17 +29,24 @@ exports.handler = async (event) => {
     if(userError||!userData?.user) return {statusCode:401,body:JSON.stringify({error:'Your LearnerGenie session could not be verified.'})};
     const userId=userData.user.id;
     const email=userData.user.email;
+    if(!email) return {statusCode:400,body:JSON.stringify({error:'Your LearnerGenie account does not have an email address available for billing.'})};
+
+    // Keep the account email available for reconciliation of Paystack lifecycle
+    // events that do not carry the original transaction metadata.
+    const {error:emailSyncError}=await supabase.from('accounts').update({parent_email:email}).eq('id',userId);
+    if(emailSyncError)throw emailSyncError;
 
     const { plan } = JSON.parse(event.body||'{}');
     if (!plan) return {statusCode:400,body:JSON.stringify({error:'Missing plan.'})};
 
-    const {data:current}=await supabase.from('subscriptions')
+    const {data:current,error:currentError}=await supabase.from('subscriptions')
       .select('id,provider,plan_code,status')
       .eq('account_id',userId)
       .in('status',['active','trialing','past_due'])
       .order('created_at',{ascending:false})
       .limit(1)
       .maybeSingle();
+    if(currentError)throw currentError;
     if(current){
       return {statusCode:409,body:JSON.stringify({error:'This account already has a subscription. Manage the current subscription before starting another one.'})};
     }
