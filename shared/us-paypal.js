@@ -28,7 +28,12 @@
     const p=plans[selected];
     buttons=paypal.Buttons({
       style:{shape:'rect',color:'gold',layout:'vertical',label:'subscribe'},
-      createSubscription(data,actions){return actions.subscription.create({plan_id:p.planId});},
+      createSubscription(data,actions){
+        return actions.subscription.create({
+          plan_id:p.planId,
+          custom_id:session.user.id
+        });
+      },
       async onApprove(data){
         try{
           showMessage('PayPal approved the subscription. Verifying your LearnerGenie access…','success');
