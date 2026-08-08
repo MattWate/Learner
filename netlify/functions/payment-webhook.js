@@ -52,18 +52,8 @@ async function upsertSubscription(supabase,userId,subscriptionId,tierInfo,eventD
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
 
-  const {
-    SUPABASE_URL,
-    SUPABASE_SERVICE_KEY,
-    PAYSTACK_SECRET_KEY,
-    PAYSTACK_PLAN_SINGLE_CODE,
-    PAYSTACK_PLAN_FAMILY_CODE,
-    PAYSTACK_PLAN_ULTRA_CODE
-  } = process.env;
-
-  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !PAYSTACK_SECRET_KEY) {
-    return {statusCode:500,body:'Webhook not configured'};
-  }
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY, PAYSTACK_SECRET_KEY } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !PAYSTACK_SECRET_KEY) return {statusCode:500,body:'Webhook not configured'};
 
   const signature=event.headers['x-paystack-signature']||event.headers['X-Paystack-Signature'];
   if(!verifyPaystackSignature(event.body,signature,PAYSTACK_SECRET_KEY)){
@@ -98,13 +88,17 @@ exports.handler = async (event) => {
       const subscriptionId = eventData.subscription_code || eventData.subscription?.subscription_code || (eventType==='subscription.create'?eventData.id:null);
       if(subscriptionId) await upsertSubscription(supabase,userId,String(subscriptionId),tierInfo,eventData,'active');
 
-      const { error } = await supabase.from('accounts').update({
-        active_tier: tierInfo.tier,
-        subscription_id: subscriptionId ? String(subscriptionId) : null,
-        subscription_status: 'active',
-        profile_limit: tierInfo.profile_limit,
+      const accountUpdate={
+        active_tier:tierInfo.tier,
+        subscription_status:'active',
+        profile_limit:tierInfo.profile_limit,
         billing_region:'ZA'
-      }).eq('id', userId);
+      };
+      // A renewal charge may omit the subscription code; never erase the account's
+      // known subscription id just because one event does not include it.
+      if(subscriptionId) accountUpdate.subscription_id=String(subscriptionId);
+
+      const { error } = await supabase.from('accounts').update(accountUpdate).eq('id', userId);
       if (error) throw error;
     }
 
@@ -121,12 +115,7 @@ exports.handler = async (event) => {
       if (userId) {
         const {data:account}=await supabase.from('accounts').select('subscription_id').eq('id',userId).maybeSingle();
         if(!subscriptionId || String(account?.subscription_id||'')===String(subscriptionId)){
-          const { error } = await supabase.from('accounts').update({
-            active_tier: 'free',
-            subscription_status: 'cancelled',
-            profile_limit: 1,
-            subscription_id:null
-          }).eq('id', userId);
+          const { error } = await supabase.from('accounts').update({active_tier:'free',subscription_status:'cancelled',profile_limit:1,subscription_id:null}).eq('id', userId);
           if (error) throw error;
         }
       }
