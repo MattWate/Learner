@@ -29,7 +29,8 @@
 
   function hasExistingSubscription(){
     const status=billing?.subscription?.status||billing?.subscription_status;
-    return ['active','trialing','past_due'].includes(String(status||'').toLowerCase());
+    const paidTier=String(billing?.active_tier||'free').toLowerCase()!=='free';
+    return paidTier||['active','paid','trialing','past_due'].includes(String(status||'').toLowerCase());
   }
 
   function showExistingSubscription(){
