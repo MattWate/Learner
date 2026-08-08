@@ -1,4 +1,4 @@
-/* LearnerGenie dashboard and profile picker. */
+/* LearnerGenie dashboard and account-level profile picker. */
 (function () {
   const root = document.getElementById('app-root');
   let session;
@@ -8,6 +8,9 @@
 
   const escapeHtml = value => String(value ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');
   const link = path => window.LearnerAuth.withProfileId(path);
+  const limit = () => Math.max(1,Number(account?.profile_limit ?? 1));
+  const allowedProfiles = () => profiles.slice(0,limit());
+  const isAllowed = id => allowedProfiles().some(p=>String(p.id)===String(id));
 
   function greeting() {
     const hour = new Date().getHours();
@@ -42,7 +45,6 @@
     const day = (start.getDay() + 6) % 7;
     start.setDate(start.getDate() - day);
     start.setHours(0,0,0,0);
-
     const [weekResult,recentResult] = await Promise.all([
       window.LearnerAuth.supabase.from('saved_work').select('id',{count:'exact',head:true}).eq('profile_id',activeProfile.id).gte('created_at',start.toISOString()),
       window.LearnerAuth.supabase.from('saved_work').select('id,work_type,input_prompt,created_at').eq('profile_id',activeProfile.id).order('created_at',{ascending:false}).limit(3)
@@ -87,10 +89,20 @@
   }
 
   function picker() {
-    const cards = profiles.map(p => `<button class="lg-profile-choice" data-profile="${p.id}"><span>${escapeHtml((p.name||'L').charAt(0).toUpperCase())}</span><strong>${escapeHtml(p.name)}</strong></button>`).join('');
-    root.innerHTML = `<div class="lg-picker-page"><div class="lg-picker-card"><img src="/logo.svg" alt="LearnerGenie"><div class="lg-eyebrow">LearnerGenie</div><h1>Who's learning today?</h1><p>Choose a learner profile to open their dashboard.</p><div class="lg-picker-grid">${cards}<button class="lg-profile-choice is-add" id="add-profile"><span><i data-lucide="plus"></i></span><strong>Add learner</strong></button></div><button class="lg-picker-signout" id="picker-signout">Sign out</button></div></div>`;
+    const allowed=new Set(allowedProfiles().map(p=>String(p.id)));
+    const cards = profiles.map(p => {
+      const locked=!allowed.has(String(p.id));
+      if(locked){
+        return `<button class="lg-profile-choice" type="button" disabled title="Upgrade your plan to reactivate this learner"><span><i data-lucide="lock"></i></span><strong>${escapeHtml(p.name)}</strong><small style="display:block;color:#6b7280;margin-top:5px">Locked by current plan</small></button>`;
+      }
+      return `<button class="lg-profile-choice" data-profile="${p.id}"><span>${escapeHtml((p.name||'L').charAt(0).toUpperCase())}</span><strong>${escapeHtml(p.name)}</strong></button>`;
+    }).join('');
+    const canAdd=profiles.length<limit();
+    const addCard=canAdd?`<button class="lg-profile-choice is-add" id="add-profile"><span><i data-lucide="plus"></i></span><strong>Add learner</strong></button>`:'';
+    const lockedNotice=profiles.length>limit()?`<p style="margin-top:16px;font-size:13px;color:#6b7280">Your current plan includes ${limit()} learner profile${limit()===1?'':'s'}. Locked profiles and their saved work are preserved and will become available again if your plan allows more profiles.</p>`:'';
+    root.innerHTML = `<div class="lg-picker-page"><div class="lg-picker-card"><img src="/logo.svg" alt="LearnerGenie"><div class="lg-eyebrow">LearnerGenie</div><h1>Who's learning today?</h1><p>Choose a learner profile to open their dashboard.</p><div class="lg-picker-grid">${cards}${addCard}</div>${lockedNotice}<button class="lg-picker-signout" id="picker-signout">Sign out</button></div></div>`;
     document.querySelectorAll('[data-profile]').forEach(b=>b.onclick=()=>selectProfile(b.dataset.profile));
-    document.getElementById('add-profile').onclick=addProfile;
+    document.getElementById('add-profile')?.addEventListener('click',addProfile);
     document.getElementById('picker-signout').onclick=window.LearnerAuth.signOut;
     window.lucide?.createIcons();
   }
@@ -101,6 +113,7 @@
   }
 
   async function selectProfile(id) {
+    if(!isAllowed(id))return picker();
     activeProfile = profiles.find(p=>String(p.id)===String(id));
     if (!activeProfile) return picker();
     const url = new URL(location.href); url.searchParams.set('profile_id',activeProfile.id); history.replaceState({},'',url.pathname+url.search);
@@ -108,21 +121,30 @@
   }
 
   async function addProfile() {
-    const limit = Number(account?.profile_limit ?? 1);
-    if (profiles.length >= limit) return alert(`Your current plan allows ${limit} learner profile${limit===1?'':'s'}.`);
+    if (profiles.length >= limit()) return alert(`Your current plan allows ${limit()} learner profile${limit()===1?'':'s'}.`);
     const name = prompt('Learner name'); if (!name?.trim()) return;
-    const {data,error}=await window.LearnerAuth.supabase.from('profiles').insert({account_id:session.user.id,name:name.trim()}).select('*').single();
-    if (error) return alert(`Could not create learner profile: ${error.message}`);
-    profiles.push(data); await selectProfile(data.id);
+    const res=await fetch('/.netlify/functions/create-additional-learner',{
+      method:'POST',
+      headers:{'content-type':'application/json','authorization':`Bearer ${session.access_token}`},
+      body:JSON.stringify({name:name.trim()})
+    });
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok)return alert(body.error||'Could not create learner profile.');
+    profiles.push(body.profile);
+    profiles.sort((a,b)=>Number(a.id)-Number(b.id));
+    await selectProfile(body.profile.id);
   }
 
   async function init() {
     try {
       session = await window.LearnerAuth.requireSession(); if (!session) return;
       account = await window.LearnerAuth.getAccount(session.user.id);
-      const {data,error}=await window.LearnerAuth.supabase.from('profiles').select('*').eq('account_id',session.user.id);
+      const {data,error}=await window.LearnerAuth.supabase.from('profiles').select('*').eq('account_id',session.user.id).eq('status','active').order('id',{ascending:true});
       if (error) throw error; profiles=data||[];
       const requested=window.LearnerAuth.getProfileIdFromUrl();
+      if(new URLSearchParams(location.search).get('profile_locked')==='1'){
+        history.replaceState({},'',location.pathname);
+      }
       requested ? await selectProfile(requested) : picker();
     } catch(error) {
       root.innerHTML=`<div class="lg-loading-page"><div class="lg-panel"><h2>We couldn't open the dashboard</h2><p>${escapeHtml(error.message)}</p><button class="lg-primary-button" onclick="location.reload()">Try again</button></div></div>`;
