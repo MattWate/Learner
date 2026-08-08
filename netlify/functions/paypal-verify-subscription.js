@@ -20,8 +20,7 @@ async function paypalAccessToken(clientId, clientSecret){
 
 async function upsertSubscription(supabase, userId, subscription, plan){
   const subscriptionId=subscription.id;
-  const {data:existing,error:existingError}=await supabase
-    .from('subscriptions')
+  const {data:existing,error:existingError}=await supabase.from('subscriptions')
     .select('id')
     .eq('provider','paypal')
     .eq('provider_subscription_id',subscriptionId)
@@ -48,7 +47,6 @@ async function upsertSubscription(supabase, userId, subscription, plan){
     if(error) throw error;
     return existing.id;
   }
-
   const {data,error}=await supabase.from('subscriptions').insert(row).select('id').single();
   if(error) throw error;
   return data.id;
@@ -75,9 +73,7 @@ exports.handler = async (event) => {
     if(!subscriptionId) return {statusCode:400,body:JSON.stringify({error:'Missing PayPal subscription ID.'})};
 
     const token=await paypalAccessToken(PAYPAL_CLIENT_ID,PAYPAL_CLIENT_SECRET);
-    const ppRes=await fetch(`https://api-m.paypal.com/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`,{
-      headers:{authorization:`Bearer ${token}`,'content-type':'application/json'}
-    });
+    const ppRes=await fetch(`https://api-m.paypal.com/v1/billing/subscriptions/${encodeURIComponent(subscriptionId)}`,{headers:{authorization:`Bearer ${token}`,'content-type':'application/json'}});
     if(!ppRes.ok) return {statusCode:400,body:JSON.stringify({error:'PayPal could not confirm this subscription.'})};
 
     const subscription=await ppRes.json();
@@ -85,39 +81,34 @@ exports.handler = async (event) => {
     if(!plan) return {statusCode:400,body:JSON.stringify({error:'This PayPal plan is not recognised by LearnerGenie.'})};
     if(String(subscription.custom_id||'') !== userId) return {statusCode:403,body:JSON.stringify({error:'This PayPal subscription does not belong to the signed-in LearnerGenie account.'})};
 
-    const {data:otherActive,error:activeError}=await supabase
-      .from('subscriptions')
-      .select('id,provider_subscription_id,plan_code')
-      .eq('account_id',userId)
-      .eq('provider','paypal')
-      .eq('status','active')
-      .neq('provider_subscription_id',subscriptionId)
-      .limit(1)
-      .maybeSingle();
-    if(activeError) throw activeError;
-    if(otherActive){
-      return {statusCode:409,body:JSON.stringify({error:'This account already has an active PayPal subscription. Please manage the existing subscription before starting another one.'})};
+    const [{data:account,error:accountError},{data:otherActive,error:activeError}]=await Promise.all([
+      supabase.from('accounts').select('active_tier,subscription_status,subscription_id').eq('id',userId).maybeSingle(),
+      supabase.from('subscriptions').select('id,provider,provider_subscription_id,plan_code').eq('account_id',userId).eq('status','active').neq('provider_subscription_id',subscriptionId).limit(1).maybeSingle()
+    ]);
+    if(accountError)throw accountError;
+    if(activeError)throw activeError;
+
+    const accountAlreadyActive=(account?.active_tier&&account.active_tier!=='free')||['active','paid','trialing'].includes(String(account?.subscription_status||'').toLowerCase());
+    if(otherActive || (accountAlreadyActive && account?.subscription_id && String(account.subscription_id)!==subscriptionId)){
+      return {statusCode:409,body:JSON.stringify({error:'This account already has an active subscription. Please manage the existing subscription before starting another one.'})};
     }
 
     if(subscription.status !== 'ACTIVE'){
       return {statusCode:202,headers:{'content-type':'application/json'},body:JSON.stringify({
-        ok:false,
-        pending:true,
-        status:subscription.status,
+        ok:false,pending:true,status:subscription.status,
         message:`PayPal reports the subscription as ${subscription.status}. LearnerGenie will activate the account automatically when PayPal confirms activation.`
       })};
     }
 
     await upsertSubscription(supabase,userId,subscription,plan);
-
-    const {error:accountError}=await supabase.from('accounts').update({
+    const {error:updateError}=await supabase.from('accounts').update({
       active_tier:plan.tier,
       subscription_id:subscriptionId,
       subscription_status:'active',
       profile_limit:plan.profile_limit,
       billing_region:'US'
     }).eq('id',userId);
-    if(accountError) throw accountError;
+    if(updateError) throw updateError;
 
     return {statusCode:200,headers:{'content-type':'application/json'},body:JSON.stringify({ok:true,plan_code:plan.plan_code,profile_limit:plan.profile_limit})};
   }catch(error){
