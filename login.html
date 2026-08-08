@@ -1,74 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login / Register - Learning Genie</title>
-    <link rel="icon" href="/logo.svg" type="image/svg+xml">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <style>
-        body { font-family: 'Poppins', sans-serif; background: linear-gradient(to bottom, rgb(238 242 255), #f8fafc); }
-        .genie-logo-sm { width: 5rem; height: 5rem; }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LearnerGenie · Log in</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--ink:#172033;--navy:#17324d;--navy-dark:#10263a;--teal:#2f7f78;--teal-soft:#dff1ec;--paper:#fbfaf7;--coral:#ee6f61;--coral-dark:#d95a4d;--gold:#f4c95d;--line:#e5e7eb;--muted:#6b7280;--white:#fff}
+    *{box-sizing:border-box}body{margin:0;font-family:"DM Sans",sans-serif;color:var(--ink);background:var(--paper);min-height:100vh}button,input{font:inherit}button{cursor:pointer}.hidden{display:none!important}
+    .auth-page{min-height:100vh;display:grid;grid-template-columns:minmax(340px,.9fr) minmax(520px,1.1fr)}
+    .auth-story{position:relative;overflow:hidden;background:var(--navy);color:white;padding:38px 42px;display:flex;flex-direction:column;background-image:radial-gradient(circle at 14% 12%,rgba(244,201,93,.18),transparent 24%),radial-gradient(circle at 86% 72%,rgba(47,127,120,.34),transparent 30%)}
+    .brand{display:flex;align-items:center;gap:12px;color:white;text-decoration:none;font-family:Manrope,sans-serif;font-weight:800;font-size:22px}.brand img{width:46px;height:46px;border-radius:14px;background:white;padding:5px}.story-copy{margin:auto 0;max-width:470px}.eyebrow{color:#bcebdc;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.story-copy h1{font-family:Manrope,sans-serif;font-size:48px;line-height:1.08;letter-spacing:-.04em;margin:14px 0 18px}.story-copy p{color:#d5e1e9;font-size:17px;line-height:1.7;margin:0}.story-points{display:grid;gap:13px;margin-top:30px}.story-point{display:flex;gap:11px;align-items:center;color:#e6eef3;font-size:14px}.story-point i{color:var(--gold);width:18px}.story-note{font-size:12px;color:#afc0cc;padding-top:24px}
+    .auth-main{display:grid;place-items:center;padding:38px;background:linear-gradient(180deg,#f7faf9 0%,#fbfaf7 100%)}.auth-shell{width:min(100%,520px)}.auth-card{background:white;border:1px solid var(--line);border-radius:28px;padding:38px;box-shadow:0 24px 70px rgba(23,50,77,.13)}.auth-card .logo-mobile{width:56px;height:56px;margin-bottom:22px}.auth-card h2{font-family:Manrope,sans-serif;font-size:34px;line-height:1.15;letter-spacing:-.035em;margin:8px 0 10px}.auth-sub{color:var(--muted);font-size:16px;line-height:1.6;margin:0 0 28px}.field{display:grid;gap:8px;margin-bottom:16px}.field label{font-size:13px;font-weight:800;color:#334155}.field input{width:100%;padding:14px 15px;border:1px solid #d7dde1;border-radius:14px;outline:none;background:white;color:var(--ink)}.field input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(47,127,120,.11)}.actions{display:grid;gap:11px;margin-top:22px}.btn{border:0;border-radius:999px;padding:13px 18px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}.btn-primary{background:var(--coral);color:white}.btn-primary:hover{background:var(--coral-dark)}.btn-secondary{background:var(--teal-soft);color:var(--teal);border:1px solid #cbe3de}.btn-secondary:hover{background:#d3ebe5}.btn-link{background:transparent;color:var(--teal);padding:8px}.btn:disabled{opacity:.6;cursor:wait}.divider{display:flex;align-items:center;gap:12px;color:#94a3b8;font-size:12px;margin:22px 0}.divider:before,.divider:after{content:"";height:1px;background:#e5e7eb;flex:1}.message{margin-top:16px;border-radius:13px;padding:11px 13px;font-size:13px;line-height:1.5}.message.error{background:#fff1f0;color:#a63d36;border:1px solid #f2cbc7}.message.success{background:#eefaf5;color:#25665c;border:1px solid #cce8df}.state-icon{width:62px;height:62px;border-radius:19px;background:var(--teal-soft);color:var(--teal);display:grid;place-items:center;margin-bottom:20px}.state-icon i{width:28px;height:28px}.back{display:inline-flex;align-items:center;gap:7px;border:0;background:transparent;padding:0;color:var(--teal);font-weight:800;margin-bottom:22px}.small-copy{font-size:13px;color:var(--muted);line-height:1.55;margin-top:22px;text-align:center}.small-copy a{color:var(--teal);font-weight:700}.spinner{width:18px;height:18px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:900px){.auth-page{display:block}.auth-story{display:none}.auth-main{min-height:100vh;padding:22px}.auth-card{padding:28px 24px;border-radius:24px}.auth-card h2{font-size:29px}.auth-shell:before{content:"LearnerGenie";display:flex;align-items:center;margin-bottom:18px;font:800 19px Manrope;color:var(--navy)}}
+  </style>
 </head>
-<body class="antialiased">
-    <header class="absolute top-0 left-0 w-full p-4">
-        <a href="/index.html" class="flex items-center group w-fit">
-            <img src="/logo.svg" alt="Learning Genie Logo" class="h-12 w-12">
-            <span class="ml-3 text-2xl font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Learning Genie</span>
-        </a>
-    </header>
-    <div class="min-h-screen flex items-center justify-center p-4">
-        <div class="max-w-md w-full bg-white p-8 md:p-10 rounded-xl shadow-2xl text-center">
-            <img src="/logo.svg" alt="Learning Genie Logo" class="genie-logo-sm mx-auto mb-4">
-            <h1 class="text-3xl font-bold text-gray-800 mb-2">Welcome!</h1>
-            <p class="text-gray-600 mb-6">Log in or register to get started.</p>
-            <div id="auth-panel">
-                <form id="auth-form" class="text-left space-y-4">
-                    <div><label for="email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="you@example.com"></div>
-                    <div><label for="password-input" class="block text-sm font-medium text-gray-700 mb-1">Password</label><input type="password" id="password-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required placeholder="&bull;&bull;&bull;&bull;&bull;&bull;"></div>
-                    <div class="pt-2 space-y-3"><button type="submit" id="login-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">Log In</button><button type="button" id="register-btn" class="w-full bg-white text-indigo-600 border border-indigo-600 font-semibold py-3 px-4 rounded-lg hover:bg-indigo-50 disabled:bg-gray-100 flex items-center justify-center">Register</button></div>
-                </form>
-                <button id="show-forgot-btn" class="mt-5 text-sm text-indigo-600 hover:text-indigo-800 font-medium w-full text-center">Forgot your password?</button>
-                <div id="auth-message" class="text-sm mt-4 hidden"></div>
-            </div>
-            <div id="verify-email-state" class="hidden text-center py-4"><div class="bg-indigo-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="mail" class="h-10 w-10 text-indigo-600"></i></div><h2 class="text-2xl font-bold text-gray-800 mb-2">Check your inbox!</h2><p class="text-gray-600 mb-6">We've sent a confirmation link to <span id="display-email" class="font-semibold text-indigo-600"></span>. Click the link in the email to finish setting up your account.</p><button onclick="showPanel('auth-panel')" class="text-sm font-medium text-indigo-600 hover:text-indigo-800"><i data-lucide="arrow-left" class="inline-block h-4 w-4 mr-1"></i> Back to Login</button></div>
-            <div id="forgot-panel" class="hidden text-left"><button onclick="showPanel('auth-panel')" class="flex items-center text-sm text-gray-500 hover:text-gray-800 mb-6"><i data-lucide="arrow-left" class="h-4 w-4 mr-1"></i> Back to Login</button><h2 class="text-xl font-bold text-gray-800 mb-1">Reset your password</h2><p class="text-gray-500 text-sm mb-6">Enter your email and we'll send you a link to reset your password.</p><div class="space-y-4"><div><label for="reset-email-input" class="block text-sm font-medium text-gray-700 mb-1">Email</label><input type="email" id="reset-email-input" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="you@example.com"></div><button id="send-reset-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-300 flex items-center justify-center">Send Reset Link</button><div id="reset-message" class="text-sm mt-2 hidden"></div></div></div>
-            <div id="reset-sent-state" class="hidden text-center py-4"><div class="bg-green-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6"><i data-lucide="check-circle" class="h-10 w-10 text-green-600"></i></div><h2 class="text-2xl font-bold text-gray-800 mb-2">Reset link sent!</h2><p class="text-gray-600 mb-6">Check your inbox for a password reset link. It may take a minute to arrive.</p><button onclick="showPanel('auth-panel')" class="text-sm font-medium text-indigo-600 hover:text-indigo-800"><i data-lucide="arrow-left" class="inline-block h-4 w-4 mr-1"></i> Back to Login</button></div>
-        </div>
+<body>
+<div class="auth-page">
+  <aside class="auth-story">
+    <a class="brand" href="/"><img src="/logo.svg" alt="LearnerGenie logo">LearnerGenie</a>
+    <div class="story-copy">
+      <div class="eyebrow">Welcome back</div>
+      <h1>Better study habits start with the right support.</h1>
+      <p>Sign in to continue to your learner or tutor workspace, or create an account to get started.</p>
+      <div class="story-points">
+        <div class="story-point"><i data-lucide="book-open-check"></i>Guided learning tools for learners</div>
+        <div class="story-point"><i data-lucide="graduation-cap"></i>Free dashboards for tutors and teachers</div>
+        <div class="story-point"><i data-lucide="users"></i>One login can support multiple workspaces</div>
+      </div>
     </div>
-    <script>
-        lucide.createIcons();
-        const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
-        const { createClient } = supabase;
-        const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-        const panels = ['auth-panel', 'verify-email-state', 'forgot-panel', 'reset-sent-state'];
-        function safeNextPath() { const raw = new URLSearchParams(window.location.search).get('next'); if (!raw || !raw.startsWith('/') || raw.startsWith('//')) return '/app.html'; return raw; }
-        const nextPath = safeNextPath();
-        function showPanel(id) { panels.forEach(p => document.getElementById(p)?.classList.add('hidden')); document.getElementById(id)?.classList.remove('hidden'); lucide.createIcons(); }
-        const loginButton = document.getElementById('login-btn'), registerButton = document.getElementById('register-btn'), emailInput = document.getElementById('email-input'), passwordInput = document.getElementById('password-input'), messageEl = document.getElementById('auth-message');
-        loginButton.addEventListener('click', async e => { e.preventDefault(); await handleAuth('login'); });
-        registerButton.addEventListener('click', async e => { e.preventDefault(); await handleAuth('register'); });
-        async function handleAuth(mode) {
-            const email = emailInput.value.trim(), password = passwordInput.value.trim();
-            if (!email || !password) return showMessage(messageEl, 'Please enter both email and password.', 'error');
-            if (password.length < 6) return showMessage(messageEl, 'Password must be at least 6 characters.', 'error');
-            setLoading(true); let error;
-            if (mode === 'login') { const { error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password }); error = signInError; if (!error) { window.location.href = nextPath; return; } }
-            else { const { data, error: signUpError } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: window.location.origin + nextPath } }); error = signUpError; if (!error && data.user) { if (data.session) { window.location.href = nextPath; return; } document.getElementById('display-email').textContent = email; showPanel('verify-email-state'); } }
-            if (error) { if (error.message.includes('Invalid login credentials')) showMessage(messageEl, 'Invalid email or password.', 'error'); else if (error.message.includes('User already registered')) showMessage(messageEl, 'This email is already registered. Try logging in.', 'error'); else if (error.message.includes('Email rate limit exceeded')) showMessage(messageEl, 'Too many attempts. Please wait a moment.', 'error'); else showMessage(messageEl, error.message, 'error'); }
-            setLoading(false);
-        }
-        document.getElementById('show-forgot-btn').addEventListener('click', () => showPanel('forgot-panel'));
-        document.getElementById('send-reset-btn').addEventListener('click', async () => { const email = document.getElementById('reset-email-input').value.trim(), resetMsg = document.getElementById('reset-message'), btn = document.getElementById('send-reset-btn'); if (!email) return showMessage(resetMsg, 'Please enter your email address.', 'error'); btn.disabled = true; btn.innerHTML = '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Sending...'; const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/reset-password.html' }); btn.disabled = false; btn.innerHTML = 'Send Reset Link'; if (error) showMessage(resetMsg, error.message, 'error'); else showPanel('reset-sent-state'); });
-        function setLoading(isLoading) { loginButton.disabled = isLoading; registerButton.disabled = isLoading; loginButton.innerHTML = isLoading ? '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div> Loading...' : 'Log In'; registerButton.innerHTML = isLoading ? '<div class="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-600 mr-3"></div> Loading...' : 'Register'; }
-        function showMessage(el, message, type) { el.textContent = message; el.className = `text-sm mt-4 ${type === 'error' ? 'text-red-600' : 'text-green-600'}`; el.classList.remove('hidden'); }
-    </script>
+    <div class="story-note">LearnerGenie · Focused learning support for families and educators</div>
+  </aside>
+
+  <main class="auth-main"><div class="auth-shell"><section class="auth-card">
+    <div id="auth-panel">
+      <img class="logo-mobile" src="/logo.svg" alt="LearnerGenie logo">
+      <div class="eyebrow" style="color:var(--teal)">LearnerGenie account</div>
+      <h2>Welcome back.</h2>
+      <p class="auth-sub">Log in to continue, or register if you're new to LearnerGenie.</p>
+      <form id="auth-form">
+        <div class="field"><label for="email-input">Email</label><input type="email" id="email-input" required autocomplete="email" placeholder="you@example.com"></div>
+        <div class="field"><label for="password-input">Password</label><input type="password" id="password-input" required autocomplete="current-password" placeholder="••••••••"></div>
+        <div class="actions"><button type="submit" id="login-btn" class="btn btn-primary">Log in <i data-lucide="arrow-right"></i></button><button type="button" id="register-btn" class="btn btn-secondary">Create an account</button></div>
+      </form>
+      <button id="show-forgot-btn" class="btn btn-link" style="width:100%;margin-top:13px">Forgot your password?</button>
+      <div id="auth-message" class="hidden"></div>
+      <div class="small-copy">New here through a learner or tutor invitation? You can use the same email address for every LearnerGenie workspace you belong to.</div>
+    </div>
+
+    <div id="verify-email-state" class="hidden">
+      <div class="state-icon"><i data-lucide="mail-check"></i></div><div class="eyebrow" style="color:var(--teal)">Almost there</div><h2>Check your inbox.</h2><p class="auth-sub">We've sent a confirmation link to <strong id="display-email"></strong>. Open it to finish creating your account and continue.</p><button onclick="showPanel('auth-panel')" class="back"><i data-lucide="arrow-left"></i> Back to login</button>
+    </div>
+
+    <div id="forgot-panel" class="hidden">
+      <button onclick="showPanel('auth-panel')" class="back"><i data-lucide="arrow-left"></i> Back to login</button><div class="eyebrow" style="color:var(--teal)">Account recovery</div><h2>Reset your password.</h2><p class="auth-sub">Enter your email address and we'll send you a secure reset link.</p><div class="field"><label for="reset-email-input">Email</label><input type="email" id="reset-email-input" autocomplete="email" placeholder="you@example.com"></div><button id="send-reset-btn" class="btn btn-primary" style="width:100%">Send reset link</button><div id="reset-message" class="hidden"></div>
+    </div>
+
+    <div id="reset-sent-state" class="hidden">
+      <div class="state-icon"><i data-lucide="check-circle-2"></i></div><div class="eyebrow" style="color:var(--teal)">Email sent</div><h2>Check your inbox.</h2><p class="auth-sub">Your password reset link is on its way. It may take a minute to arrive.</p><button onclick="showPanel('auth-panel')" class="back"><i data-lucide="arrow-left"></i> Back to login</button>
+    </div>
+  </section></div></main>
+</div>
+<script>
+  lucide.createIcons();
+  const SUPABASE_URL='https://yvoemqckgtmedfjudkzo.supabase.co';
+  const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
+  const {createClient}=supabase;const supabaseClient=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+  const panels=['auth-panel','verify-email-state','forgot-panel','reset-sent-state'];
+  function safeNextPath(){const raw=new URLSearchParams(location.search).get('next');if(!raw||!raw.startsWith('/')||raw.startsWith('//'))return'/app.html';return raw}const nextPath=safeNextPath();
+  function showPanel(id){panels.forEach(p=>document.getElementById(p)?.classList.add('hidden'));document.getElementById(id)?.classList.remove('hidden');lucide.createIcons()}
+  const loginButton=document.getElementById('login-btn'),registerButton=document.getElementById('register-btn'),emailInput=document.getElementById('email-input'),passwordInput=document.getElementById('password-input'),messageEl=document.getElementById('auth-message');
+  document.getElementById('auth-form').addEventListener('submit',async e=>{e.preventDefault();await handleAuth('login')});registerButton.addEventListener('click',async()=>handleAuth('register'));
+  async function handleAuth(mode){const email=emailInput.value.trim(),password=passwordInput.value.trim();if(!email||!password)return showMessage(messageEl,'Please enter both email and password.','error');if(password.length<6)return showMessage(messageEl,'Password must be at least 6 characters.','error');setLoading(true);let error;if(mode==='login'){const{error:signInError}=await supabaseClient.auth.signInWithPassword({email,password});error=signInError;if(!error){location.href=nextPath;return}}else{const{data,error:signUpError}=await supabaseClient.auth.signUp({email,password,options:{emailRedirectTo:location.origin+nextPath}});error=signUpError;if(!error&&data.user){if(data.session){location.href=nextPath;return}document.getElementById('display-email').textContent=email;showPanel('verify-email-state')}}if(error){if(error.message.includes('Invalid login credentials'))showMessage(messageEl,'Invalid email or password.','error');else if(error.message.includes('User already registered'))showMessage(messageEl,'This email is already registered. Try logging in.','error');else if(error.message.includes('Email rate limit exceeded'))showMessage(messageEl,'Too many attempts. Please wait a moment.','error');else showMessage(messageEl,error.message,'error')}setLoading(false)}
+  document.getElementById('show-forgot-btn').addEventListener('click',()=>showPanel('forgot-panel'));
+  document.getElementById('send-reset-btn').addEventListener('click',async()=>{const email=document.getElementById('reset-email-input').value.trim(),resetMsg=document.getElementById('reset-message'),btn=document.getElementById('send-reset-btn');if(!email)return showMessage(resetMsg,'Please enter your email address.','error');btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Sending…';const{error}=await supabaseClient.auth.resetPasswordForEmail(email,{redirectTo:location.origin+'/reset-password.html'});btn.disabled=false;btn.textContent='Send reset link';if(error)showMessage(resetMsg,error.message,'error');else showPanel('reset-sent-state')});
+  function setLoading(on){loginButton.disabled=on;registerButton.disabled=on;loginButton.innerHTML=on?'<span class="spinner"></span> Logging in…':'Log in <i data-lucide="arrow-right"></i>';registerButton.innerHTML=on?'<span class="spinner"></span> Please wait…':'Create an account';lucide.createIcons()}
+  function showMessage(el,message,type){el.textContent=message;el.className=`message ${type}`;el.classList.remove('hidden')}
+</script>
 </body>
 </html>
