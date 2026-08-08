@@ -1,146 +1,155 @@
-/*
- * NETLIFY FUNCTION: payment-webhook.js
- * Handles Paystack webhooks to update user accounts.
- */
-
 const { createClient } = require('@supabase/supabase-js');
+const crypto = require('crypto');
 
-// Maps Paystack Plan Codes to Learner Genie Tiers
 function mapPaystackPlanToTier(planCode, env) {
-    // Remove whitespace just in case
-    const cleanCode = planCode ? planCode.trim() : '';
-    
-    // Check against environment variables (handling potential undefined values)
-    if (env.PAYSTACK_PLAN_SINGLE_CODE && cleanCode === env.PAYSTACK_PLAN_SINGLE_CODE.trim()) return { tier: 'paid_single', profile_limit: 1 };
-    if (env.PAYSTACK_PLAN_FAMILY_CODE && cleanCode === env.PAYSTACK_PLAN_FAMILY_CODE.trim()) return { tier: 'paid_family', profile_limit: 2 };
-    if (env.PAYSTACK_PLAN_ULTRA_CODE && cleanCode === env.PAYSTACK_PLAN_ULTRA_CODE.trim()) return { tier: 'paid_ultra', profile_limit: 4 };
-    
-    return null;
+  const cleanCode = planCode ? String(planCode).trim() : '';
+  if (env.PAYSTACK_PLAN_SINGLE_CODE && cleanCode === env.PAYSTACK_PLAN_SINGLE_CODE.trim()) return { tier: 'paid_single', profile_limit: 1, plan_code:'ZA_SINGLE_MONTHLY' };
+  if (env.PAYSTACK_PLAN_FAMILY_CODE && cleanCode === env.PAYSTACK_PLAN_FAMILY_CODE.trim()) return { tier: 'paid_family', profile_limit: 2, plan_code:'ZA_FAMILY_MONTHLY' };
+  if (env.PAYSTACK_PLAN_ULTRA_CODE && cleanCode === env.PAYSTACK_PLAN_ULTRA_CODE.trim()) return { tier: 'paid_ultra', profile_limit: 4, plan_code:'ZA_FAMILY_PLUS_MONTHLY' };
+  return null;
+}
+
+function verifyPaystackSignature(rawBody,signature,secret){
+  if(!rawBody||!signature||!secret)return false;
+  const expected=crypto.createHmac('sha512',secret).update(rawBody).digest('hex');
+  const a=Buffer.from(expected,'utf8');
+  const b=Buffer.from(String(signature),'utf8');
+  return a.length===b.length && crypto.timingSafeEqual(a,b);
+}
+
+async function resolveUserId(supabase,eventData){
+  const metadata=eventData.metadata||{};
+  if(metadata.supabase_user_id)return metadata.supabase_user_id;
+  if(eventData.custom_fields){
+    const field=eventData.custom_fields.find(f=>f.variable_name==='supabase_user_id');
+    if(field?.value)return field.value;
+  }
+  const email=eventData.customer?.email;
+  if(email){
+    const {data,error}=await supabase.from('accounts').select('id').eq('parent_email',email).maybeSingle();
+    if(error)throw error;
+    if(data?.id)return data.id;
+  }
+  return null;
+}
+
+async function upsertSubscription(supabase,userId,subscriptionId,tierInfo,eventData,status='active'){
+  if(!subscriptionId)return;
+  const {data:existing,error:existingError}=await supabase.from('subscriptions')
+    .select('id')
+    .eq('provider','paystack')
+    .eq('provider_subscription_id',subscriptionId)
+    .maybeSingle();
+  if(existingError)throw existingError;
+
+  const row={
+    account_id:userId,
+    provider:'paystack',
+    region_code:'ZA',
+    plan_code:tierInfo.plan_code,
+    currency:'ZAR',
+    provider_customer_id:eventData.customer?.customer_code||eventData.customer?.id||null,
+    provider_subscription_id:subscriptionId,
+    status,
+    current_period_start:eventData.created_at||null,
+    current_period_end:eventData.next_payment_date||null,
+    updated_at:new Date().toISOString(),
+    metadata:{paystack_plan_code:eventData.plan?.plan_code||eventData.plan_code||eventData.plan||null}
+  };
+  if(existing?.id){
+    const {error}=await supabase.from('subscriptions').update(row).eq('id',existing.id);
+    if(error)throw error;
+  }else{
+    const {error}=await supabase.from('subscriptions').insert(row);
+    if(error)throw error;
+  }
 }
 
 exports.handler = async (event) => {
-    // 1. Only allow POST requests
-    if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+  if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
+
+  const { SUPABASE_URL, SUPABASE_SERVICE_KEY, PAYSTACK_SECRET_KEY } = process.env;
+  if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY || !PAYSTACK_SECRET_KEY) return {statusCode:500,body:'Webhook not configured'};
+
+  const signature=event.headers['x-paystack-signature']||event.headers['X-Paystack-Signature'];
+  if(!verifyPaystackSignature(event.body,signature,PAYSTACK_SECRET_KEY)){
+    console.warn('Rejected Paystack webhook with invalid signature.');
+    return {statusCode:401,body:'Invalid signature'};
+  }
+
+  try {
+    const payload = JSON.parse(event.body);
+    const eventType = payload.event;
+    const eventData = payload.data || {};
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {auth:{autoRefreshToken:false,persistSession:false}});
+
+    if (eventType === 'charge.success' || eventType === 'subscription.create') {
+      const userId = await resolveUserId(supabase,eventData);
+      if (!userId) return { statusCode: 200, body: 'Ignored: No User ID' };
+
+      const metadata=eventData.metadata||{};
+      const planCode = eventData.plan?.plan_code || eventData.plan || eventData.plan_code;
+      let tierInfo = mapPaystackPlanToTier(planCode, process.env);
+      if (!tierInfo && metadata.profile_limit) {
+        if (Number(metadata.profile_limit)===1) tierInfo={tier:'paid_single',profile_limit:1,plan_code:'ZA_SINGLE_MONTHLY'};
+        if (Number(metadata.profile_limit)===2) tierInfo={tier:'paid_family',profile_limit:2,plan_code:'ZA_FAMILY_MONTHLY'};
+        if (Number(metadata.profile_limit)===4) tierInfo={tier:'paid_ultra',profile_limit:4,plan_code:'ZA_FAMILY_PLUS_MONTHLY'};
+      }
+      if (!tierInfo) return { statusCode: 200, body: 'Ignored: Unknown Plan' };
+
+      const subscriptionId = eventData.subscription_code || eventData.subscription?.subscription_code || (eventType==='subscription.create'?eventData.id:null);
+      if(subscriptionId) await upsertSubscription(supabase,userId,String(subscriptionId),tierInfo,eventData,'active');
+
+      const accountUpdate={active_tier:tierInfo.tier,subscription_status:'active',profile_limit:tierInfo.profile_limit,billing_region:'ZA'};
+      if(subscriptionId) accountUpdate.subscription_id=String(subscriptionId);
+      const { error } = await supabase.from('accounts').update(accountUpdate).eq('id', userId);
+      if (error) throw error;
     }
 
-    const {
-        SUPABASE_URL,
-        SUPABASE_SERVICE_KEY,
-        PAYSTACK_PLAN_SINGLE_CODE,
-        PAYSTACK_PLAN_FAMILY_CODE,
-        PAYSTACK_PLAN_ULTRA_CODE
-    } = process.env;
-
-    try {
-        // 2. Parse Payload
-        const payload = JSON.parse(event.body);
-        const eventType = payload.event;
-        const eventData = payload.data;
-
-        console.log(`Webhook received: ${eventType}`);
-
-        // 3. Initialize Supabase Admin Client
-        // IMPORTANT: Must use SERVICE_KEY to bypass RLS and update user accounts
-        if (!SUPABASE_URL || !SUPABASE_SERVICE_KEY) {
-            console.error('CRITICAL: Missing Supabase credentials in webhook.');
-            throw new Error('Server configuration error: Missing Database Credentials.');
+    else if (eventType === 'subscription.not_renew') {
+      const subscriptionId=eventData.subscription_code || eventData.subscription?.subscription_code || eventData.id;
+      if(subscriptionId){
+        const {data:subRow,error:subError}=await supabase.from('subscriptions').select('id').eq('provider','paystack').eq('provider_subscription_id',String(subscriptionId)).maybeSingle();
+        if(subError)throw subError;
+        if(subRow?.id){
+          const {error}=await supabase.from('subscriptions').update({
+            cancel_at_period_end:true,
+            updated_at:new Date().toISOString(),
+            metadata:{last_paystack_event:eventType}
+          }).eq('id',subRow.id);
+          if(error)throw error;
         }
-        
-        // FIXED: Add options to prevent local storage errors in serverless functions
-        const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
-            auth: {
-                autoRefreshToken: false,
-                persistSession: false
-            }
-        });
-
-        // 4. Handle "Charge Success" or "Subscription Create"
-        if (eventType === 'charge.success' || eventType === 'subscription.create') {
-            
-            // Extract Metadata - Paystack can nest this in different places
-            // We check eventData.metadata directly, and also custom_fields if needed
-            let metadata = eventData.metadata || {};
-            
-            // Sometimes metadata comes as a custom_fields array in older integrations
-            if (!metadata.supabase_user_id && eventData.custom_fields) {
-                 const field = eventData.custom_fields.find(f => f.variable_name === 'supabase_user_id');
-                 if (field) metadata.supabase_user_id = field.value;
-            }
-
-            const userId = metadata.supabase_user_id;
-            let profileLimit = metadata.profile_limit;
-            
-            // Extract Plan Code
-            const planCode = eventData.plan?.plan_code || eventData.plan || eventData.plan_code;
-            const subscriptionId = eventData.subscription_code || eventData.subscription || eventData.id; // Subscription ID
-
-            console.log(`Processing ${eventType} for User: ${userId}, Plan: ${planCode}`);
-
-            if (!userId) {
-                console.error(`Missing User ID in webhook metadata for event ${eventType}. Payload snippet:`, JSON.stringify(metadata));
-                // We return 200 to stop Paystack from retrying this "bad" event forever
-                return { statusCode: 200, body: 'Ignored: No User ID' };
-            }
-
-            // Determine Tier
-            let tierInfo = mapPaystackPlanToTier(planCode, process.env);
-            
-            // Fallback: If plan mapping fails, try to use the profile_limit from metadata
-            if (!tierInfo && profileLimit) {
-                 console.warn(`Plan code ${planCode} not found in map. Using metadata fallback.`);
-                 if (profileLimit == 1) tierInfo = { tier: 'paid_single', profile_limit: 1 };
-                 else if (profileLimit == 2) tierInfo = { tier: 'paid_family', profile_limit: 2 };
-                 else if (profileLimit == 4) tierInfo = { tier: 'paid_ultra', profile_limit: 4 };
-            }
-
-            if (!tierInfo) {
-                console.error(`Unknown Plan Code: ${planCode} and no valid metadata fallback.`);
-                return { statusCode: 200, body: 'Ignored: Unknown Plan' };
-            }
-
-            // 5. Update Database
-            const { error } = await supabase
-                .from('accounts')
-                .update({ 
-                    active_tier: tierInfo.tier,
-                    subscription_id: subscriptionId,
-                    subscription_status: 'active',
-                    profile_limit: tierInfo.profile_limit
-                })
-                .eq('id', userId);
-
-            if (error) {
-                console.error(`Supabase Update Error: ${error.message}`);
-                throw error; // Rethrow to trigger 500 and retry
-            }
-
-            console.log(`SUCCESS: User ${userId} upgraded to ${tierInfo.tier}`);
-        }
-
-        // 5. Handle Cancellation
-        else if (eventType === 'subscription.disable' || eventType === 'subscription.not_renew') {
-             const metadata = eventData.metadata || {};
-             const userId = metadata.supabase_user_id;
-
-             if (userId) {
-                 console.log(`Downgrading user ${userId} due to cancellation.`);
-                 const { error } = await supabase.from('accounts').update({ 
-                    active_tier: 'free',
-                    subscription_status: 'cancelled',
-                    profile_limit: 1
-                }).eq('id', userId);
-                
-                if (error) console.error("Supabase Downgrade Error:", error.message);
-             } else {
-                 console.warn("Cancellation event received without User ID.");
-             }
-        }
-
-        return { statusCode: 200, body: 'OK' };
-
-    } catch (error) {
-        console.error("Webhook Error:", error.message);
-        return { statusCode: 500, body: 'Webhook processing failed.' };
+      }
+      // Keep account access active until Paystack sends subscription.disable.
     }
+
+    else if (eventType === 'subscription.disable') {
+      const subscriptionId=eventData.subscription_code || eventData.subscription?.subscription_code || eventData.id;
+      let userId=await resolveUserId(supabase,eventData);
+      let subRow=null;
+      if(subscriptionId){
+        const {data,error}=await supabase.from('subscriptions').select('id,account_id').eq('provider','paystack').eq('provider_subscription_id',String(subscriptionId)).maybeSingle();
+        if(error)throw error;
+        subRow=data||null;
+        if(subRow?.account_id)userId=subRow.account_id;
+        if(subRow?.id){
+          const {error:updateError}=await supabase.from('subscriptions').update({status:'cancelled',cancel_at_period_end:false,updated_at:new Date().toISOString(),metadata:{last_paystack_event:eventType}}).eq('id',subRow.id);
+          if(updateError)throw updateError;
+        }
+      }
+      if (userId) {
+        const {data:account,error:accountReadError}=await supabase.from('accounts').select('subscription_id').eq('id',userId).maybeSingle();
+        if(accountReadError)throw accountReadError;
+        if(!subscriptionId || String(account?.subscription_id||'')===String(subscriptionId)){
+          const { error } = await supabase.from('accounts').update({active_tier:'free',subscription_status:'cancelled',profile_limit:1,subscription_id:null}).eq('id', userId);
+          if (error) throw error;
+        }
+      }
+    }
+
+    return { statusCode: 200, body: 'OK' };
+  } catch (error) {
+    console.error('Paystack webhook error:', error);
+    return { statusCode: 500, body: 'Webhook processing failed.' };
+  }
 };

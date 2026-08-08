@@ -1,9 +1,45 @@
-/* Adds US paid-plan handoff without changing the core onboarding flow. */
+/* Adds US paid-plan handoff while keeping account subscription state authoritative. */
 (function(){
   const root=document.getElementById('ob-root');
   if(!root)return;
+  const PENDING_KEY='learnergenie_pending_paid_plan';
+
+  function cleanCopy(){
+    root.querySelectorAll('.ob-info').forEach(el=>{
+      if(el.textContent.includes('Each learner remains Free or Premium according to their own entitlement.')){
+        el.innerHTML='<strong>Important:</strong> free tutor access does not grant learner product access. Learner access is governed by the owning family account plan.';
+      }
+    });
+  }
+
+  function maybeContinueToCheckout(){
+    const pending=sessionStorage.getItem(PENDING_KEY);
+    if(!pending)return false;
+    const startLink=root.querySelector('a[href^="/app.html?profile_id="]');
+    if(!startLink)return false;
+    sessionStorage.removeItem(PENDING_KEY);
+    location.replace(`/us-subscribe.html?plan=${encodeURIComponent(pending)}`);
+    return true;
+  }
+
+  function wireFreeButton(){
+    const complete=document.getElementById('complete-family');
+    if(!complete||complete.dataset.billingIntentWired)return;
+    complete.dataset.billingIntentWired='1';
+    complete.addEventListener('click',()=>{
+      if(complete.dataset.paidTrigger==='1'){
+        delete complete.dataset.paidTrigger;
+        return;
+      }
+      sessionStorage.removeItem(PENDING_KEY);
+    },true);
+  }
 
   function wirePlans(){
+    cleanCopy();
+    if(maybeContinueToCheckout())return;
+    wireFreeButton();
+
     const plans=[...root.querySelectorAll('.ob-plan')];
     if(plans.length!==3)return;
     const text=root.textContent||'';
@@ -18,7 +54,14 @@
       plan.setAttribute('tabindex','0');
       plan.style.cursor='pointer';
       plan.title='Choose this paid plan';
-      const choose=()=>{ location.href=`/us-subscribe.html?plan=${encodeURIComponent(keys[index])}`; };
+
+      const choose=()=>{
+        const complete=document.getElementById('complete-family');
+        if(!complete||complete.disabled)return;
+        sessionStorage.setItem(PENDING_KEY,keys[index]);
+        complete.dataset.paidTrigger='1';
+        complete.click();
+      };
       plan.addEventListener('click',choose);
       plan.addEventListener('keydown',event=>{
         if(event.key==='Enter'||event.key===' '){event.preventDefault();choose();}
