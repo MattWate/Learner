@@ -17,6 +17,22 @@ function verifyPaystackSignature(rawBody,signature,secret){
   return a.length===b.length && crypto.timingSafeEqual(a,b);
 }
 
+async function resolveUserId(supabase,eventData){
+  const metadata=eventData.metadata||{};
+  if(metadata.supabase_user_id)return metadata.supabase_user_id;
+  if(eventData.custom_fields){
+    const field=eventData.custom_fields.find(f=>f.variable_name==='supabase_user_id');
+    if(field?.value)return field.value;
+  }
+  const email=eventData.customer?.email;
+  if(email){
+    const {data,error}=await supabase.from('accounts').select('id').eq('parent_email',email).maybeSingle();
+    if(error)throw error;
+    if(data?.id)return data.id;
+  }
+  return null;
+}
+
 async function upsertSubscription(supabase,userId,subscriptionId,tierInfo,eventData,status='active'){
   if(!subscriptionId)return;
   const {data:existing,error:existingError}=await supabase.from('subscriptions')
@@ -68,14 +84,10 @@ exports.handler = async (event) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {auth:{autoRefreshToken:false,persistSession:false}});
 
     if (eventType === 'charge.success' || eventType === 'subscription.create') {
-      let metadata = eventData.metadata || {};
-      if (!metadata.supabase_user_id && eventData.custom_fields) {
-        const field = eventData.custom_fields.find(f => f.variable_name === 'supabase_user_id');
-        if (field) metadata.supabase_user_id = field.value;
-      }
-      const userId = metadata.supabase_user_id;
+      const userId = await resolveUserId(supabase,eventData);
       if (!userId) return { statusCode: 200, body: 'Ignored: No User ID' };
 
+      const metadata=eventData.metadata||{};
       const planCode = eventData.plan?.plan_code || eventData.plan || eventData.plan_code;
       let tierInfo = mapPaystackPlanToTier(planCode, process.env);
       if (!tierInfo && metadata.profile_limit) {
@@ -88,23 +100,15 @@ exports.handler = async (event) => {
       const subscriptionId = eventData.subscription_code || eventData.subscription?.subscription_code || (eventType==='subscription.create'?eventData.id:null);
       if(subscriptionId) await upsertSubscription(supabase,userId,String(subscriptionId),tierInfo,eventData,'active');
 
-      const accountUpdate={
-        active_tier:tierInfo.tier,
-        subscription_status:'active',
-        profile_limit:tierInfo.profile_limit,
-        billing_region:'ZA'
-      };
-      // A renewal charge may omit the subscription code; never erase the account's
-      // known subscription id just because one event does not include it.
+      const accountUpdate={active_tier:tierInfo.tier,subscription_status:'active',profile_limit:tierInfo.profile_limit,billing_region:'ZA'};
       if(subscriptionId) accountUpdate.subscription_id=String(subscriptionId);
-
       const { error } = await supabase.from('accounts').update(accountUpdate).eq('id', userId);
       if (error) throw error;
     }
 
     else if (eventType === 'subscription.disable' || eventType === 'subscription.not_renew') {
       const subscriptionId=eventData.subscription_code || eventData.subscription?.subscription_code || eventData.id;
-      let userId=eventData.metadata?.supabase_user_id||null;
+      let userId=await resolveUserId(supabase,eventData);
       let subRow=null;
       if(subscriptionId){
         const {data}=await supabase.from('subscriptions').select('id,account_id').eq('provider','paystack').eq('provider_subscription_id',String(subscriptionId)).maybeSingle();
