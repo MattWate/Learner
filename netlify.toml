@@ -1,5 +1,12 @@
 [functions]
   directory = "netlify/functions"
 
-# The redirect rules have been REMOVED from netlify.toml 
-# to rely solely on the more stable _redirects file.
+[[edge_functions]]
+  function = "public-region"
+  path = "/"
+
+[[edge_functions]]
+  function = "public-region"
+  path = "/index.html"
+
+# API redirects remain in _redirects.
