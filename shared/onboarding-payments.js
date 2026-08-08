@@ -22,9 +22,23 @@
     return true;
   }
 
+  function wireFreeButton(){
+    const complete=document.getElementById('complete-family');
+    if(!complete||complete.dataset.billingIntentWired)return;
+    complete.dataset.billingIntentWired='1';
+    complete.addEventListener('click',()=>{
+      if(complete.dataset.paidTrigger==='1'){
+        delete complete.dataset.paidTrigger;
+        return;
+      }
+      sessionStorage.removeItem(PENDING_KEY);
+    },true);
+  }
+
   function wirePlans(){
     cleanCopy();
     if(maybeContinueToCheckout())return;
+    wireFreeButton();
 
     const plans=[...root.querySelectorAll('.ob-plan')];
     if(plans.length!==3)return;
@@ -43,8 +57,9 @@
 
       const choose=()=>{
         const complete=document.getElementById('complete-family');
-        if(!complete)return;
+        if(!complete||complete.disabled)return;
         sessionStorage.setItem(PENDING_KEY,keys[index]);
+        complete.dataset.paidTrigger='1';
         complete.click();
       };
       plan.addEventListener('click',choose);
