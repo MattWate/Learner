@@ -109,26 +109,56 @@ exports.handler=async(event)=>{
 
     const type=webhookEvent.event_type;
     const resource=webhookEvent.resource||{};
-    const subscriptionId=resource.id||resource.billing_agreement_id||resource.subscription_id;
+    // Subscription payment webhooks use billing_agreement_id; subscription lifecycle
+    // webhooks use resource.id. Prefer the explicit billing agreement reference.
+    const subscriptionId=resource.billing_agreement_id||resource.subscription_id||resource.id;
     if(!subscriptionId) return {statusCode:200,body:'Ignored'};
 
     const supabase=createClient(SUPABASE_URL,SUPABASE_SERVICE_KEY,{auth:{autoRefreshToken:false,persistSession:false}});
 
-    if(['BILLING.SUBSCRIPTION.ACTIVATED','BILLING.SUBSCRIPTION.UPDATED'].includes(type)){
+    if(['BILLING.SUBSCRIPTION.ACTIVATED','BILLING.SUBSCRIPTION.UPDATED','PAYMENT.SALE.COMPLETED'].includes(type)){
       const subscription=await fetchSubscription(subscriptionId,token);
       if(subscription.status==='ACTIVE') await activateAccount(supabase,subscription);
       return {statusCode:200,body:'OK'};
     }
 
-    const inactiveEvents={
+    if(type==='BILLING.SUBSCRIPTION.PAYMENT.FAILED'){
+      const {data:sub,error:subError}=await supabase.from('subscriptions')
+        .select('id,account_id')
+        .eq('provider','paypal')
+        .eq('provider_subscription_id',subscriptionId)
+        .maybeSingle();
+      if(subError) throw subError;
+      if(!sub) return {statusCode:200,body:'Unknown subscription'};
+
+      const {error:updateError}=await supabase.from('subscriptions').update({
+        status:'past_due',
+        updated_at:new Date().toISOString(),
+        metadata:{last_paypal_event:type}
+      }).eq('id',sub.id);
+      if(updateError) throw updateError;
+
+      const {data:account,error:accountReadError}=await supabase.from('accounts')
+        .select('subscription_id')
+        .eq('id',sub.account_id)
+        .maybeSingle();
+      if(accountReadError) throw accountReadError;
+      if(String(account?.subscription_id||'')===String(subscriptionId)){
+        // Keep the paid tier/profile allowance while PayPal retries the payment.
+        const {error}=await supabase.from('accounts').update({subscription_status:'past_due'}).eq('id',sub.account_id);
+        if(error) throw error;
+      }
+      return {statusCode:200,body:'OK'};
+    }
+
+    const terminalEvents={
       'BILLING.SUBSCRIPTION.CANCELLED':'cancelled',
       'BILLING.SUBSCRIPTION.SUSPENDED':'past_due',
-      'BILLING.SUBSCRIPTION.EXPIRED':'expired',
-      'BILLING.SUBSCRIPTION.PAYMENT.FAILED':'past_due'
+      'BILLING.SUBSCRIPTION.EXPIRED':'expired'
     };
 
-    if(inactiveEvents[type]){
-      const status=inactiveEvents[type];
+    if(terminalEvents[type]){
+      const status=terminalEvents[type];
       const {data:sub,error:subError}=await supabase.from('subscriptions')
         .select('id,account_id')
         .eq('provider','paypal')
@@ -150,7 +180,6 @@ exports.handler=async(event)=>{
         .maybeSingle();
       if(accountReadError) throw accountReadError;
 
-      // Only downgrade if this is still the account's current subscription.
       if(String(account?.subscription_id||'')===String(subscriptionId)){
         const {error:accountError}=await supabase.from('accounts').update({
           active_tier:'free',
