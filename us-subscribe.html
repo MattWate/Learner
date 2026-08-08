@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LearnerGenie · US subscriptions</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://www.paypal.com/sdk/js?client-id=AamJ5ZgRTUr1isdZkjQTz7jUljkexAmc5-eff-sRrMKs-UvNwmUhxhpksyibnvuTxCkAm3YCq_5qQo3b&components=buttons&vault=true&intent=subscription"></script>
+  <style>
+    :root{--ink:#172033;--navy:#17324d;--teal:#2f7f78;--teal-soft:#dff1ec;--paper:#fbfaf7;--coral:#ee6f61;--line:#e5e7eb;--muted:#6b7280;--gold:#f4c95d}
+    *{box-sizing:border-box}body{margin:0;font-family:"DM Sans",sans-serif;background:var(--paper);color:var(--ink)}button{font:inherit;cursor:pointer}.page{min-height:100vh;display:grid;grid-template-columns:330px 1fr}.side{background:var(--navy);color:white;padding:34px;display:flex;flex-direction:column}.brand{display:flex;align-items:center;gap:12px;font:800 21px Manrope}.brand img{width:44px;height:44px;border-radius:13px;background:white;padding:4px}.side h1{font:800 34px/1.1 Manrope;margin:58px 0 16px}.side p{color:#d4e0e8;line-height:1.65}.side .note{margin-top:auto;border:1px solid #ffffff22;background:#ffffff0e;border-radius:17px;padding:16px;font-size:13px;color:#d9e5ec;line-height:1.55}.main{padding:40px}.shell{max-width:900px;margin:auto}.eyebrow{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.14em;color:var(--teal)}h2{font:800 38px/1.12 Manrope;letter-spacing:-.035em;margin:10px 0 12px}.sub{color:var(--muted);font-size:17px;line-height:1.6;max-width:700px}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:15px;margin:30px 0}.plan{border:1px solid var(--line);border-radius:22px;background:white;padding:22px;text-align:left}.plan.active{border:2px solid var(--teal);background:#f8fcfb;box-shadow:0 14px 35px rgba(23,50,77,.08)}.plan small{font-weight:800;color:var(--teal)}.plan h3{font:800 19px Manrope;margin:8px 0}.price{font:800 30px Manrope;margin:8px 0}.price span{font:700 12px "DM Sans";color:var(--muted)}.plan p{font-size:13px;color:var(--muted);line-height:1.5}.checkout{background:white;border:1px solid var(--line);border-radius:24px;padding:26px;box-shadow:0 18px 45px rgba(23,50,77,.09)}.checkout-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start;margin-bottom:20px}.checkout-head strong{font:800 19px Manrope}.status{padding:7px 10px;border-radius:999px;background:var(--teal-soft);color:var(--teal);font-size:11px;font-weight:800}.message{margin-top:16px;padding:13px 15px;border-radius:14px;font-size:13px;line-height:1.5}.message.error{background:#fff1f0;color:#a63d36;border:1px solid #f1cbc7}.message.success{background:#eef9f5;color:#25665c;border:1px solid #cee8df}.foot{margin-top:18px;color:var(--muted);font-size:12px;line-height:1.5}.back{display:inline-flex;gap:8px;align-items:center;color:var(--teal);text-decoration:none;font-weight:800;margin-bottom:24px}@media(max-width:850px){.page{display:block}.side{display:none}.main{padding:22px}.plans{grid-template-columns:1fr}.checkout-head{display:block}.status{display:inline-block;margin-top:9px}}
+  </style>
+</head>
+<body>
+<div class="page">
+  <aside class="side"><div class="brand"><img src="/logo.svg" alt="">LearnerGenie</div><h1>Unlimited learning support for your family.</h1><p>Choose the number of learner profiles you need. Your subscription stays attached to your LearnerGenie account.</p><div class="note"><strong>Secure checkout with PayPal</strong><br>Your LearnerGenie account is upgraded only after the subscription is verified with PayPal.</div></aside>
+  <main class="main"><div class="shell">
+    <a class="back" href="/app.html"><i data-lucide="arrow-left" width="17"></i>Back to LearnerGenie</a>
+    <div class="eyebrow">United States subscriptions</div><h2>Choose the plan that fits your family.</h2><p class="sub">All paid plans include unlimited learning activities and full activity history. You can change your family plan later.</p>
+    <div class="plans" id="plan-list">
+      <button class="plan active" data-plan="single"><small>1 learner</small><h3>Single Learner</h3><div class="price">$5.99 <span>/ month</span></div><p>Full access for one learner profile.</p></button>
+      <button class="plan" data-plan="two"><small>Up to 2 learners</small><h3>Family</h3><div class="price">$7.99 <span>/ month</span></div><p>Full access for two learner profiles.</p></button>
+      <button class="plan" data-plan="four"><small>Up to 4 learners</small><h3>Family Plus</h3><div class="price">$10.99 <span>/ month</span></div><p>Full access for up to four learner profiles.</p></button>
+    </div>
+    <section class="checkout"><div class="checkout-head"><div><strong id="checkout-title">Single Learner · $5.99/month</strong><div class="foot">Your PayPal subscription will renew monthly until cancelled.</div></div><span class="status">PayPal secure checkout</span></div><div id="paypal-button-container"></div><div id="payment-message"></div></section>
+  </div></main>
+</div>
+<script src="/shared/learner-auth.js"></script>
+<script src="/shared/us-paypal.js"></script>
+</body>
+</html>
