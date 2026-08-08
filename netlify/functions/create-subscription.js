@@ -31,23 +31,20 @@ exports.handler = async (event) => {
     const email=userData.user.email;
     if(!email) return {statusCode:400,body:JSON.stringify({error:'Your LearnerGenie account does not have an email address available for billing.'})};
 
-    // Keep the account email available for reconciliation of Paystack lifecycle
-    // events that do not carry the original transaction metadata.
     const {error:emailSyncError}=await supabase.from('accounts').update({parent_email:email}).eq('id',userId);
     if(emailSyncError)throw emailSyncError;
 
     const { plan } = JSON.parse(event.body||'{}');
     if (!plan) return {statusCode:400,body:JSON.stringify({error:'Missing plan.'})};
 
-    const {data:current,error:currentError}=await supabase.from('subscriptions')
-      .select('id,provider,plan_code,status')
-      .eq('account_id',userId)
-      .in('status',['active','trialing','past_due'])
-      .order('created_at',{ascending:false})
-      .limit(1)
-      .maybeSingle();
+    const [{data:account,error:accountError},{data:current,error:currentError}]=await Promise.all([
+      supabase.from('accounts').select('active_tier,subscription_status,subscription_id').eq('id',userId).maybeSingle(),
+      supabase.from('subscriptions').select('id,provider,plan_code,status').eq('account_id',userId).in('status',['active','trialing','past_due']).order('created_at',{ascending:false}).limit(1).maybeSingle()
+    ]);
+    if(accountError)throw accountError;
     if(currentError)throw currentError;
-    if(current){
+    const accountAlreadyActive=(account?.active_tier&&account.active_tier!=='free')||['active','paid','trialing'].includes(String(account?.subscription_status||'').toLowerCase());
+    if(current||accountAlreadyActive){
       return {statusCode:409,body:JSON.stringify({error:'This account already has a subscription. Manage the current subscription before starting another one.'})};
     }
 
