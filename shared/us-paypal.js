@@ -19,6 +19,21 @@
     msg.innerHTML=`<div class="message ${type}">${esc(text)}</div>`;
   }
 
+  async function loadPayPalSdk(){
+    if(window.paypal)return;
+    const res=await fetch('/.netlify/functions/paypal-client-config',{cache:'no-store'});
+    const body=await res.json().catch(()=>({}));
+    if(!res.ok||!body.clientId)throw new Error(body.error||'PayPal checkout is not configured.');
+    await new Promise((resolve,reject)=>{
+      const script=document.createElement('script');
+      script.src=`https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(body.clientId)}&components=buttons&vault=true&intent=subscription`;
+      script.onload=resolve;
+      script.onerror=()=>reject(new Error('PayPal checkout could not be loaded.'));
+      document.head.appendChild(script);
+    });
+    if(!window.paypal)throw new Error('PayPal checkout did not initialise correctly.');
+  }
+
   async function loadBilling(){
     const res=await fetch('/.netlify/functions/billing-status',{headers:{authorization:`Bearer ${session.access_token}`}});
     const body=await res.json().catch(()=>({}));
@@ -88,7 +103,10 @@
     session=await window.LearnerAuth.requireSession();if(!session)return;
     const params=new URLSearchParams(location.search);if(plans[params.get('plan')])selected=params.get('plan');
     document.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>setSelected(b.dataset.plan));
-    try{await loadBilling();}catch(err){showMessage(err.message);return;}
+    try{
+      await loadBilling();
+      if(!hasExistingSubscription())await loadPayPalSdk();
+    }catch(err){showMessage(err.message);return;}
     setSelected(selected);window.lucide?.createIcons();
   }
   init();
