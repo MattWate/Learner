@@ -9,4 +9,8 @@
   function = "public-region"
   path = "/index.html"
 
+[[edge_functions]]
+  function = "geo-check"
+  path = "/geo-check"
+
 # API redirects remain in _redirects.
