@@ -3,126 +3,15 @@
     const SUPABASE_URL = 'https://yvoemqckgtmedfjudkzo.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2b2VtcWNrZ3RtZWRmanVka3pvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjA4Mjk3ODYsImV4cCI6MjA3NjQwNTc4Nn0.tbbJT2QWg_Cpl0_FbfVxyZl1Fsord1LQKJztyGQloJo';
     const FREE_PROFILE_LIMIT = 1;
-
-    if (!window.supabase || !window.supabase.createClient) {
-        console.error('LearnerAuth: Supabase SDK not found.');
-        return;
-    }
-
+    if (!window.supabase || !window.supabase.createClient) { console.error('LearnerAuth: Supabase SDK not found.'); return; }
     const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    function getProfileIdFromUrl() {
-        const params = new URLSearchParams(window.location.search);
-        return params.get('profile_id') || null;
-    }
-
-    async function requireSession() {
-        const { data: { session }, error } = await client.auth.getSession();
-        if (error) console.error('LearnerAuth: error getting session', error);
-        if (!session) {
-            const next=`${location.pathname}${location.search}`;
-            window.location.href = `/login.html?next=${encodeURIComponent(next)}`;
-            return null;
-        }
-        return session;
-    }
-
-    async function getAccount(userId) {
-        const { data: account, error: accountError } = await client
-            .from('accounts')
-            .select('active_tier,subscription_status,subscription_id,profile_limit,country_code,billing_region')
-            .eq('id', userId)
-            .maybeSingle();
-
-        if (accountError) throw new Error(`Failed to fetch account: ${accountError.message}`);
-        if (!account) {
-            const { error: insertError } = await client
-                .from('accounts')
-                .insert({ id: userId, active_tier: 'free', subscription_status:'free', profile_limit: FREE_PROFILE_LIMIT });
-            if (insertError) throw new Error(`Failed to insert new account: ${insertError.message}`);
-            return { active_tier:'free',subscription_status:'free',subscription_id:null,profile_limit:FREE_PROFILE_LIMIT,country_code:null,billing_region:null };
-        }
-        return account;
-    }
-
-    async function allowedProfileIds(session, account) {
-        const limit=Math.max(1,Number(account?.profile_limit||FREE_PROFILE_LIMIT));
-        const {data,error}=await client
-            .from('profiles')
-            .select('id')
-            .eq('account_id',session.user.id)
-            .eq('status','active')
-            .order('id',{ascending:true})
-            .limit(limit);
-        if(error) throw new Error(`Could not check learner access: ${error.message}`);
-        return new Set((data||[]).map(row=>String(row.id)));
-    }
-
-    async function requireProfile(session, knownAccount) {
-        const profileId = getProfileIdFromUrl();
-        if (!profileId) {
-            window.location.href = '/app.html';
-            return null;
-        }
-
-        const account=knownAccount||await getAccount(session.user.id);
-        const allowed=await allowedProfileIds(session,account);
-        if(!allowed.has(String(profileId))){
-            window.location.href='/app.html?profile_locked=1';
-            return null;
-        }
-
-        const { data, error } = await client
-            .from('profiles')
-            .select('*')
-            .eq('id', profileId)
-            .eq('account_id',session.user.id)
-            .single();
-
-        if (error || !data) {
-            console.error('LearnerAuth: could not load owned profile', error);
-            window.location.href = '/app.html';
-            return null;
-        }
-        return data;
-    }
-
-    async function requireSessionAndProfile() {
-        const session = await requireSession();
-        if (!session) return null;
-        let account;
-        try { account = await getAccount(session.user.id); }
-        catch (error) {
-            console.error('LearnerAuth: error loading account', error);
-            account = { active_tier:'free',subscription_status:'free',profile_limit:FREE_PROFILE_LIMIT };
-        }
-        const profile = await requireProfile(session,account);
-        if (!profile) return null;
-        return { session, profile, account };
-    }
-
-    function withProfileId(path) {
-        const profileId = getProfileIdFromUrl();
-        if (!profileId) return path;
-        const separator = path.includes('?') ? '&' : '?';
-        return `${path}${separator}profile_id=${encodeURIComponent(profileId)}`;
-    }
-
-    async function signOut() {
-        await client.auth.signOut();
-        window.location.href = '/login.html';
-    }
-
-    window.LearnerAuth = {
-        supabase: client,
-        FREE_PROFILE_LIMIT,
-        getProfileIdFromUrl,
-        requireSession,
-        requireProfile,
-        getAccount,
-        allowedProfileIds,
-        requireSessionAndProfile,
-        withProfileId,
-        signOut
-    };
+    function getProfileIdFromUrl(){const params=new URLSearchParams(window.location.search);return params.get('profile_id')||null;}
+    async function requireSession(){const {data:{session},error}=await client.auth.getSession();if(error)console.error('LearnerAuth: error getting session',error);if(!session){const next=`${location.pathname}${location.search}`;window.location.href=`/login.html?next=${encodeURIComponent(next)}`;return null;}return session;}
+    async function getAccount(userId){const {data:account,error:accountError}=await client.from('accounts').select('active_tier,subscription_status,subscription_id,profile_limit,country_code,billing_region').eq('id',userId).maybeSingle();if(accountError)throw new Error(`Failed to fetch account: ${accountError.message}`);if(!account){const {error:insertError}=await client.from('accounts').insert({id:userId,active_tier:'free',subscription_status:'free',profile_limit:FREE_PROFILE_LIMIT});if(insertError)throw new Error(`Failed to insert new account: ${insertError.message}`);return {active_tier:'free',subscription_status:'free',subscription_id:null,profile_limit:FREE_PROFILE_LIMIT,country_code:null,billing_region:null};}return account;}
+    async function allowedProfileIds(session,account){const limit=Math.max(1,Number(account?.profile_limit||FREE_PROFILE_LIMIT));const {data,error}=await client.from('profiles').select('id').eq('account_id',session.user.id).eq('status','active').order('id',{ascending:true}).limit(limit);if(error)throw new Error(`Could not check learner access: ${error.message}`);return new Set((data||[]).map(row=>String(row.id)));}
+    async function requireProfile(session,knownAccount){const profileId=getProfileIdFromUrl();if(!profileId){window.location.href='/app.html';return null;}const account=knownAccount||await getAccount(session.user.id);const allowed=await allowedProfileIds(session,account);if(!allowed.has(String(profileId))){window.location.href='/app.html?profile_locked=1';return null;}const {data,error}=await client.from('profiles').select('*').eq('id',profileId).eq('account_id',session.user.id).single();if(error||!data){console.error('LearnerAuth: could not load owned profile',error);window.location.href='/app.html';return null;}return data;}
+    async function requireSessionAndProfile(){const session=await requireSession();if(!session)return null;let account;try{account=await getAccount(session.user.id);}catch(error){console.error('LearnerAuth: error loading account',error);account={active_tier:'free',subscription_status:'free',profile_limit:FREE_PROFILE_LIMIT};}const profile=await requireProfile(session,account);if(!profile)return null;if(window.LearnerRegion?.setProfile){window.LearnerRegion.setProfile(profile,account);}return {session,profile,account};}
+    function withProfileId(path){const profileId=getProfileIdFromUrl();if(!profileId)return path;const separator=path.includes('?')?'&':'?';return `${path}${separator}profile_id=${encodeURIComponent(profileId)}`;}
+    async function signOut(){await client.auth.signOut();window.location.href='/login.html';}
+    window.LearnerAuth={supabase:client,FREE_PROFILE_LIMIT,getProfileIdFromUrl,requireSession,requireProfile,getAccount,allowedProfileIds,requireSessionAndProfile,withProfileId,signOut};
 })();
