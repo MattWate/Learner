@@ -38,6 +38,12 @@
         return tier === 'free' ? 'Free plan' : `${tier} plan`;
     }
 
+    function isFreeAccount(account) {
+        const tier=String(account?.active_tier||'free').toLowerCase();
+        const status=String(account?.subscription_status||'free').toLowerCase();
+        return tier==='free' && !['active','paid','trialing','past_due'].includes(status);
+    }
+
     function render(options) {
         const root = options.root;
         const profile = options.profile || {};
@@ -46,13 +52,14 @@
         const gradeText = profile.grade ? `Grade ${escapeHtml(profile.grade)} learner` : 'Learner profile';
         const initial = profileName.trim().charAt(0).toUpperCase() || 'L';
         const title = options.mobileTitle || options.title || 'LearnerGenie';
+        const upgrade = isFreeAccount(account) ? `<a class="lg-nav-link" href="${profileLink('/upgrade.html')}"><i data-lucide="sparkles" width="18"></i><span>Upgrade</span></a>` : '';
 
         root.innerHTML = `<div class="lg-mobile-overlay" data-lg-close-menu></div><div class="lg-app">
             <aside class="lg-sidebar" aria-label="Main navigation">
                 <a class="lg-brand" href="${profileLink('/app.html')}"><img src="/logo.svg" alt="LearnerGenie"><div><strong class="lg-brand-font">LearnerGenie</strong><span>Learning workspace</span></div></a>
                 <div class="lg-learner-card"><div class="lg-avatar">${escapeHtml(initial)}</div><div class="lg-learner-meta"><strong>${escapeHtml(profileName)}</strong><span>${gradeText}</span></div><a class="lg-profile-link" href="/app.html" title="Switch learner" aria-label="Switch learner"><i data-lucide="chevrons-up-down" width="17"></i></a></div>
                 <nav class="lg-nav">${navHtml(options.activeKey)}</nav>
-                <div class="lg-sidebar-bottom"><div class="lg-plan-card"><strong>${escapeHtml(accountLabel(account))}</strong><span>Learner profile active</span></div><nav class="lg-nav"><a class="lg-nav-link" href="${profileLink('/app.html#settings')}"><i data-lucide="settings" width="18"></i><span>Settings</span></a><button class="lg-nav-link" id="lg-sign-out" type="button" style="width:100%;border:0;background:transparent;text-align:left;cursor:pointer;"><i data-lucide="log-out" width="18"></i><span>Sign out</span></button></nav></div>
+                <div class="lg-sidebar-bottom"><div class="lg-plan-card"><strong>${escapeHtml(accountLabel(account))}</strong><span>Learner profile active</span></div><nav class="lg-nav">${upgrade}<a class="lg-nav-link" href="${profileLink('/app.html#settings')}"><i data-lucide="settings" width="18"></i><span>Settings</span></a><button class="lg-nav-link" id="lg-sign-out" type="button" style="width:100%;border:0;background:transparent;text-align:left;cursor:pointer;"><i data-lucide="log-out" width="18"></i><span>Sign out</span></button></nav></div>
             </aside>
             <main class="lg-main"><header class="lg-mobile-header"><div class="lg-mobile-brand"><img src="/logo.svg" alt=""><div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(profileName)}'s workspace</span></div></div><button class="lg-menu-button" type="button" data-lg-open-menu aria-label="Open navigation"><i data-lucide="menu"></i></button></header>${options.content}</main>
         </div>`;
