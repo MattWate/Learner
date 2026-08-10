@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>LearnerGenie · Upgrade</title>
+  <link rel="icon" href="/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root{--ink:#172033;--navy:#17324d;--teal:#2f7f78;--paper:#fbfaf7;--coral:#ee6f61;--line:#e5e7eb;--muted:#6b7280;--gold:#f4c95d}*{box-sizing:border-box}body{margin:0;font-family:"DM Sans",sans-serif;background:var(--paper);color:var(--ink)}a{text-decoration:none}.page{min-height:100vh;padding:28px}.shell{max-width:1050px;margin:auto}.top{display:flex;align-items:center;justify-content:space-between;gap:18px}.brand{display:flex;align-items:center;gap:10px;font:800 20px Manrope;color:var(--navy)}.brand img{width:42px;height:42px}.back{color:var(--teal);font-weight:800}.hero{text-align:center;max-width:760px;margin:58px auto 30px}.eyebrow{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--teal)}h1{font:800 44px/1.08 Manrope;letter-spacing:-.04em;margin:10px 0 14px}.hero p{font-size:17px;line-height:1.65;color:var(--muted)}.plans{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}.plan{background:white;border:1px solid var(--line);border-radius:24px;padding:25px;box-shadow:0 16px 38px rgba(23,50,77,.07)}.plan.featured{border:2px solid var(--teal);transform:translateY(-4px)}.badge{display:inline-block;padding:6px 9px;border-radius:999px;background:#e8f3f1;color:var(--teal);font-size:11px;font-weight:800}.plan h2{font:800 21px Manrope;margin:13px 0 6px}.price{font:800 34px Manrope;margin:8px 0}.price span{font:600 13px DM Sans;color:var(--muted)}.plan p{min-height:48px;color:var(--muted);line-height:1.55;font-size:14px}.choose{width:100%;border:0;border-radius:14px;padding:13px 16px;background:var(--navy);color:white;font-weight:800;cursor:pointer}.featured .choose{background:var(--teal)}.message{margin:20px auto 0;max-width:760px;border-radius:14px;padding:13px 15px;font-size:14px}.message.error{background:#fff1f0;color:#a63d36;border:1px solid #f1cbc7}.message.info{background:#eef9f5;color:#25665c;border:1px solid #cee8df}.fine{text-align:center;color:var(--muted);font-size:12px;margin:22px auto 0;line-height:1.5}@media(max-width:800px){.page{padding:20px}.plans{grid-template-columns:1fr}.plan.featured{transform:none}h1{font-size:36px}}
+  </style>
+</head>
+<body>
+<div class="page"><div class="shell">
+  <div class="top"><a class="brand" href="/app.html"><img src="/logo.svg" alt="">LearnerGenie</a><a class="back" href="/app.html">Back to learning</a></div>
+  <section class="hero"><div class="eyebrow">Upgrade LearnerGenie</div><h1>Unlock unlimited learning support.</h1><p id="upgrade-copy">Choose the number of learner profiles your family needs. Paid plans include unlimited learning activities, full history and Study Squads.</p></section>
+  <div class="plans" id="upgrade-plans"></div><div id="upgrade-message"></div>
+  <p class="fine" id="upgrade-fineprint">Subscriptions renew monthly until cancelled.</p>
+</div></div>
+<script src="/shared/learner-auth.js"></script>
+<script src="/shared/upgrade.js"></script>
+</body>
+</html>
