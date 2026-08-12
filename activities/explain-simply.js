@@ -56,6 +56,18 @@
             .replace(/'/g, '&#039;');
     }
 
+    function normaliseRepeatedNumbering(value) {
+        let nextNumber = 1;
+        let replacements = 0;
+        const lines = String(value ?? '').split('\n');
+        const normalised = lines.map(line => {
+            if (!/^\s*1\.\s+/.test(line)) return line;
+            replacements += 1;
+            return line.replace(/^(\s*)1\.(\s+)/, `$1${nextNumber++}.$2`);
+        });
+        return replacements > 1 ? normalised.join('\n') : String(value ?? '');
+    }
+
     function setLoading(isLoading) {
         const inputPanel = document.getElementById('es-input-panel');
         const loadingPanel = document.getElementById('es-loading');
@@ -84,10 +96,11 @@
         setLoading(true);
         outputEl.innerHTML = '';
 
-        const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Topic: "${topic}"`;
+        const prompt = `You are a helpful and safe AI assistant for students. Your primary goal is to explain educational topics in an age-appropriate and safe manner. Explain the following topic or question in a simple, easy-to-understand way, as if you were explaining it to a child. Use analogies and simple language. Use short paragraphs and bullet points where useful. Only use a numbered list when the order genuinely matters; if you use one, number the items sequentially as 1., 2., 3., 4. rather than repeating 1. for every item. Topic: "${topic}"`;
 
         try {
-            const text = await window.LearnerAPI.fetchWithRetry(prompt, false);
+            const rawText = await window.LearnerAPI.fetchWithRetry(prompt, false);
+            const text = normaliseRepeatedNumbering(rawText);
 
             window.LearnerAuth.supabase.from('saved_work').insert({
                 profile_id: profile.id,
