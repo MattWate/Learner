@@ -1,6 +1,6 @@
 export default async function handler(request, context) {
   const country = String(context.geo?.country?.code || '').toUpperCase();
-  const region = country === 'US' ? 'US' : 'ZA';
+  const region = country === 'US' ? 'US' : country === 'GB' ? 'GB' : 'ZA';
 
   return new Response(JSON.stringify({
     country: country || null,
