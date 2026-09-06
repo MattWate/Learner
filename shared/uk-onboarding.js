@@ -9,6 +9,33 @@
   let familyCountryTouched=false;
   let educatorCountryTouched=false;
 
+  function educationSystemFor(curriculum){
+    const code=String(curriculum||'').toUpperCase();
+    if(code==='UK_SCOTLAND_CFE')return 'Scotland';
+    if(code==='UK_WALES_CFW')return 'Wales';
+    if(code==='UK_NI')return 'Northern Ireland';
+    if(code==='CAMBRIDGE')return 'UK / international education';
+    return 'England';
+  }
+
+  function patchOnboardingRpc(){
+    const client=window.LearnerAuth?.supabase;
+    if(!client?.rpc||client.__ukOnboardingRpcPatched)return;
+    const original=client.rpc.bind(client);
+    client.rpc=function(fn,args,options){
+      if(fn==='complete_family_onboarding'&&String(args?.p_country_code||'').toUpperCase()==='GB'){
+        const raw=String(args?.p_grade||'').replace(/^grade\s*/i,'').replace(/^year\s*/i,'').trim();
+        args={...args,
+          p_grade:/^(r|reception)$/i.test(raw)?'Reception':`Year ${raw}`,
+          p_education_system:educationSystemFor(args?.p_curriculum_code),
+          p_maths_convention:'BODMAS'
+        };
+      }
+      return original(fn,args,options);
+    };
+    client.__ukOnboardingRpcPatched=true;
+  }
+
   function ensureGbOption(select){
     if(!select||select.querySelector('option[value="GB"]'))return;
     const option=document.createElement('option');
@@ -96,6 +123,7 @@
   }
 
   function apply(){
+    patchOnboardingRpc();
     wireFamilyCountry();
     wireEducatorCountry();
     localiseFamilyLevel();
