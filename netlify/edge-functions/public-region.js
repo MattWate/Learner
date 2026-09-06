@@ -4,10 +4,10 @@ export default async function handler(request, context) {
   if (!type.includes('text/html')) return response;
 
   const country = String(context.geo?.country?.code || '').toUpperCase();
-  const region = country === 'US' ? 'US' : 'ZA';
+  const region = country === 'US' ? 'US' : country === 'GB' ? 'GB' : 'ZA';
   let html = await response.text();
 
-  if (region === 'US') {
+  if (region === 'US' || region === 'GB') {
     html = html
       .replace(/R69(?=<span[^>]*>\/mo<\/span>)/g, '$5.99')
       .replace(/R99(?=<span[^>]*>\/mo<\/span>)/g, '$7.99')
