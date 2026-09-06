@@ -1,6 +1,6 @@
 exports.handler = async (event, context) => {
   const country = String(context?.geo?.country?.code || '').toUpperCase();
-  const region = country === 'US' ? 'US' : 'ZA';
+  const region = country === 'US' ? 'US' : country === 'GB' ? 'GB' : 'ZA';
 
   return {
     statusCode: 200,
