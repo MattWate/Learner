@@ -18,7 +18,7 @@ async function paypalAccessToken(clientId, clientSecret){
   return (await res.json()).access_token;
 }
 
-async function upsertSubscription(supabase, userId, subscription, plan){
+async function upsertSubscription(supabase, userId, subscription, plan, regionCode){
   const subscriptionId=subscription.id;
   const {data:existing,error:existingError}=await supabase.from('subscriptions')
     .select('id')
@@ -30,7 +30,7 @@ async function upsertSubscription(supabase, userId, subscription, plan){
   const row={
     account_id:userId,
     provider:'paypal',
-    region_code:'US',
+    region_code:regionCode,
     plan_code:plan.plan_code,
     currency:'USD',
     provider_customer_id:subscription.subscriber?.payer_id||null,
@@ -39,7 +39,7 @@ async function upsertSubscription(supabase, userId, subscription, plan){
     current_period_start:subscription.billing_info?.last_payment?.time||subscription.start_time||null,
     current_period_end:subscription.billing_info?.next_billing_time||null,
     updated_at:new Date().toISOString(),
-    metadata:{paypal_status:subscription.status,paypal_plan_id:subscription.plan_id}
+    metadata:{paypal_status:subscription.status,paypal_plan_id:subscription.plan_id,billing_currency:'USD',learner_region:regionCode}
   };
 
   if(existing?.id){
@@ -82,12 +82,13 @@ exports.handler = async (event) => {
     if(String(subscription.custom_id||'') !== userId) return {statusCode:403,body:JSON.stringify({error:'This PayPal subscription does not belong to the signed-in LearnerGenie account.'})};
 
     const [{data:account,error:accountError},{data:otherActive,error:activeError}]=await Promise.all([
-      supabase.from('accounts').select('active_tier,subscription_status,subscription_id').eq('id',userId).maybeSingle(),
+      supabase.from('accounts').select('active_tier,subscription_status,subscription_id,country_code,billing_region').eq('id',userId).maybeSingle(),
       supabase.from('subscriptions').select('id,provider,provider_subscription_id,plan_code').eq('account_id',userId).eq('status','active').neq('provider_subscription_id',subscriptionId).limit(1).maybeSingle()
     ]);
     if(accountError)throw accountError;
     if(activeError)throw activeError;
 
+    const regionCode=String(account?.country_code||account?.billing_region||'US').toUpperCase()==='GB'?'GB':'US';
     const accountAlreadyActive=(account?.active_tier&&account.active_tier!=='free')||['active','paid','trialing'].includes(String(account?.subscription_status||'').toLowerCase());
     if(otherActive || (accountAlreadyActive && account?.subscription_id && String(account.subscription_id)!==subscriptionId)){
       return {statusCode:409,body:JSON.stringify({error:'This account already has an active subscription. Please manage the existing subscription before starting another one.'})};
@@ -100,17 +101,17 @@ exports.handler = async (event) => {
       })};
     }
 
-    await upsertSubscription(supabase,userId,subscription,plan);
+    await upsertSubscription(supabase,userId,subscription,plan,regionCode);
     const {error:updateError}=await supabase.from('accounts').update({
       active_tier:plan.tier,
       subscription_id:subscriptionId,
       subscription_status:'active',
       profile_limit:plan.profile_limit,
-      billing_region:'US'
+      billing_region:regionCode
     }).eq('id',userId);
     if(updateError) throw updateError;
 
-    return {statusCode:200,headers:{'content-type':'application/json'},body:JSON.stringify({ok:true,plan_code:plan.plan_code,profile_limit:plan.profile_limit})};
+    return {statusCode:200,headers:{'content-type':'application/json'},body:JSON.stringify({ok:true,plan_code:plan.plan_code,profile_limit:plan.profile_limit,region:regionCode,billing_currency:'USD'})};
   }catch(error){
     console.error('PayPal verification error',error);
     return {statusCode:500,headers:{'content-type':'application/json'},body:JSON.stringify({error:error.message||'Subscription verification failed.'})};
