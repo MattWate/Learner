@@ -46,7 +46,13 @@ async function fetchSubscription(subscriptionId,token){
   return res.json();
 }
 
-async function upsertSubscription(supabase,userId,subscription,plan,status='active'){
+async function resolveRegion(supabase,userId){
+  const {data:account,error}=await supabase.from('accounts').select('country_code,billing_region').eq('id',userId).maybeSingle();
+  if(error)throw error;
+  return String(account?.country_code||account?.billing_region||'US').toUpperCase()==='GB'?'GB':'US';
+}
+
+async function upsertSubscription(supabase,userId,subscription,plan,regionCode,status='active'){
   const {data:existing,error:existingError}=await supabase.from('subscriptions')
     .select('id')
     .eq('provider','paypal')
@@ -57,7 +63,7 @@ async function upsertSubscription(supabase,userId,subscription,plan,status='acti
   const row={
     account_id:userId,
     provider:'paypal',
-    region_code:'US',
+    region_code:regionCode,
     plan_code:plan.plan_code,
     currency:'USD',
     provider_customer_id:subscription.subscriber?.payer_id||null,
@@ -66,7 +72,7 @@ async function upsertSubscription(supabase,userId,subscription,plan,status='acti
     current_period_start:subscription.billing_info?.last_payment?.time||subscription.start_time||null,
     current_period_end:subscription.billing_info?.next_billing_time||null,
     updated_at:new Date().toISOString(),
-    metadata:{paypal_status:subscription.status,paypal_plan_id:subscription.plan_id}
+    metadata:{paypal_status:subscription.status,paypal_plan_id:subscription.plan_id,billing_currency:'USD',learner_region:regionCode}
   };
 
   if(existing?.id){
@@ -84,13 +90,14 @@ async function activateAccount(supabase,subscription){
   const userId=String(subscription.custom_id||'');
   if(!plan || !userId) throw new Error('PayPal activation is missing a recognised plan or LearnerGenie account reference.');
 
-  await upsertSubscription(supabase,userId,subscription,plan,'active');
+  const regionCode=await resolveRegion(supabase,userId);
+  await upsertSubscription(supabase,userId,subscription,plan,regionCode,'active');
   const {error}=await supabase.from('accounts').update({
     active_tier:plan.tier,
     subscription_id:subscription.id,
     subscription_status:'active',
     profile_limit:plan.profile_limit,
-    billing_region:'US'
+    billing_region:regionCode
   }).eq('id',userId);
   if(error) throw error;
 }
@@ -109,8 +116,6 @@ exports.handler=async(event)=>{
 
     const type=webhookEvent.event_type;
     const resource=webhookEvent.resource||{};
-    // Subscription payment webhooks use billing_agreement_id; subscription lifecycle
-    // webhooks use resource.id. Prefer the explicit billing agreement reference.
     const subscriptionId=resource.billing_agreement_id||resource.subscription_id||resource.id;
     if(!subscriptionId) return {statusCode:200,body:'Ignored'};
 
@@ -144,7 +149,6 @@ exports.handler=async(event)=>{
         .maybeSingle();
       if(accountReadError) throw accountReadError;
       if(String(account?.subscription_id||'')===String(subscriptionId)){
-        // Keep the paid tier/profile allowance while PayPal retries the payment.
         const {error}=await supabase.from('accounts').update({subscription_status:'past_due'}).eq('id',sub.account_id);
         if(error) throw error;
       }
