@@ -224,9 +224,15 @@
           <small>Organisation workspace</small>
         </button>
       </div>
-      <div class="ob-field" style="margin-top:20px">
-        <label for="workspace-name">Workspace name</label>
-        <input id="workspace-name" value="${esc(state.organisationName)}" placeholder="My Tutor Workspace">
+      <div class="ob-grid" style="margin-top:20px">
+        <div class="ob-field">
+          <label for="workspace-name">Workspace name</label>
+          <input id="workspace-name" value="${esc(state.organisationName)}" placeholder="My Tutor Workspace">
+        </div>
+        <div class="ob-field">
+          <label for="tutor-country">Based in</label>
+          <select id="tutor-country">${countryOptions()}</select>
+        </div>
       </div>
       <div class="ob-info">Your tutor dashboard is free. Learner access remains separate, so families keep control of their own learner accounts.</div>
       <div class="ob-actions">${backButton('role')}<button class="ob-btn ob-btn-primary" id="work-next">Continue <i data-lucide="arrow-right"></i></button></div>`,3);
@@ -246,6 +252,7 @@
       if(!name)return error('Please give your tutor workspace a name.');
       state.organisationName=name;
       state.educatorType=state.workspaceType==='organisation'?'tutor_centre':'private_tutor';
+      setRegionalDefaults(document.getElementById('tutor-country').value);
       const region=window.LearnerRegions.byCode(state.country);
       state.curriculum=region.curricula[0][0];
       persist();
