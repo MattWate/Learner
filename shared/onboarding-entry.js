@@ -146,6 +146,7 @@
     }
     const {data:{session}}=await client.auth.getSession();
     if(session)return continueWithSession(session);
+    sessionStorage.removeItem('learnergenie_onboarding_draft');
     showAuth('register');
   }
 
