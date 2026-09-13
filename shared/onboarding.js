@@ -4,7 +4,7 @@
   const client=window.LearnerAuth?.supabase;
   const STORAGE_KEY='learnergenie_onboarding_draft';
   let session,account;
-  const defaults={path:null,country:'US',name:'',grade:'5',curriculum:'US_COMMON_CORE',language:'English',educatorType:'private_tutor',workspaceType:'individual',organisationName:'',grades:['4','5','6'],subjects:['Math','English']};
+  const defaults={path:null,country:'ZA',countryTouched:false,name:'',grade:'5',curriculum:'ZA_CAPS',language:'English',educatorType:'private_tutor',workspaceType:'individual',organisationName:'',grades:['4','5','6'],subjects:['Math','English']};
   let state={...defaults};
 
   try{
@@ -92,6 +92,21 @@
     if(!Number.isInteger(numeric)||numeric<1||numeric>max)state.grade='5';
   }
 
+  async function detectCountry(){
+    if(state.countryTouched&&window.LearnerRegions.regions[state.country])return state.country;
+    try{
+      const response=await fetch('/.netlify/functions/geo-region',{cache:'no-store'});
+      if(response.ok){
+        const data=await response.json();
+        const region=String(data?.region||'').toUpperCase();
+        if(window.LearnerRegions.regions[region])return region;
+      }
+    }catch(error){
+      console.warn('Could not detect onboarding region.',error);
+    }
+    return 'ZA';
+  }
+
   function educationSystemFor(country,curriculum){
     if(country!=='GB')return curriculum;
     const code=String(curriculum||'').toUpperCase();
@@ -163,6 +178,7 @@
     document.getElementById('country').onchange=event=>{
       state.name=document.getElementById('learner-name').value.trim();
       state.grade=document.getElementById('grade').value;
+      state.countryTouched=true;
       setRegionalDefaults(event.target.value);
       const grade=document.getElementById('grade');
       const label=document.getElementById('level-label');
@@ -252,6 +268,7 @@
       if(!name)return error('Please give your tutor workspace a name.');
       state.organisationName=name;
       state.educatorType=state.workspaceType==='organisation'?'tutor_centre':'private_tutor';
+      state.countryTouched=true;
       setRegionalDefaults(document.getElementById('tutor-country').value);
       const region=window.LearnerRegions.byCode(state.country);
       state.curriculum=region.curricula[0][0];
@@ -359,10 +376,9 @@
       return routeExisting(profiles||[],memberships||[]);
     }
 
-    const inferred=window.LearnerRegions.inferred().countryCode;
-    if(!state.country||!window.LearnerRegions.regions[state.country])state.country=inferred;
-    if(!sessionStorage.getItem(STORAGE_KEY))state.country=inferred;
-    setRegionalDefaults(state.country);
+    const detected=await detectCountry();
+    if(!state.countryTouched)setRegionalDefaults(detected);
+    else setRegionalDefaults(state.country);
 
     if(forced==='family'){
       state.path='family';
