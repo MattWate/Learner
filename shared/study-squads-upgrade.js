@@ -4,5 +4,10 @@
   function addSidebarUpgrade(){const label=document.getElementById('squad-plan-label');if(!label||!/free/i.test(label.textContent||''))return;const bottom=label.closest('.lg-sidebar-bottom')?.querySelector('.lg-nav');if(!bottom||bottom.querySelector('[data-squad-upgrade]'))return;const link=document.createElement('a');link.className='lg-nav-link';link.dataset.squadUpgrade='1';link.href=upgradeHref();link.innerHTML='<i data-lucide="sparkles" width="18"></i><span>Upgrade</span>';bottom.prepend(link);}
   function addPaywallUpgrade(){const app=document.getElementById('app');if(!app||app.querySelector('[data-upgrade-cta]'))return;const text=(app.innerText||'').toLowerCase();if(!text.includes('premium')&&!text.includes('upgrade'))return;const target=app.querySelector('.card')||app.querySelector('section')||app.firstElementChild||app;const wrap=document.createElement('div');wrap.dataset.upgradeCta='1';wrap.style.cssText='margin-top:22px;text-align:center';wrap.innerHTML=`<a href="${upgradeHref()}" style="display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#2f7f78;color:#fff;text-decoration:none;font-weight:800;padding:12px 20px;border-radius:12px;box-shadow:0 10px 24px rgba(47,127,120,.18)">Upgrade to unlock Study Squads <span aria-hidden="true">→</span></a><p style="margin:9px 0 0;color:#6b7280;font-size:13px">Unlock Study Squads and unlimited learning activities.</p>`;target.appendChild(wrap);}
   function sync(){addSidebarUpgrade();addPaywallUpgrade();window.lucide?.createIcons();}
-  const observer=new MutationObserver(sync);observer.observe(document.documentElement,{childList:true,subtree:true,characterData:true});document.addEventListener('DOMContentLoaded',sync);setTimeout(sync,0);
+  // The old document-wide MutationObserver observed changes caused by
+  // lucide.createIcons() inside sync(), creating an unbounded mutation loop
+  // that blocked the browser's main thread even during diagnostic startup.
+  // Run once on page load and only on explicit Study Squads renders.
+  document.addEventListener('DOMContentLoaded', sync, { once: true });
+  window.addEventListener('learner-squads-rendered', sync);
 })();
