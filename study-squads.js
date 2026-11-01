@@ -104,52 +104,44 @@ function copyText(text, label = 'Copied') {
 }
 
 async function init() {
-  // TEMPORARY DIAGNOSTIC TEST B: isolate all authentication and data loading.
-  // No Supabase requests or dynamic dashboard rendering are executed.
-  app.innerHTML = `<div style="max-width:620px;margin:60px auto;padding:28px;background:white;border:1px solid #ddd;border-radius:16px;font-family:sans-serif">
-    <h1 style="font-size:24px;font-weight:700">Study Squads — Diagnostic Test B</h1>
-    <p>The application script has loaded. Authentication and Study Squads data requests are temporarily disabled for this test.</p>
-    <p>If you can read this and navigate away normally, the freeze occurs during application startup or data loading.</p>
-    <a href="/app.html" style="display:inline-block;padding:12px 18px;background:#173451;color:white;border-radius:8px;text-decoration:none">Return to learner dashboard</a>
-  </div>`;
-  return;
-  state.loading = true;
-  state.error = null;
-  render();
-
+  // DIAGNOSTIC STEP 1: Authenticate and retrieve account/profile data only.
+  // Do not load squad RPCs or render the full dashboard during isolation.
+  const panel = document.createElement('section');
+  panel.style.cssText = 'max-width:680px;margin:48px auto;padding:28px;background:#fff;border:1px solid #dbe3e8;border-radius:16px;font:16px/1.6 sans-serif';
+  panel.innerHTML = '<h1>Study Squads — Diagnostic Step 1</h1><p id="squad-diag-status" role="status">Starting authentication check…</p><p><a href="/app.html">Return to learner dashboard</a></p>';
+  app.replaceChildren(panel);
+  const status = panel.querySelector('#squad-diag-status');
+  const stages = [];
+  const update = message => { stages.push(message); status.textContent = stages.join(' → '); console.info('[Study Squads diagnostic]', message); };
+  const guard = (operation, ms = 10000) => Promise.race([
+    operation,
+    new Promise((_, reject) => setTimeout(() => reject(new Error('Timed out after ' + ms / 1000 + ' seconds')), ms))
+  ]);
   try {
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
+    update('Checking session');
+    const { data: sessionData, error: sessionError } = await guard(supabaseClient.auth.getSession());
     if (sessionError) throw sessionError;
     if (!sessionData?.session) {
-      window.location.href = '/login.html';
+      update('No active session — please sign in');
       return;
     }
     state.session = sessionData.session;
+    update('Session ready');
 
-    await loadAccount();
-    await loadProfiles();
+    update('Loading account');
+    await guard(loadAccount());
+    update('Account ready');
+
+    update('Loading profiles');
+    await guard(loadProfiles());
+    update('Profiles ready (' + state.profiles.length + ')');
 
     chooseInitialProfile();
-
-    if (state.selectedProfileId) {
-      await loadStats();
-
-      if (isPremiumUser()) {
-        await loadSquads();
-      }
-    }
-
-    state.loading = false;
-    render();
-
-    if (state.selectedProfileId && isPremiumUser()) {
-      await autoJoinFromUrl();
-    }
+    update('Selected learner: ' + (state.selectedProfileId || 'none'));
+    update('Step 1 completed — no squad requests or dashboard rendering executed');
   } catch (error) {
-    console.error(error);
-    state.loading = false;
-    state.error = error.message || 'Something went wrong while loading Study Squads.';
-    render();
+    console.error('[Study Squads diagnostic] Startup failed', error);
+    update('ERROR: ' + (error?.message || String(error)));
   }
 }
 
