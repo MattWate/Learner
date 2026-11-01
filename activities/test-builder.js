@@ -4,6 +4,36 @@
     let currentTest = [];
     let currentQuestionIndex = 0;
     let isMarking = false;
+    const DRAFT_PREFIX = 'learnergenie_practice_draft_v1_';
+    let draftKey = null;
+    function saveDraft() {
+        if (!draftKey || !currentTest.length || isMarking) return;
+        try {
+            const answers = currentTest.map((_, index) => {
+                const selected = document.querySelector(`input[name="question_${index}"]:checked`);
+                const written = document.querySelector(`input[type="text"][name="question_${index}"]`);
+                return selected?.value ?? written?.value ?? null;
+            });
+            localStorage.setItem(draftKey, JSON.stringify({ questions: currentTest, answers, index: currentQuestionIndex, savedAt: Date.now() }));
+        } catch (error) { console.warn('Could not save practice test locally', error); }
+    }
+    function restoreDraft() {
+        if (!draftKey) return;
+        try {
+            const raw = localStorage.getItem(draftKey);
+            if (!raw) return;
+            const draft = JSON.parse(raw);
+            if (!Array.isArray(draft.questions) || !draft.questions.length || Date.now() - draft.savedAt > 7 * 86400000) return;
+            document.getElementById('tb-output').innerHTML = `<div class="lg-test-stage"><div id="tb-answer-content">${renderTestBuilderContent(draft.questions)}</div></div>`;
+            (draft.answers || []).forEach((answer, index) => {
+                if (answer == null) return;
+                const inputs = document.querySelectorAll(`input[name="question_${index}"]`);
+                inputs.forEach(input => { if (input.type === 'radio') input.checked = input.value === answer; else input.value = answer; });
+            });
+            currentQuestionIndex = Math.min(Math.max(Number(draft.index) || 0, 0), currentTest.length - 1);
+            wireFocusedTest();
+        } catch (error) { console.warn('Could not restore practice test', error); }
+    }
 
     const TEST_BUILDER_TRANSLATION_INSTRUCTIONS = `
 Keep the same JSON structure for Test Builder.
@@ -174,7 +204,9 @@ Return valid JSON only.
         setMarkingState(true);
 
         try {
+            saveDraft();
             await window.LearnerQuiz.submitQuiz(currentTest);
+            if (draftKey) { try { localStorage.removeItem(draftKey); } catch {} }
             document.getElementById('lg-test-marking')?.remove();
             const main = document.getElementById('lg-test-main');
             main?.classList.add('lg-review-mode');
@@ -199,6 +231,11 @@ Return valid JSON only.
         const blocks = Array.from(document.querySelectorAll('.quiz-question-wrapper'));
         if (!blocks.length) return;
 
+        // Prevent Enter in a written answer from submitting the native form and reloading the page.
+        document.getElementById('quiz-form')?.addEventListener('submit', event => {
+            event.preventDefault();
+            if (!isMarking) showResultsReview();
+        });
         const backButton = document.getElementById('lg-test-back');
         const nextButton = document.getElementById('lg-test-next');
 
@@ -207,6 +244,7 @@ Return valid JSON only.
                 if (isMarking) return;
                 currentQuestionIndex -= 1;
                 refreshQuestionView();
+                saveDraft();
             };
         }
 
@@ -231,11 +269,11 @@ Return valid JSON only.
         });
 
         document.querySelectorAll('#quiz-form input').forEach(input => {
-            input.onchange = refreshQuestionView;
+            input.onchange = () => { refreshQuestionView(); saveDraft(); };
         });
 
         document.querySelectorAll('#quiz-form input[type="text"]').forEach(input => {
-            input.oninput = refreshQuestionView;
+            input.oninput = () => { refreshQuestionView(); saveDraft(); };
         });
 
         refreshQuestionView();
@@ -295,6 +333,7 @@ The topic is: ${topic}`;
             });
             if (window.lucide?.createIcons) window.lucide.createIcons();
             wireFocusedTest();
+            saveDraft();
             outputEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } catch (error) {
             errorEl.textContent = `Could not build the test: ${error.message}`;
@@ -311,8 +350,10 @@ The topic is: ${topic}`;
         const result = await window.LearnerAuth.requireSessionAndProfile();
         if (!result) return;
         const { profile, account } = result;
+        draftKey = DRAFT_PREFIX + result.session.user.id + '_' + profile.id;
         window.LearnerShell.render({ root, profile, account, activeKey: 'test', title: 'Practice Test', mobileTitle: 'Practice Test', content: pageContent(profile.name) });
         document.getElementById('generate-test-builder-btn').addEventListener('click', () => handleGenerateTestBuilder(profile));
+        restoreDraft();
     }
     init();
 })();
