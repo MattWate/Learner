@@ -456,6 +456,8 @@ async function autoJoinFromUrl() {
 }
 
 function render() {
+  // Notify the optional UI enhancer once per render; avoid observing its own DOM changes.
+  queueMicrotask(() => window.dispatchEvent(new Event('learner-squads-rendered')));
   if (state.loading) {
     app.innerHTML = loadingTemplate();
     createIcons();
