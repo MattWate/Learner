@@ -1248,4 +1248,21 @@ function renderQrCode() {
   `;
 }
 
-init();
+// Fail visibly rather than leaving learners on an endless spinner when a
+// Supabase session refresh or RPC request never settles.
+let startupFinished = false;
+const startupWatchdog = setTimeout(() => {
+  if (startupFinished) return;
+  state.loading = false;
+  state.error = 'Study Squads is taking too long to load. You can return to the learner dashboard or retry.';
+  render();
+}, 12000);
+Promise.resolve().then(init).catch(error => {
+  console.error('Study Squads startup failed', error);
+  state.loading = false;
+  state.error = error?.message || 'Study Squads could not load.';
+  render();
+}).finally(() => {
+  startupFinished = true;
+  clearTimeout(startupWatchdog);
+});
