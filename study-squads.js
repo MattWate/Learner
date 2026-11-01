@@ -104,48 +104,41 @@ function copyText(text, label = 'Copied') {
 }
 
 async function init() {
-  // DIAGNOSTIC STEP 1: Authenticate and retrieve account/profile data only.
-  // Do not load squad RPCs or render the full dashboard during isolation.
-  const panel = document.createElement('section');
-  panel.style.cssText = 'max-width:680px;margin:48px auto;padding:28px;background:#fff;border:1px solid #dbe3e8;border-radius:16px;font:16px/1.6 sans-serif';
-  panel.innerHTML = '<h1>Study Squads — Diagnostic Step 1</h1><p id="squad-diag-status" role="status">Starting authentication check…</p><p><a href="/app.html">Return to learner dashboard</a></p>';
-  app.replaceChildren(panel);
-  const status = panel.querySelector('#squad-diag-status');
-  const stages = [];
-  const update = message => { stages.push(message); status.textContent = stages.join(' → '); console.info('[Study Squads diagnostic]', message); };
-  const guard = (operation, ms = 10000) => Promise.race([
-    operation,
-    new Promise((_, reject) => setTimeout(() => reject(new Error('Timed out after ' + ms / 1000 + ' seconds')), ms))
-  ]);
+  state.loading = true;
+  state.error = null;
+  render();
+
   try {
-    update('Checking session');
-    const { data: sessionData, error: sessionError } = await guard(supabaseClient.auth.getSession());
+    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
     if (sessionError) throw sessionError;
     if (!sessionData?.session) {
-      update('No active session — please sign in');
+      window.location.href = '/login.html';
       return;
     }
     state.session = sessionData.session;
-    update('Session ready');
 
-    update('Loading account');
-    // Isolate Supabase account query: temporarily bypass it entirely.
-    // The previous diagnostic consistently froze during loadAccount().
-    // No other Supabase database requests should run in this test.
-    update('Account query intentionally skipped');
-    update('Step 1B complete — session works; database query isolated');
-    return;
-
-    update('Loading profiles');
-    await guard(loadProfiles());
-    update('Profiles ready (' + state.profiles.length + ')');
-
+    await loadAccount();
+    await loadProfiles();
     chooseInitialProfile();
-    update('Selected learner: ' + (state.selectedProfileId || 'none'));
-    update('Step 1 completed — no squad requests or dashboard rendering executed');
+
+    if (state.selectedProfileId) {
+      await loadStats();
+      if (isPremiumUser()) {
+        await loadSquads();
+      }
+    }
+
+    state.loading = false;
+    render();
+
+    if (state.selectedProfileId && isPremiumUser()) {
+      await autoJoinFromUrl();
+    }
   } catch (error) {
-    console.error('[Study Squads diagnostic] Startup failed', error);
-    update('ERROR: ' + (error?.message || String(error)));
+    console.error('Study Squads startup error', error);
+    state.loading = false;
+    state.error = error?.message || 'Something went wrong while loading Study Squads.';
+    render();
   }
 }
 
