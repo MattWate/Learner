@@ -257,6 +257,7 @@ Return valid JSON only.
                 }
                 currentQuestionIndex += 1;
                 refreshQuestionView();
+                saveDraft();
             };
         }
 
@@ -265,6 +266,7 @@ Return valid JSON only.
                 if (isMarking) return;
                 currentQuestionIndex = Number(button.dataset.questionJump);
                 refreshQuestionView();
+                saveDraft();
             };
         });
 
@@ -302,6 +304,7 @@ Return valid JSON only.
         button.innerHTML = `<span class="lg-spinner" style="width:20px;height:20px;border-width:2px;border-top-color:white"></span>Building test…`;
         outputEl.innerHTML = `<div class="lg-panel lg-test-loading"><div class="lg-spinner"></div><h3>Building your practice test…</h3><p>Creating ${numQuestions} questions about ${escapeHtml(topic)}.</p></div>`;
         currentTest = [];
+        if (draftKey) { try { localStorage.removeItem(draftKey); } catch {} }
 
         const prompt = `You are an AI test generator for school learners. Create an age-appropriate practice test based on the following parameters.
 Provide a JSON object with a single key: "practice_test".
@@ -329,7 +332,7 @@ The topic is: ${topic}`;
                 toolbarId: 'tb-answer-toolbar', contentId: 'tb-answer-content', originalContent, sourceTool: 'testBuilder', topic,
                 structureInstructions: TEST_BUILDER_TRANSLATION_INSTRUCTIONS,
                 renderContent: content => renderTestBuilderContent(content?.practice_test || []),
-                onRerender: wireFocusedTest
+                onRerender: () => { wireFocusedTest(); saveDraft(); }
             });
             if (window.lucide?.createIcons) window.lucide.createIcons();
             wireFocusedTest();
@@ -354,6 +357,7 @@ The topic is: ${topic}`;
         window.LearnerShell.render({ root, profile, account, activeKey: 'test', title: 'Practice Test', mobileTitle: 'Practice Test', content: pageContent(profile.name) });
         document.getElementById('generate-test-builder-btn').addEventListener('click', () => handleGenerateTestBuilder(profile));
         restoreDraft();
+        window.addEventListener('pagehide', saveDraft);
     }
     init();
 })();
