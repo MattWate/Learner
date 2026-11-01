@@ -104,6 +104,15 @@ function copyText(text, label = 'Copied') {
 }
 
 async function init() {
+  // TEMPORARY DIAGNOSTIC TEST B: isolate all authentication and data loading.
+  // No Supabase requests or dynamic dashboard rendering are executed.
+  app.innerHTML = `<div style="max-width:620px;margin:60px auto;padding:28px;background:white;border:1px solid #ddd;border-radius:16px;font-family:sans-serif">
+    <h1 style="font-size:24px;font-weight:700">Study Squads — Diagnostic Test B</h1>
+    <p>The application script has loaded. Authentication and Study Squads data requests are temporarily disabled for this test.</p>
+    <p>If you can read this and navigate away normally, the freeze occurs during application startup or data loading.</p>
+    <a href="/app.html" style="display:inline-block;padding:12px 18px;background:#173451;color:white;border-radius:8px;text-decoration:none">Return to learner dashboard</a>
+  </div>`;
+  return;
   state.loading = true;
   state.error = null;
   render();
