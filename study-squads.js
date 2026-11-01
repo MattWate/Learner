@@ -129,8 +129,12 @@ async function init() {
     update('Session ready');
 
     update('Loading account');
-    await guard(loadAccount());
-    update('Account ready');
+    // Isolate Supabase account query: temporarily bypass it entirely.
+    // The previous diagnostic consistently froze during loadAccount().
+    // No other Supabase database requests should run in this test.
+    update('Account query intentionally skipped');
+    update('Step 1B complete — session works; database query isolated');
+    return;
 
     update('Loading profiles');
     await guard(loadProfiles());
