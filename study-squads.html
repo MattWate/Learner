@@ -45,6 +45,19 @@
 
   <main class="lg-squads-main"><div id="app"><div class="lg-squads-loading"><div class="lg-spinner"></div><p>Loading Study Squads…</p></div></div></main>
 
+  <script>
+    // Preserve the selected learner across Study Squads sidebar navigation,
+    // including URLs with fragments such as Settings.
+    (() => {
+      const profileId = new URLSearchParams(location.search).get('profile_id');
+      if (!profileId) return;
+      document.querySelectorAll('a[data-profile-link]').forEach(link => {
+        const url = new URL(link.getAttribute('href'), location.origin);
+        url.searchParams.set('profile_id', profileId);
+        link.href = url.pathname + url.search + url.hash;
+      });
+    })();
+  </script>
   <script src="/study-squads.js"></script>
   <!-- Diagnostic Test A: Study Squads UI enhancement temporarily disabled. -->
   <script src="/shared/study-squads-upgrade.js"></script>
