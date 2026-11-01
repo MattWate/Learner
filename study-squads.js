@@ -109,16 +109,21 @@ async function init() {
   render();
 
   try {
-    const { data: sessionData, error: sessionError } = await supabaseClient.auth.getSession();
-
-    if (sessionError) throw sessionError;
-
-    if (!sessionData?.session) {
-      window.location.href = '/login.html';
+    // Use the same resilient session lookup as the rest of the learner workspace.
+    // A transient refresh/network failure should not immediately log the learner out.
+    let activeSession = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabaseClient.auth.getSession();
+      if (data?.session) { activeSession = data.session; break; }
+      if (error) console.warn('Study Squads session lookup failed', error);
+      if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 500 * (attempt + 1)));
+    }
+    if (!activeSession) {
+      window.location.replace('/login.html?next=' + encodeURIComponent(location.pathname + location.search));
       return;
     }
 
-    state.session = sessionData.session;
+    state.session = activeSession;
 
     await loadAccount();
     await loadProfiles();
