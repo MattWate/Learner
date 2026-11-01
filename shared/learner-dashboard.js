@@ -88,6 +88,22 @@
     </div>`;
   }
 
+  function settingsContent() {
+    return `<div class="lg-page"><header class="lg-page-header"><div><div class="lg-eyebrow">Your workspace</div><h1 class="lg-page-title">Settings</h1><p class="lg-page-copy">Your learner and account details.</p></div></header>
+      <section class="lg-panel" style="padding:24px"><h2>Learner profile</h2><p><strong>Name:</strong> ${escapeHtml(activeProfile.name)}</p><p><strong>Grade:</strong> ${escapeHtml(activeProfile.grade || 'Not set')}</p><p><strong>Language:</strong> ${escapeHtml(activeProfile.language || 'Not set')}</p><p style="margin-top:18px"><a class="lg-primary-button" style="display:inline-block;text-decoration:none" href="/app.html">Switch learner</a></p></section>
+      <section class="lg-panel" style="padding:24px;margin-top:18px"><h2>Account</h2><p><strong>Plan:</strong> ${escapeHtml(account?.active_tier || 'free')}</p><p><strong>Subscription:</strong> ${escapeHtml(account?.subscription_status || 'free')}</p><p style="margin-top:18px"><a href="/upgrade.html">Manage or upgrade your plan</a></p></section>
+    </div>`;
+  }
+  async function showCurrentPage() {
+    if (!activeProfile) return;
+    if (location.hash === '#settings') {
+      window.LearnerShell.render({root,profile:activeProfile,account,activeKey:'settings',title:'Settings',content:settingsContent()});
+    } else {
+      await renderDashboard();
+    }
+  }
+  window.addEventListener('hashchange', () => { showCurrentPage().catch(console.error); });
+
   function picker() {
     const allowed=new Set(allowedProfiles().map(p=>String(p.id)));
     const cards = profiles.map(p => {
@@ -117,7 +133,7 @@
     activeProfile = profiles.find(p=>String(p.id)===String(id));
     if (!activeProfile) return picker();
     const url = new URL(location.href); url.searchParams.set('profile_id',activeProfile.id); history.replaceState({},'',url.pathname+url.search);
-    await renderDashboard();
+    await showCurrentPage();
   }
 
   async function addProfile() {
